@@ -5,11 +5,6 @@
 #include <subdev/pmu.h>
 #include <subdev/pmu/fuc/os.h>
 
-int nvkm_pmu_ctor(const struct nvkm_pmu_func *, struct nvkm_device *,
-		  int index, struct nvkm_pmu *);
-int nvkm_pmu_new_(const struct nvkm_pmu_func *, struct nvkm_device *,
-		  int index, struct nvkm_pmu **);
-
 struct nvkm_pmu_func {
 	struct {
 		u32 *data;
@@ -44,4 +39,19 @@ void gf100_pmu_reset(struct nvkm_pmu *);
 void gk110_pmu_pgob(struct nvkm_pmu *, bool);
 
 void gm20b_pmu_recv(struct nvkm_pmu *);
+
+struct nvkm_pmu_fwif {
+	int version;
+	int (*load)(struct nvkm_pmu *, int ver, const struct nvkm_pmu_fwif *);
+	const struct nvkm_pmu_func *func;
+	const struct nvkm_acr_lsf_func *acr;
+};
+
+int gf100_pmu_nofw(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
+int gm20b_pmu_load(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
+
+int nvkm_pmu_ctor(const struct nvkm_pmu_fwif *, struct nvkm_device *,
+		  int index, struct nvkm_pmu *);
+int nvkm_pmu_new_(const struct nvkm_pmu_fwif *, struct nvkm_device *,
+		  int index, struct nvkm_pmu **);
 #endif

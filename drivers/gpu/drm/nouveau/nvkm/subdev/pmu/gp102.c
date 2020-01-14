@@ -43,8 +43,14 @@ gp102_pmu = {
 	.reset = gp102_pmu_reset,
 };
 
+static const struct nvkm_pmu_fwif
+gp102_pmu_fwif[] = {
+	{ -1, gf100_pmu_nofw, &gp102_pmu },
+	{}
+};
+
 int
 gp102_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gp102_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(gp102_pmu_fwif, device, index, ppmu);
 }

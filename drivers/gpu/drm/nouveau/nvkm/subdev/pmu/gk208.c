@@ -40,8 +40,14 @@ gk208_pmu = {
 	.pgob = gk110_pmu_pgob,
 };
 
+static const struct nvkm_pmu_fwif
+gk208_pmu_fwif[] = {
+	{ -1, gf100_pmu_nofw, &gk208_pmu },
+	{}
+};
+
 int
 gk208_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gk208_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(gk208_pmu_fwif, device, index, ppmu);
 }

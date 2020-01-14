@@ -160,7 +160,4 @@ MODULE_FIRMWARE("nvidia/gm20b/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/sw_method_init.bin");
-MODULE_FIRMWARE("nvidia/gm20b/pmu/desc.bin");
-MODULE_FIRMWARE("nvidia/gm20b/pmu/image.bin");
-MODULE_FIRMWARE("nvidia/gm20b/pmu/sig.bin");
 #endif

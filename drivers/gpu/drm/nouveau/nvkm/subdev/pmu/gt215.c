@@ -256,8 +256,14 @@ gt215_pmu = {
 	.recv = gt215_pmu_recv,
 };
 
+static const struct nvkm_pmu_fwif
+gt215_pmu_fwif[] = {
+	{ -1, gf100_pmu_nofw, &gt215_pmu },
+	{}
+};
+
 int
 gt215_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gt215_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(gt215_pmu_fwif, device, index, ppmu);
 }

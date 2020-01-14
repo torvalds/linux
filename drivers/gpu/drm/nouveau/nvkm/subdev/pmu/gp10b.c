@@ -20,6 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
+#include <subdev/acr.h>
+
+static const struct nvkm_acr_lsf_func
+gp10b_pmu_acr = {
+};
 
 static const struct nvkm_pmu_func
 gp10b_pmu = {
@@ -28,8 +33,20 @@ gp10b_pmu = {
 	.recv = gm20b_pmu_recv,
 };
 
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
+MODULE_FIRMWARE("nvidia/gp10b/pmu/desc.bin");
+MODULE_FIRMWARE("nvidia/gp10b/pmu/image.bin");
+MODULE_FIRMWARE("nvidia/gp10b/pmu/sig.bin");
+#endif
+
+static const struct nvkm_pmu_fwif
+gp10b_pmu_fwif[] = {
+	{ 0, gm20b_pmu_load, &gp10b_pmu, &gp10b_pmu_acr },
+	{}
+};
+
 int
 gp10b_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gp10b_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(gp10b_pmu_fwif, device, index, ppmu);
 }

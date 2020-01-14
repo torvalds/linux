@@ -21,7 +21,11 @@
  */
 #include "priv.h"
 #include <core/msgqueue.h>
-#include <engine/falcon.h>
+#include <subdev/acr.h>
+
+static const struct nvkm_acr_lsf_func
+gm20b_pmu_acr = {
+};
 
 void
 gm20b_pmu_recv(struct nvkm_pmu *pmu)
@@ -42,8 +46,28 @@ gm20b_pmu = {
 	.recv = gm20b_pmu_recv,
 };
 
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
+MODULE_FIRMWARE("nvidia/gm20b/pmu/desc.bin");
+MODULE_FIRMWARE("nvidia/gm20b/pmu/image.bin");
+MODULE_FIRMWARE("nvidia/gm20b/pmu/sig.bin");
+#endif
+
+int
+gm20b_pmu_load(struct nvkm_pmu *pmu, int ver, const struct nvkm_pmu_fwif *fwif)
+{
+	return nvkm_acr_lsfw_load_sig_image_desc(&pmu->subdev, pmu->falcon,
+						 NVKM_ACR_LSF_PMU, "pmu/",
+						 ver, fwif->acr);
+}
+
+static const struct nvkm_pmu_fwif
+gm20b_pmu_fwif[] = {
+	{ 0, gm20b_pmu_load, &gm20b_pmu, &gm20b_pmu_acr },
+	{}
+};
+
 int
 gm20b_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gm20b_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(gm20b_pmu_fwif, device, index, ppmu);
 }

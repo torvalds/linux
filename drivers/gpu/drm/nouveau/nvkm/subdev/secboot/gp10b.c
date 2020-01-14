@@ -85,7 +85,4 @@ MODULE_FIRMWARE("nvidia/gp10b/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/gp10b/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/gp10b/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gp10b/gr/sw_method_init.bin");
-MODULE_FIRMWARE("nvidia/gp10b/pmu/desc.bin");
-MODULE_FIRMWARE("nvidia/gp10b/pmu/image.bin");
-MODULE_FIRMWARE("nvidia/gp10b/pmu/sig.bin");
 #endif

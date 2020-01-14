@@ -202,19 +202,27 @@ gk20a_pmu = {
 	.reset = gf100_pmu_reset,
 };
 
+static const struct nvkm_pmu_fwif
+gk20a_pmu_fwif[] = {
+	{ -1, gf100_pmu_nofw, &gk20a_pmu },
+	{}
+};
+
 int
 gk20a_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
 	struct gk20a_pmu *pmu;
+	int ret;
 
 	if (!(pmu = kzalloc(sizeof(*pmu), GFP_KERNEL)))
 		return -ENOMEM;
 	*ppmu = &pmu->base;
 
-	nvkm_pmu_ctor(&gk20a_pmu, device, index, &pmu->base);
+	ret = nvkm_pmu_ctor(gk20a_pmu_fwif, device, index, &pmu->base);
+	if (ret)
+		return ret;
 
 	pmu->data = &gk20a_dvfs_data;
 	nvkm_alarm_init(&pmu->alarm, gk20a_pmu_dvfs_work);
-
 	return 0;
 }

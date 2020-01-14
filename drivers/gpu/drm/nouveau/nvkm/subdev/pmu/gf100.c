@@ -56,7 +56,19 @@ gf100_pmu = {
 };
 
 int
+gf100_pmu_nofw(struct nvkm_pmu *pmu, int ver, const struct nvkm_pmu_fwif *fwif)
+{
+	return 0;
+}
+
+static const struct nvkm_pmu_fwif
+gf100_pmu_fwif[] = {
+	{ -1, gf100_pmu_nofw, &gf100_pmu },
+	{}
+};
+
+int
 gf100_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gf100_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(gf100_pmu_fwif, device, index, ppmu);
 }
