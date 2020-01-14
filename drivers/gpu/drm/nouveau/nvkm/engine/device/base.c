@@ -2376,7 +2376,7 @@ nv138_chipset = {
 	.fifo = gp100_fifo_new,
 	.gr = gp108_gr_new,
 	.nvdec[0] = gp102_nvdec_new,
-	.sec2 = gp102_sec2_new,
+	.sec2 = gp108_sec2_new,
 	.sw = gf100_sw_new,
 };
 
@@ -2444,7 +2444,7 @@ nv140_chipset = {
 	.fifo = gv100_fifo_new,
 	.gr = gv100_gr_new,
 	.nvdec[0] = gp102_nvdec_new,
-	.sec2 = gp102_sec2_new,
+	.sec2 = gp108_sec2_new,
 };
 
 static const struct nvkm_device_chip
