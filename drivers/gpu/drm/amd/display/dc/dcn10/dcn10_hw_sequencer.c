@@ -82,7 +82,7 @@ void print_microsec(struct dc_context *dc_ctx,
 			us_x10 % frac);
 }
 
-static void dcn10_lock_all_pipes(struct dc *dc,
+void dcn10_lock_all_pipes(struct dc *dc,
 	struct dc_state *context,
 	bool lock)
 {
@@ -93,6 +93,7 @@ static void dcn10_lock_all_pipes(struct dc *dc,
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		tg = pipe_ctx->stream_res.tg;
+
 		/*
 		 * Only lock the top pipe's tg to prevent redundant
 		 * (un)locking. Also skip if pipe is disabled.
@@ -103,9 +104,9 @@ static void dcn10_lock_all_pipes(struct dc *dc,
 			continue;
 
 		if (lock)
-			tg->funcs->lock(tg);
+			dc->hwss.pipe_control_lock(dc, pipe_ctx, true);
 		else
-			tg->funcs->unlock(tg);
+			dc->hwss.pipe_control_lock(dc, pipe_ctx, false);
 	}
 }
 
@@ -1576,7 +1577,7 @@ void dcn10_pipe_control_lock(
 	/* use TG master update lock to lock everything on the TG
 	 * therefore only top pipe need to lock
 	 */
-	if (pipe->top_pipe)
+	if (!pipe || pipe->top_pipe)
 		return;
 
 	if (dc->debug.sanity_checks)
@@ -2530,11 +2531,6 @@ void dcn10_apply_ctx_for_surface(
 	if (underflow_check_delay_us != 0xFFFFFFFF && hws->funcs.did_underflow_occur)
 		ASSERT(hws->funcs.did_underflow_occur(dc, top_pipe_to_program));
 
-	if (interdependent_update)
-		dcn10_lock_all_pipes(dc, context, true);
-	else
-		dcn10_pipe_control_lock(dc, top_pipe_to_program, true);
-
 	if (underflow_check_delay_us != 0xFFFFFFFF)
 		udelay(underflow_check_delay_us);
 
@@ -2553,19 +2549,6 @@ void dcn10_apply_ctx_for_surface(
 				&dc->current_state->res_ctx.pipe_ctx[i];
 
 		pipe_ctx->update_flags.raw = 0;
-
-		/*
-		 * Powergate reused pipes that are not powergated
-		 * fairly hacky right now, using opp_id as indicator
-		 * TODO: After move dc_post to dc_update, this will
-		 * be removed.
-		 */
-		if (pipe_ctx->plane_state && !old_pipe_ctx->plane_state) {
-			if (old_pipe_ctx->stream_res.tg == tg &&
-			    old_pipe_ctx->plane_res.hubp &&
-			    old_pipe_ctx->plane_res.hubp->opp_id != OPP_ID_INVALID)
-				dc->hwss.disable_plane(dc, old_pipe_ctx);
-		}
 
 		if ((!pipe_ctx->plane_state ||
 		     pipe_ctx->stream_res.tg != old_pipe_ctx->stream_res.tg) &&
@@ -2599,11 +2582,6 @@ void dcn10_apply_ctx_for_surface(
 				&pipe_ctx->dlg_regs,
 				&pipe_ctx->ttu_regs);
 		}
-
-	if (interdependent_update)
-		dcn10_lock_all_pipes(dc, context, false);
-	else
-		dcn10_pipe_control_lock(dc, top_pipe_to_program, false);
 }
 
 void dcn10_post_unlock_program_front_end(

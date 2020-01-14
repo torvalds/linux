@@ -80,10 +80,10 @@ struct hw_sequencer_funcs {
 	void (*update_pending_status)(struct pipe_ctx *pipe_ctx);
 
 	/* Pipe Lock Related */
-	void (*pipe_control_lock_global)(struct dc *dc,
-			struct pipe_ctx *pipe, bool lock);
 	void (*pipe_control_lock)(struct dc *dc,
 			struct pipe_ctx *pipe, bool lock);
+	void (*interdependent_update_lock)(struct dc *dc,
+			struct dc_state *context, bool lock);
 	void (*set_flip_control_gsl)(struct pipe_ctx *pipe_ctx,
 			bool flip_immediate);
 

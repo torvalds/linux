@@ -70,6 +70,10 @@ void dcn10_reset_hw_ctx_wrap(
 		struct dc *dc,
 		struct dc_state *context);
 void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn10_lock_all_pipes(
+		struct dc *dc,
+		struct dc_state *context,
+		bool lock);
 void dcn10_apply_ctx_for_surface(
 		struct dc *dc,
 		const struct dc_stream_state *stream,

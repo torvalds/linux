@@ -1088,40 +1088,18 @@ void dcn20_enable_plane(
 //	}
 }
 
-
-void dcn20_pipe_control_lock_global(
-		struct dc *dc,
-		struct pipe_ctx *pipe,
-		bool lock)
-{
-	if (lock) {
-		pipe->stream_res.tg->funcs->lock_doublebuffer_enable(
-				pipe->stream_res.tg);
-		pipe->stream_res.tg->funcs->lock(pipe->stream_res.tg);
-	} else {
-		pipe->stream_res.tg->funcs->unlock(pipe->stream_res.tg);
-		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
-				CRTC_STATE_VACTIVE);
-		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
-				CRTC_STATE_VBLANK);
-		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
-				CRTC_STATE_VACTIVE);
-		pipe->stream_res.tg->funcs->lock_doublebuffer_disable(
-				pipe->stream_res.tg);
-	}
-}
-
 void dcn20_pipe_control_lock(
 	struct dc *dc,
 	struct pipe_ctx *pipe,
 	bool lock)
 {
 	bool flip_immediate = false;
+	bool dig_update_required = false;
 
 	/* use TG master update lock to lock everything on the TG
 	 * therefore only top pipe need to lock
 	 */
-	if (pipe->top_pipe)
+	if (!pipe || pipe->top_pipe)
 		return;
 
 	if (pipe->plane_state != NULL)
@@ -1154,6 +1132,19 @@ void dcn20_pipe_control_lock(
 		    (!flip_immediate && pipe->stream_res.gsl_group > 0))
 			dcn20_setup_gsl_group_as_lock(dc, pipe, flip_immediate);
 
+	if (pipe->stream && pipe->stream->update_flags.bits.dsc_changed)
+		dig_update_required = true;
+
+	/* Need double buffer lock mode in order to synchronize front end pipe
+	 * updates with dig updates.
+	 */
+	if (dig_update_required) {
+		if (lock) {
+			pipe->stream_res.tg->funcs->lock_doublebuffer_enable(
+					pipe->stream_res.tg);
+		}
+	}
+
 	if (pipe->plane_state != NULL && pipe->plane_state->triplebuffer_flips) {
 		if (lock)
 			pipe->stream_res.tg->funcs->triplebuffer_lock(pipe->stream_res.tg);
@@ -1164,6 +1155,19 @@ void dcn20_pipe_control_lock(
 			pipe->stream_res.tg->funcs->lock(pipe->stream_res.tg);
 		else
 			pipe->stream_res.tg->funcs->unlock(pipe->stream_res.tg);
+	}
+
+	if (dig_update_required) {
+		if (!lock) {
+			pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
+					CRTC_STATE_VACTIVE);
+			pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
+					CRTC_STATE_VBLANK);
+			pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
+					CRTC_STATE_VACTIVE);
+			pipe->stream_res.tg->funcs->lock_doublebuffer_disable(
+					pipe->stream_res.tg);
+		}
 	}
 }
 
@@ -1536,25 +1540,27 @@ static void dcn20_program_pipe(
 	}
 }
 
-static bool does_pipe_need_lock(struct pipe_ctx *pipe)
-{
-	if ((pipe->plane_state && pipe->plane_state->update_flags.raw)
-			|| pipe->update_flags.raw)
-		return true;
-	if (pipe->bottom_pipe)
-		return does_pipe_need_lock(pipe->bottom_pipe);
-
-	return false;
-}
-
 void dcn20_program_front_end_for_ctx(
 		struct dc *dc,
 		struct dc_state *context)
 {
 	int i;
 	struct dce_hwseq *hws = dc->hwseq;
-	bool pipe_locked[MAX_PIPES] = {false};
 	DC_LOGGER_INIT(dc->ctx->logger);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx->top_pipe && !pipe_ctx->prev_odm_pipe && pipe_ctx->plane_state) {
+			ASSERT(!pipe_ctx->plane_state->triplebuffer_flips);
+			if (dc->hwss.program_triplebuffer != NULL &&
+				!dc->debug.disable_tri_buf) {
+				/*turn off triple buffer for full update*/
+				dc->hwss.program_triplebuffer(
+					dc, pipe_ctx, pipe_ctx->plane_state->triplebuffer_flips);
+			}
+		}
+	}
 
 	/* Carry over GSL groups in case the context is changing. */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
@@ -1566,17 +1572,6 @@ void dcn20_program_front_end_for_ctx(
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		dcn20_detect_pipe_changes(&dc->current_state->res_ctx.pipe_ctx[i],
 				&context->res_ctx.pipe_ctx[i]);
-	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		if (!context->res_ctx.pipe_ctx[i].top_pipe &&
-				does_pipe_need_lock(&context->res_ctx.pipe_ctx[i])) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-			if (pipe_ctx->update_flags.bits.tg_changed || pipe_ctx->update_flags.bits.enable)
-				dc->hwss.pipe_control_lock(dc, pipe_ctx, true);
-			if (!pipe_ctx->update_flags.bits.enable)
-				dc->hwss.pipe_control_lock(dc, &dc->current_state->res_ctx.pipe_ctx[i], true);
-			pipe_locked[i] = true;
-		}
 
 	/* OTG blank before disabling all front ends */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
@@ -1614,17 +1609,6 @@ void dcn20_program_front_end_for_ctx(
 				hws->funcs.program_all_writeback_pipes_in_tree(dc, pipe->stream, context);
 		}
 	}
-
-	/* Unlock all locked pipes */
-	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		if (pipe_locked[i]) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-			if (pipe_ctx->update_flags.bits.tg_changed || pipe_ctx->update_flags.bits.enable)
-				dc->hwss.pipe_control_lock(dc, pipe_ctx, false);
-			if (!pipe_ctx->update_flags.bits.enable)
-				dc->hwss.pipe_control_lock(dc, &dc->current_state->res_ctx.pipe_ctx[i], false);
-		}
 }
 
 void dcn20_post_unlock_program_front_end(
@@ -1663,7 +1647,6 @@ void dcn20_post_unlock_program_front_end(
 	if (dc->hwseq->wa.DEGVIDCN21)
 		dc->res_pool->hubbub->funcs->apply_DEDCN21_147_wa(dc->res_pool->hubbub);
 }
-
 
 void dcn20_prepare_bandwidth(
 		struct dc *dc,

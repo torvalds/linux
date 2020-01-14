@@ -61,10 +61,6 @@ void dcn20_pipe_control_lock(
 	struct dc *dc,
 	struct pipe_ctx *pipe,
 	bool lock);
-void dcn20_pipe_control_lock_global(
-		struct dc *dc,
-		struct pipe_ctx *pipe,
-		bool lock);
 void dcn20_prepare_bandwidth(
 		struct dc *dc,
 		struct dc_state *context);
