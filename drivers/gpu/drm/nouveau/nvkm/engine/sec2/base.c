@@ -60,6 +60,7 @@ nvkm_sec2_dtor(struct nvkm_engine *engine)
 {
 	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
 	nvkm_msgqueue_del(&sec2->queue);
+	nvkm_falcon_msgq_del(&sec2->msgq);
 	nvkm_falcon_cmdq_del(&sec2->cmdq);
 	nvkm_falcon_qmgr_del(&sec2->qmgr);
 	nvkm_falcon_dtor(&sec2->falcon);
@@ -99,7 +100,8 @@ nvkm_sec2_new_(const struct nvkm_sec2_fwif *fwif, struct nvkm_device *device,
 		return ret;
 
 	if ((ret = nvkm_falcon_qmgr_new(&sec2->falcon, &sec2->qmgr)) ||
-	    (ret = nvkm_falcon_cmdq_new(sec2->qmgr, "cmdq", &sec2->cmdq)))
+	    (ret = nvkm_falcon_cmdq_new(sec2->qmgr, "cmdq", &sec2->cmdq)) ||
+	    (ret = nvkm_falcon_msgq_new(sec2->qmgr, "msgq", &sec2->msgq)))
 		return ret;
 
 	INIT_WORK(&sec2->work, nvkm_sec2_recv);

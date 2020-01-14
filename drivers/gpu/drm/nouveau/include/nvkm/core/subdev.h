@@ -4,6 +4,7 @@
 #include <core/device.h>
 
 #define nvkm_falcon_cmdq nvkm_msgqueue_queue
+#define nvkm_falcon_msgq nvkm_msgqueue_queue
 
 struct nvkm_subdev {
 	const struct nvkm_subdev_func *func;

@@ -12,6 +12,7 @@ struct nvkm_pmu {
 	struct nvkm_falcon_qmgr *qmgr;
 	struct nvkm_falcon_cmdq *hpq;
 	struct nvkm_falcon_cmdq *lpq;
+	struct nvkm_falcon_msgq *msgq;
 	struct nvkm_msgqueue *queue;
 
 	struct {

@@ -12,6 +12,7 @@ struct nvkm_sec2 {
 
 	struct nvkm_falcon_qmgr *qmgr;
 	struct nvkm_falcon_cmdq *cmdq;
+	struct nvkm_falcon_msgq *msgq;
 	struct nvkm_msgqueue *queue;
 	struct work_struct work;
 };

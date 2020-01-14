@@ -39,8 +39,6 @@ enum {
 
 struct msgqueue_0148cdec {
 	struct nvkm_msgqueue base;
-
-	struct nvkm_msgqueue_queue queue[MSGQUEUE_0148CDEC_NUM_QUEUES];
 };
 #define msgqueue_0148cdec(q) \
 	container_of(q, struct msgqueue_0148cdec, base)
@@ -55,11 +53,7 @@ msgqueue_0148cdec_cmd_queue(struct nvkm_msgqueue *queue,
 static void
 msgqueue_0148cdec_process_msgs(struct nvkm_msgqueue *queue)
 {
-	struct msgqueue_0148cdec *priv = msgqueue_0148cdec(queue);
-	struct nvkm_msgqueue_queue *q_queue =
-		&priv->queue[MSGQUEUE_0148CDEC_MESSAGE_QUEUE];
-
-	nvkm_msgqueue_process_msgs(&priv->base, q_queue);
+	nvkm_msgqueue_process_msgs(queue, queue->falcon->owner->device->sec2->msgq);
 }
 
 
@@ -87,7 +81,6 @@ init_gen_cmdline(struct nvkm_msgqueue *queue, void *buf)
 static int
 init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 {
-	struct msgqueue_0148cdec *priv = msgqueue_0148cdec(_queue);
 	struct {
 		struct nvkm_msgqueue_msg base;
 
@@ -104,7 +97,6 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 		u16 sw_managed_area_offset;
 		u16 sw_managed_area_size;
 	} *init = (void *)hdr;
-	const struct nvkm_falcon_func *func = _queue->falcon->func;
 	const struct nvkm_subdev *subdev = _queue->falcon->owner;
 	struct nvkm_sec2 *sec2 = subdev->device->sec2;
 	int i;
@@ -121,29 +113,18 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 
 	for (i = 0; i < MSGQUEUE_0148CDEC_NUM_QUEUES; i++) {
 		u8 id = init->queue_info[i].id;
-		struct nvkm_msgqueue_queue *queue = &priv->queue[id];
-
-		mutex_init(&queue->mutex);
-
-		queue->index = init->queue_info[i].index;
-		queue->offset = init->queue_info[i].offset;
-		queue->size = init->queue_info[i].size;
 
 		if (id == MSGQUEUE_0148CDEC_MESSAGE_QUEUE) {
-			queue->head_reg = func->msgq.head + queue->index *
-					  func->msgq.stride;
-			queue->tail_reg = func->msgq.tail + queue->index *
-					  func->msgq.stride;
+			nvkm_falcon_msgq_init(sec2->msgq,
+					      init->queue_info[i].index,
+					      init->queue_info[i].offset,
+					      init->queue_info[i].size);
 		} else {
 			nvkm_falcon_cmdq_init(sec2->cmdq,
 					      init->queue_info[i].index,
 					      init->queue_info[i].offset,
 					      init->queue_info[i].size);
 		}
-
-		nvkm_debug(subdev,
-			   "queue %d: index %d, offset 0x%08x, size 0x%08x\n",
-			   id, queue->index, queue->offset, queue->size);
 	}
 
 	complete_all(&_queue->init_done);

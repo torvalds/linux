@@ -41,4 +41,11 @@ void nvkm_falcon_cmdq_del(struct nvkm_falcon_cmdq **);
 void nvkm_falcon_cmdq_init(struct nvkm_falcon_cmdq *,
 			   u32 index, u32 offset, u32 size);
 void nvkm_falcon_cmdq_fini(struct nvkm_falcon_cmdq *);
+
+struct nvkm_falcon_msgq;
+int nvkm_falcon_msgq_new(struct nvkm_falcon_qmgr *, const char *name,
+			 struct nvkm_falcon_msgq **);
+void nvkm_falcon_msgq_del(struct nvkm_falcon_msgq **);
+void nvkm_falcon_msgq_init(struct nvkm_falcon_msgq *,
+			   u32 index, u32 offset, u32 size);
 #endif

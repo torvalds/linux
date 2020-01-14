@@ -214,3 +214,42 @@ nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *priv,
 			msgqueue_msg_handle(priv, hdr);
 	}
 }
+
+void
+nvkm_falcon_msgq_init(struct nvkm_falcon_msgq *msgq,
+		      u32 index, u32 offset, u32 size)
+{
+	const struct nvkm_falcon_func *func = msgq->qmgr->falcon->func;
+
+	msgq->head_reg = func->msgq.head + index * func->msgq.stride;
+	msgq->tail_reg = func->msgq.tail + index * func->msgq.stride;
+	msgq->offset = offset;
+
+	FLCNQ_DBG(msgq, "initialised @ index %d offset 0x%08x size 0x%08x",
+		  index, msgq->offset, size);
+}
+
+void
+nvkm_falcon_msgq_del(struct nvkm_falcon_msgq **pmsgq)
+{
+	struct nvkm_falcon_msgq *msgq = *pmsgq;
+	if (msgq) {
+		kfree(*pmsgq);
+		*pmsgq = NULL;
+	}
+}
+
+int
+nvkm_falcon_msgq_new(struct nvkm_falcon_qmgr *qmgr, const char *name,
+		     struct nvkm_falcon_msgq **pmsgq)
+{
+	struct nvkm_falcon_msgq *msgq = *pmsgq;
+
+	if (!(msgq = *pmsgq = kzalloc(sizeof(*msgq), GFP_KERNEL)))
+		return -ENOMEM;
+
+	msgq->qmgr = qmgr;
+	msgq->name = name;
+	mutex_init(&msgq->mutex);
+	return 0;
+}
