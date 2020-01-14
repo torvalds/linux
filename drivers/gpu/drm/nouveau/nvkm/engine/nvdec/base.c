@@ -21,6 +21,7 @@
  */
 #include "priv.h"
 
+#include <core/firmware.h>
 #include <subdev/top.h>
 #include <engine/falcon.h>
 
@@ -54,14 +55,24 @@ nvkm_nvdec = {
 };
 
 int
-nvkm_nvdec_new_(struct nvkm_device *device, int index,
-		struct nvkm_nvdec **pnvdec)
+nvkm_nvdec_new_(const struct nvkm_nvdec_fwif *fwif, struct nvkm_device *device,
+		int index, struct nvkm_nvdec **pnvdec)
 {
 	struct nvkm_nvdec *nvdec;
+	int ret;
 
 	if (!(nvdec = *pnvdec = kzalloc(sizeof(*nvdec), GFP_KERNEL)))
 		return -ENOMEM;
 
-	return nvkm_engine_ctor(&nvkm_nvdec, device, index, true,
-				&nvdec->engine);
+	ret = nvkm_engine_ctor(&nvkm_nvdec, device, index, true,
+			       &nvdec->engine);
+	if (ret)
+		return ret;
+
+	fwif = nvkm_firmware_load(&nvdec->engine.subdev, fwif, "Nvdec", nvdec);
+	if (IS_ERR(fwif))
+		return -ENODEV;
+
+	nvdec->func = fwif->func;
+	return 0;
 };

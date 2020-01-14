@@ -5,6 +5,7 @@
 #include <core/engine.h>
 
 struct nvkm_nvdec {
+	const struct nvkm_nvdec_func *func;
 	struct nvkm_engine engine;
 	u32 addr;
 
