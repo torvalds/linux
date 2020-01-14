@@ -92,6 +92,7 @@ struct nvkm_falcon_func {
 	void (*start)(struct nvkm_falcon *);
 	int (*enable)(struct nvkm_falcon *falcon);
 	void (*disable)(struct nvkm_falcon *falcon);
+	int (*reset)(struct nvkm_falcon *);
 
 	struct {
 		u32 head;

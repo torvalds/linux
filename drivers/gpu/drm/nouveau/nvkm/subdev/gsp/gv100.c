@@ -32,7 +32,7 @@ gv100_gsp_flcn = {
 	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
 	.set_start_addr = nvkm_falcon_v1_set_start_addr,
 	.start = nvkm_falcon_v1_start,
-	.enable = nvkm_falcon_v1_enable,
+	.enable = gp102_sec2_flcn_enable,
 	.disable = nvkm_falcon_v1_disable,
 };
 

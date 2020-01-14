@@ -47,6 +47,15 @@ gp102_sec2_intr(struct nvkm_sec2 *sec2)
 	}
 }
 
+int
+gp102_sec2_flcn_enable(struct nvkm_falcon *falcon)
+{
+	nvkm_falcon_mask(falcon, 0x3c0, 0x00000001, 0x00000001);
+	udelay(10);
+	nvkm_falcon_mask(falcon, 0x3c0, 0x00000001, 0x00000000);
+	return nvkm_falcon_v1_enable(falcon);
+}
+
 void
 gp102_sec2_flcn_bind_context(struct nvkm_falcon *falcon,
 			     struct nvkm_memory *ctx)
@@ -99,7 +108,7 @@ gp102_sec2_flcn = {
 	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
 	.set_start_addr = nvkm_falcon_v1_set_start_addr,
 	.start = nvkm_falcon_v1_start,
-	.enable = nvkm_falcon_v1_enable,
+	.enable = gp102_sec2_flcn_enable,
 	.disable = nvkm_falcon_v1_disable,
 	.cmdq = { 0xa00, 0xa04, 8 },
 	.msgq = { 0xa30, 0xa34, 8 },

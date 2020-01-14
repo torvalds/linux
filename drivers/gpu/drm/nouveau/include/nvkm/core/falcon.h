@@ -19,4 +19,5 @@ int nvkm_falcon_v1_enable(struct nvkm_falcon *);
 void nvkm_falcon_v1_disable(struct nvkm_falcon *);
 
 void gp102_sec2_flcn_bind_context(struct nvkm_falcon *, struct nvkm_memory *);
+int gp102_sec2_flcn_enable(struct nvkm_falcon *);
 #endif
