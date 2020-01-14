@@ -24,6 +24,8 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 
+#include <mm/mmu_decl.h>
+
 #include "ptdump.h"
 
 /*
