@@ -17,4 +17,6 @@ void nvkm_falcon_v1_set_start_addr(struct nvkm_falcon *, u32 start_addr);
 void nvkm_falcon_v1_start(struct nvkm_falcon *);
 int nvkm_falcon_v1_enable(struct nvkm_falcon *);
 void nvkm_falcon_v1_disable(struct nvkm_falcon *);
+
+void gp102_sec2_flcn_bind_context(struct nvkm_falcon *, struct nvkm_memory *);
 #endif
