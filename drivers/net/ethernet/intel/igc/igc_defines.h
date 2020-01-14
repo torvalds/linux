@@ -259,6 +259,9 @@
 #define IGC_GPIE_EIAME		0x40000000
 #define IGC_GPIE_PBA		0x80000000
 
+/* Receive Descriptor bit definitions */
+#define IGC_RXD_STAT_DD		0x01    /* Descriptor Done */
+
 /* Transmit Descriptor bit definitions */
 #define IGC_TXD_DTYP_D		0x00100000 /* Data Descriptor */
 #define IGC_TXD_DTYP_C		0x00000000 /* Context Descriptor */

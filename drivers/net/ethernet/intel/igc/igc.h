@@ -42,6 +42,10 @@ int igc_del_mac_steering_filter(struct igc_adapter *adapter,
 				const u8 *addr, u8 queue, u8 flags);
 void igc_update_stats(struct igc_adapter *adapter);
 
+/* igc_dump declarations */
+void igc_rings_dump(struct igc_adapter *adapter);
+void igc_regs_dump(struct igc_adapter *adapter);
+
 extern char igc_driver_name[];
 extern char igc_driver_version[];
 
