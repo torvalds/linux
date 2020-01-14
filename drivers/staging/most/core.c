@@ -1221,7 +1221,6 @@ int most_register_component(struct most_component *comp)
 		return -EINVAL;
 	}
 	list_add_tail(&comp->list, &mc.comp_list);
-	dev_info(&mc.dev, "registered new core component %s\n", comp->name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(most_register_component);
@@ -1257,7 +1256,6 @@ int most_deregister_component(struct most_component *comp)
 
 	bus_for_each_dev(&mc.bus, NULL, comp, disconnect_channels);
 	list_del(&comp->list);
-	dev_info(&mc.dev, "deregistering component %s\n", comp->name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(most_deregister_component);
@@ -1359,8 +1357,6 @@ int most_register_interface(struct most_interface *iface)
 			goto err_free_most_channel;
 		}
 	}
-	dev_info(&mc.dev, "registered new device mdev%d (%s)\n",
-		 id, iface->description);
 	most_interface_register_notify(iface->description);
 	return 0;
 
@@ -1392,8 +1388,6 @@ void most_deregister_interface(struct most_interface *iface)
 	int i;
 	struct most_channel *c;
 
-	dev_info(&mc.dev, "deregistering device %s (%s)\n", dev_name(&iface->dev),
-		 iface->description);
 	for (i = 0; i < iface->num_channels; i++) {
 		c = iface->p->channel[i];
 		if (c->pipe0.comp)
@@ -1470,7 +1464,6 @@ static int __init most_init(void)
 {
 	int err;
 
-	dev_info(&mc.dev, "init()\n");
 	INIT_LIST_HEAD(&mc.comp_list);
 	ida_init(&mdev_id);
 
@@ -1508,7 +1501,6 @@ err_unregister_bus:
 
 static void __exit most_exit(void)
 {
-	dev_info(&mc.dev, "exit core module\n");
 	device_unregister(&mc.dev);
 	driver_unregister(&mc.drv);
 	bus_unregister(&mc.bus);
