@@ -496,14 +496,20 @@ static void bpf_struct_ops_map_seq_show_elem(struct bpf_map *map, void *key,
 					     struct seq_file *m)
 {
 	void *value;
+	int err;
 
-	value = bpf_struct_ops_map_lookup_elem(map, key);
+	value = kmalloc(map->value_size, GFP_USER | __GFP_NOWARN);
 	if (!value)
 		return;
 
-	btf_type_seq_show(btf_vmlinux, map->btf_vmlinux_value_type_id,
-			  value, m);
-	seq_puts(m, "\n");
+	err = bpf_struct_ops_map_sys_lookup_elem(map, key, value);
+	if (!err) {
+		btf_type_seq_show(btf_vmlinux, map->btf_vmlinux_value_type_id,
+				  value, m);
+		seq_puts(m, "\n");
+	}
+
+	kfree(value);
 }
 
 static void bpf_struct_ops_map_free(struct bpf_map *map)
