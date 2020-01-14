@@ -92,9 +92,7 @@ enum mpq7920_regulators {
 };
 
 struct mpq7920_regulator_info {
-	struct device *dev;
 	struct regmap *regmap;
-	struct regulator_dev *rdev[MPQ7920_MAX_REGULATORS];
 	struct regulator_desc *rdesc;
 };
 
@@ -262,40 +260,21 @@ static void mpq7920_parse_dt(struct device *dev,
 	of_node_put(np);
 }
 
-static inline int mpq7920_regulator_register(
-				struct mpq7920_regulator_info *info,
-				struct regulator_config *config)
-{
-	int i;
-	struct regulator_desc *rdesc;
-
-	for (i = 0; i < MPQ7920_MAX_REGULATORS; i++) {
-		rdesc = &info->rdesc[i];
-
-		info->rdev[i] = devm_regulator_register(info->dev, rdesc,
-					 config);
-		if (IS_ERR(info->rdev[i]))
-			return PTR_ERR(info->rdev[i]);
-	}
-
-	return 0;
-}
-
 static int mpq7920_i2c_probe(struct i2c_client *client,
 				    const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
 	struct mpq7920_regulator_info *info;
 	struct regulator_config config = { NULL, };
+	struct regulator_dev *rdev;
 	struct regmap *regmap;
-	int ret;
+	int i;
 
 	info = devm_kzalloc(dev, sizeof(struct mpq7920_regulator_info),
 				GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	info->dev = dev;
 	info->rdesc = mpq7920_regulators_desc;
 	regmap = devm_regmap_init_i2c(client, &mpq7920_regmap_config);
 	if (IS_ERR(regmap)) {
@@ -308,15 +287,21 @@ static int mpq7920_i2c_probe(struct i2c_client *client,
 	if (client->dev.of_node)
 		mpq7920_parse_dt(&client->dev, info);
 
-	config.dev = info->dev;
+	config.dev = dev;
 	config.regmap = regmap;
 	config.driver_data = info;
 
-	ret = mpq7920_regulator_register(info, &config);
-	if (ret < 0)
-		dev_err(dev, "Failed to register regulator!\n");
+	for (i = 0; i < MPQ7920_MAX_REGULATORS; i++) {
+		rdev = devm_regulator_register(dev,
+					       &mpq7920_regulators_desc[i],
+					       &config);
+		if (IS_ERR(rdev)) {
+			dev_err(dev, "Failed to register regulator!\n");
+			return PTR_ERR(rdev);
+		}
+	}
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id mpq7920_of_match[] = {
