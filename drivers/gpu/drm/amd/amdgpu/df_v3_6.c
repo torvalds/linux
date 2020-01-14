@@ -311,7 +311,7 @@ static u32 df_v3_6_get_hbm_channel_number(struct amdgpu_device *adev)
 {
 	int fb_channel_number;
 
-	fb_channel_number = adev->df_funcs->get_fb_channel_number(adev);
+	fb_channel_number = adev->df.funcs->get_fb_channel_number(adev);
 	if (fb_channel_number >= ARRAY_SIZE(df_v3_6_channel_number))
 		fb_channel_number = 0;
 
@@ -325,7 +325,7 @@ static void df_v3_6_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 
 	if (adev->cg_flags & AMD_CG_SUPPORT_DF_MGCG) {
 		/* Put DF on broadcast mode */
-		adev->df_funcs->enable_broadcast_mode(adev, true);
+		adev->df.funcs->enable_broadcast_mode(adev, true);
 
 		if (enable) {
 			tmp = RREG32_SOC15(DF, 0,
@@ -344,7 +344,7 @@ static void df_v3_6_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 		}
 
 		/* Exit broadcast mode */
-		adev->df_funcs->enable_broadcast_mode(adev, false);
+		adev->df.funcs->enable_broadcast_mode(adev, false);
 	}
 }
 

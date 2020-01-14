@@ -677,9 +677,9 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	}
 
 	if (adev->asic_type == CHIP_VEGA20 || adev->asic_type == CHIP_ARCTURUS)
-		adev->df_funcs = &df_v3_6_funcs;
+		adev->df.funcs = &df_v3_6_funcs;
 	else
-		adev->df_funcs = &df_v1_7_funcs;
+		adev->df.funcs = &df_v1_7_funcs;
 
 	adev->rev_id = soc15_get_rev_id(adev);
 	adev->nbio.funcs->detect_hw_virt(adev);
@@ -1247,7 +1247,7 @@ static int soc15_common_sw_init(void *handle)
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_add_irq_id(adev);
 
-	adev->df_funcs->sw_init(adev);
+	adev->df.funcs->sw_init(adev);
 
 	return 0;
 }
@@ -1257,7 +1257,7 @@ static int soc15_common_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	amdgpu_nbio_ras_fini(adev);
-	adev->df_funcs->sw_fini(adev);
+	adev->df.funcs->sw_fini(adev);
 	return 0;
 }
 
@@ -1478,7 +1478,7 @@ static int soc15_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE ? true : false);
 		soc15_update_rom_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
-		adev->df_funcs->update_medium_grain_clock_gating(adev,
+		adev->df.funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
 	case CHIP_RAVEN:
@@ -1536,7 +1536,7 @@ static void soc15_common_get_clockgating_state(void *handle, u32 *flags)
 	if (!(data & CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK))
 		*flags |= AMD_CG_SUPPORT_ROM_MGCG;
 
-	adev->df_funcs->get_clockgating_state(adev, flags);
+	adev->df.funcs->get_clockgating_state(adev, flags);
 }
 
 static int soc15_common_set_powergating_state(void *handle,

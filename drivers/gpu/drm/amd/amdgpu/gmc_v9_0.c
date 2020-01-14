@@ -817,8 +817,8 @@ static int gmc_v9_0_late_init(void *handle)
 			r = amdgpu_atomfirmware_mem_ecc_supported(adev);
 			if (!r) {
 				DRM_INFO("ECC is not present.\n");
-				if (adev->df_funcs->enable_ecc_force_par_wr_rmw)
-					adev->df_funcs->enable_ecc_force_par_wr_rmw(adev, false);
+				if (adev->df.funcs->enable_ecc_force_par_wr_rmw)
+					adev->df.funcs->enable_ecc_force_par_wr_rmw(adev, false);
 			} else {
 				DRM_INFO("ECC is active.\n");
 			}
@@ -1023,7 +1023,7 @@ static int gmc_v9_0_sw_init(void *handle)
 		else
 			chansize = 128;
 
-		numchan = adev->df_funcs->get_hbm_channel_number(adev);
+		numchan = adev->df.funcs->get_hbm_channel_number(adev);
 		adev->gmc.vram_width = numchan * chansize;
 	}
 

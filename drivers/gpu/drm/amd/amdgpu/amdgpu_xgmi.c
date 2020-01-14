@@ -146,16 +146,16 @@ static ssize_t amdgpu_xgmi_show_error(struct device *dev,
 	ficaa_pie_ctl_in = AMDGPU_XGMI_SET_FICAA(0x200);
 	ficaa_pie_status_in = AMDGPU_XGMI_SET_FICAA(0x208);
 
-	fica_out = adev->df_funcs->get_fica(adev, ficaa_pie_ctl_in);
+	fica_out = adev->df.funcs->get_fica(adev, ficaa_pie_ctl_in);
 	if (fica_out != 0x1f)
 		pr_err("xGMI error counters not enabled!\n");
 
-	fica_out = adev->df_funcs->get_fica(adev, ficaa_pie_status_in);
+	fica_out = adev->df.funcs->get_fica(adev, ficaa_pie_status_in);
 
 	if ((fica_out & 0xffff) == 2)
 		error_count = ((fica_out >> 62) & 0x1) + (fica_out >> 63);
 
-	adev->df_funcs->set_fica(adev, ficaa_pie_status_in, 0, 0);
+	adev->df.funcs->set_fica(adev, ficaa_pie_status_in, 0, 0);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", error_count);
 }
