@@ -503,7 +503,6 @@ struct nameidata {
 	} *stack, internal[EMBEDDED_LEVELS];
 	struct filename	*name;
 	struct nameidata *saved;
-	struct inode	*link_inode;
 	unsigned	root_seq;
 	int		dfd;
 } __randomize_layout;
@@ -962,9 +961,8 @@ int sysctl_protected_regular __read_mostly;
  *
  * Returns 0 if following the symlink is allowed, -ve on error.
  */
-static inline int may_follow_link(struct nameidata *nd)
+static inline int may_follow_link(struct nameidata *nd, const struct inode *inode)
 {
-	const struct inode *inode;
 	const struct inode *parent;
 	kuid_t puid;
 
@@ -972,7 +970,6 @@ static inline int may_follow_link(struct nameidata *nd)
 		return 0;
 
 	/* Allowed if owner and follower match. */
-	inode = nd->link_inode;
 	if (uid_eq(current_cred()->fsuid, inode->i_uid))
 		return 0;
 
@@ -1104,73 +1101,6 @@ static int may_create_in_sticky(umode_t dir_mode, kuid_t dir_uid,
 		return -EACCES;
 	}
 	return 0;
-}
-
-static __always_inline
-const char *get_link(struct nameidata *nd)
-{
-	struct saved *last = nd->stack + nd->depth - 1;
-	struct dentry *dentry = last->link.dentry;
-	struct inode *inode = nd->link_inode;
-	int error;
-	const char *res;
-
-	if (!(nd->flags & LOOKUP_PARENT)) {
-		error = may_follow_link(nd);
-		if (unlikely(error))
-			return ERR_PTR(error);
-	}
-
-	if (unlikely(nd->flags & LOOKUP_NO_SYMLINKS))
-		return ERR_PTR(-ELOOP);
-
-	if (!(nd->flags & LOOKUP_RCU)) {
-		touch_atime(&last->link);
-		cond_resched();
-	} else if (atime_needs_update(&last->link, inode)) {
-		if (unlikely(unlazy_walk(nd)))
-			return ERR_PTR(-ECHILD);
-		touch_atime(&last->link);
-	}
-
-	error = security_inode_follow_link(dentry, inode,
-					   nd->flags & LOOKUP_RCU);
-	if (unlikely(error))
-		return ERR_PTR(error);
-
-	nd->last_type = LAST_BIND;
-	res = READ_ONCE(inode->i_link);
-	if (!res) {
-		const char * (*get)(struct dentry *, struct inode *,
-				struct delayed_call *);
-		get = inode->i_op->get_link;
-		if (nd->flags & LOOKUP_RCU) {
-			res = get(NULL, inode, &last->done);
-			if (res == ERR_PTR(-ECHILD)) {
-				if (unlikely(unlazy_walk(nd)))
-					return ERR_PTR(-ECHILD);
-				res = get(dentry, inode, &last->done);
-			}
-		} else {
-			res = get(dentry, inode, &last->done);
-		}
-		if (!res)
-			goto all_done;
-		if (IS_ERR(res))
-			return res;
-	}
-	if (*res == '/') {
-		error = nd_jump_root(nd);
-		if (unlikely(error))
-			return ERR_PTR(error);
-		while (unlikely(*++res == '/'))
-			;
-	}
-	if (*res)
-		return res;
-all_done: // pure jump
-	put_link(nd);
-	return NULL;
 }
 
 /*
@@ -1796,8 +1726,10 @@ static inline int handle_dots(struct nameidata *nd, int type)
 static const char *pick_link(struct nameidata *nd, struct path *link,
 		     struct inode *inode, unsigned seq)
 {
-	int error;
 	struct saved *last;
+	const char *res;
+	int error;
+
 	if (unlikely(nd->total_link_count++ >= MAXSYMLINKS)) {
 		path_to_nameidata(link, nd);
 		return ERR_PTR(-ELOOP);
@@ -1828,9 +1760,64 @@ static const char *pick_link(struct nameidata *nd, struct path *link,
 	last = nd->stack + nd->depth++;
 	last->link = *link;
 	clear_delayed_call(&last->done);
-	nd->link_inode = inode;
 	last->seq = seq;
-	return get_link(nd);
+
+	if (!(nd->flags & LOOKUP_PARENT)) {
+		error = may_follow_link(nd, inode);
+		if (unlikely(error))
+			return ERR_PTR(error);
+	}
+
+	if (unlikely(nd->flags & LOOKUP_NO_SYMLINKS))
+		return ERR_PTR(-ELOOP);
+
+	if (!(nd->flags & LOOKUP_RCU)) {
+		touch_atime(&last->link);
+		cond_resched();
+	} else if (atime_needs_update(&last->link, inode)) {
+		if (unlikely(unlazy_walk(nd)))
+			return ERR_PTR(-ECHILD);
+		touch_atime(&last->link);
+	}
+
+	error = security_inode_follow_link(link->dentry, inode,
+					   nd->flags & LOOKUP_RCU);
+	if (unlikely(error))
+		return ERR_PTR(error);
+
+	nd->last_type = LAST_BIND;
+	res = READ_ONCE(inode->i_link);
+	if (!res) {
+		const char * (*get)(struct dentry *, struct inode *,
+				struct delayed_call *);
+		get = inode->i_op->get_link;
+		if (nd->flags & LOOKUP_RCU) {
+			res = get(NULL, inode, &last->done);
+			if (res == ERR_PTR(-ECHILD)) {
+				if (unlikely(unlazy_walk(nd)))
+					return ERR_PTR(-ECHILD);
+				res = get(link->dentry, inode, &last->done);
+			}
+		} else {
+			res = get(link->dentry, inode, &last->done);
+		}
+		if (!res)
+			goto all_done;
+		if (IS_ERR(res))
+			return res;
+	}
+	if (*res == '/') {
+		error = nd_jump_root(nd);
+		if (unlikely(error))
+			return ERR_PTR(error);
+		while (unlikely(*++res == '/'))
+			;
+	}
+	if (*res)
+		return res;
+all_done: // pure jump
+	put_link(nd);
+	return NULL;
 }
 
 enum {WALK_FOLLOW = 1, WALK_MORE = 2, WALK_NOFOLLOW = 4};
