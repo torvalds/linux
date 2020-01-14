@@ -171,7 +171,7 @@ struct nvkm_device {
 	struct nvkm_engine *mspdec;
 	struct nvkm_engine *msppp;
 	struct nvkm_engine *msvld;
-	struct nvkm_engine *nvenc[3];
+	struct nvkm_nvenc *nvenc[3];
 	struct nvkm_nvdec *nvdec[3];
 	struct nvkm_pm *pm;
 	struct nvkm_engine *sec;
@@ -245,7 +245,7 @@ struct nvkm_device_chip {
 	int (*mspdec  )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*msppp   )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*msvld   )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*nvenc[3])(struct nvkm_device *, int idx, struct nvkm_engine **);
+	int (*nvenc[3])(struct nvkm_device *, int idx, struct nvkm_nvenc **);
 	int (*nvdec[3])(struct nvkm_device *, int idx, struct nvkm_nvdec **);
 	int (*pm      )(struct nvkm_device *, int idx, struct nvkm_pm **);
 	int (*sec     )(struct nvkm_device *, int idx, struct nvkm_engine **);
