@@ -57,7 +57,8 @@ nvkm_firmware_get_version(const struct nvkm_subdev *subdev, const char *fwname,
 			snprintf(f, sizeof(f), "nvidia/%s/%s.bin", cname, fwname);
 
 		if (!firmware_request_nowarn(fw, f, device->dev)) {
-			nvkm_debug(subdev, "firmware \"%s\" loaded\n", f);
+			nvkm_debug(subdev, "firmware \"%s\" loaded - "
+					   "%zu byte(s)\n", f, (*fw)->size);
 			return i;
 		}
 
