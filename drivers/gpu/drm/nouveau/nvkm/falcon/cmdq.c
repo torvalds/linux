@@ -49,13 +49,12 @@ cmd_queue_has_room(struct nvkm_msgqueue *priv,
 	return size <= free;
 }
 
-static int
+static void
 cmd_queue_push(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 	       void *data, u32 size)
 {
 	nvkm_falcon_load_dmem(priv->falcon, data, queue->position, size, 0);
 	queue->position += ALIGN(size, QUEUE_ALIGNMENT);
-	return 0;
 }
 
 /* REWIND unit is always 0x00 */
@@ -64,17 +63,11 @@ cmd_queue_push(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 static void
 cmd_queue_rewind(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue)
 {
-	const struct nvkm_subdev *subdev = priv->falcon->owner;
 	struct nvkm_msgqueue_hdr cmd;
-	int err;
 
 	cmd.unit_id = MSGQUEUE_UNIT_REWIND;
 	cmd.size = sizeof(cmd);
-	err = cmd_queue_push(priv, queue, &cmd, cmd.size);
-	if (err)
-		nvkm_error(subdev, "queue %d rewind failed\n", queue->index);
-	else
-		nvkm_error(subdev, "queue %d rewinded\n", queue->index);
+	cmd_queue_push(priv, queue, &cmd, cmd.size);
 
 	queue->position = queue->offset;
 }
@@ -132,12 +125,7 @@ cmd_write(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *cmd,
 		return ret;
 	}
 
-	ret = cmd_queue_push(priv, queue, cmd, cmd->size);
-	if (ret) {
-		nvkm_error(subdev, "pmu_queue_push failed\n");
-		commit = false;
-	}
-
+	cmd_queue_push(priv, queue, cmd, cmd->size);
 	cmd_queue_close(priv, queue, commit);
 	return ret;
 }
