@@ -1506,7 +1506,8 @@ void br_vlan_port_event(struct net_bridge_port *p, unsigned long event)
 	}
 }
 
-static bool br_vlan_fill_vids(struct sk_buff *skb, u16 vid, u16 flags)
+static bool br_vlan_fill_vids(struct sk_buff *skb, u16 vid, u16 vid_range,
+			      u16 flags)
 {
 	struct bridge_vlan_info info;
 	struct nlattr *nest;
@@ -1525,6 +1526,11 @@ static bool br_vlan_fill_vids(struct sk_buff *skb, u16 vid, u16 flags)
 	if (nla_put(skb, BRIDGE_VLANDB_ENTRY_INFO, sizeof(info), &info))
 		goto out_err;
 
+	if (vid_range && vid < vid_range &&
+	    !(flags & BRIDGE_VLAN_INFO_PVID) &&
+	    nla_put_u16(skb, BRIDGE_VLANDB_ENTRY_RANGE, vid_range))
+		goto out_err;
+
 	nla_nest_end(skb, nest);
 
 	return true;
@@ -1534,14 +1540,22 @@ out_err:
 	return false;
 }
 
+/* check if v_curr can enter a range ending in range_end */
+static bool br_vlan_can_enter_range(const struct net_bridge_vlan *v_curr,
+				    const struct net_bridge_vlan *range_end)
+{
+	return v_curr->vid - range_end->vid == 1 &&
+	       range_end->flags == v_curr->flags;
+}
+
 static int br_vlan_dump_dev(const struct net_device *dev,
 			    struct sk_buff *skb,
 			    struct netlink_callback *cb)
 {
+	struct net_bridge_vlan *v, *range_start = NULL, *range_end = NULL;
 	struct net_bridge_vlan_group *vg;
 	int idx = 0, s_idx = cb->args[1];
 	struct nlmsghdr *nlh = NULL;
-	struct net_bridge_vlan *v;
 	struct net_bridge_port *p;
 	struct br_vlan_msg *bvm;
 	struct net_bridge *br;
@@ -1576,22 +1590,49 @@ static int br_vlan_dump_dev(const struct net_device *dev,
 	bvm->ifindex = dev->ifindex;
 	pvid = br_get_pvid(vg);
 
+	/* idx must stay at range's beginning until it is filled in */
 	list_for_each_entry_rcu(v, &vg->vlan_list, vlist) {
 		if (!br_vlan_should_use(v))
 			continue;
-		if (idx < s_idx)
-			goto skip;
-		if (!br_vlan_fill_vids(skb, v->vid, br_vlan_flags(v, pvid))) {
-			err = -EMSGSIZE;
-			break;
+		if (idx < s_idx) {
+			idx++;
+			continue;
 		}
-skip:
-		idx++;
+
+		if (!range_start) {
+			range_start = v;
+			range_end = v;
+			continue;
+		}
+
+		if (v->vid == pvid || !br_vlan_can_enter_range(v, range_end)) {
+			u16 flags = br_vlan_flags(range_start, pvid);
+
+			if (!br_vlan_fill_vids(skb, range_start->vid,
+					       range_end->vid, flags)) {
+				err = -EMSGSIZE;
+				break;
+			}
+			/* advance number of filled vlans */
+			idx += range_end->vid - range_start->vid + 1;
+
+			range_start = v;
+		}
+		range_end = v;
 	}
-	if (err)
-		cb->args[1] = idx;
-	else
-		cb->args[1] = 0;
+
+	/* err will be 0 and range_start will be set in 3 cases here:
+	 * - first vlan (range_start == range_end)
+	 * - last vlan (range_start == range_end, not in range)
+	 * - last vlan range (range_start != range_end, in range)
+	 */
+	if (!err && range_start &&
+	    !br_vlan_fill_vids(skb, range_start->vid, range_end->vid,
+			       br_vlan_flags(range_start, pvid)))
+		err = -EMSGSIZE;
+
+	cb->args[1] = err ? idx : 0;
+
 	nlmsg_end(skb, nlh);
 
 	return err;
@@ -1646,13 +1687,14 @@ out_err:
 static const struct nla_policy br_vlan_db_policy[BRIDGE_VLANDB_ENTRY_MAX + 1] = {
 	[BRIDGE_VLANDB_ENTRY_INFO]	= { .type = NLA_EXACT_LEN,
 					    .len = sizeof(struct bridge_vlan_info) },
+	[BRIDGE_VLANDB_ENTRY_RANGE]	= { .type = NLA_U16 },
 };
 
 static int br_vlan_rtm_process_one(struct net_device *dev,
 				   const struct nlattr *attr,
 				   int cmd, struct netlink_ext_ack *extack)
 {
-	struct bridge_vlan_info *vinfo, *vinfo_last = NULL;
+	struct bridge_vlan_info *vinfo, vrange_end, *vinfo_last = NULL;
 	struct nlattr *tb[BRIDGE_VLANDB_ENTRY_MAX + 1];
 	struct net_bridge_vlan_group *vg;
 	struct net_bridge_port *p = NULL;
@@ -1683,6 +1725,7 @@ static int br_vlan_rtm_process_one(struct net_device *dev,
 		NL_SET_ERR_MSG_MOD(extack, "Missing vlan entry info");
 		return -EINVAL;
 	}
+	memset(&vrange_end, 0, sizeof(vrange_end));
 
 	vinfo = nla_data(tb[BRIDGE_VLANDB_ENTRY_INFO]);
 	if (vinfo->flags & (BRIDGE_VLAN_INFO_RANGE_BEGIN |
@@ -1692,6 +1735,21 @@ static int br_vlan_rtm_process_one(struct net_device *dev,
 	}
 	if (!br_vlan_valid_id(vinfo->vid, extack))
 		return -EINVAL;
+
+	if (tb[BRIDGE_VLANDB_ENTRY_RANGE]) {
+		vrange_end.vid = nla_get_u16(tb[BRIDGE_VLANDB_ENTRY_RANGE]);
+		/* validate user-provided flags without RANGE_BEGIN */
+		vrange_end.flags = BRIDGE_VLAN_INFO_RANGE_END | vinfo->flags;
+		vinfo->flags |= BRIDGE_VLAN_INFO_RANGE_BEGIN;
+
+		/* vinfo_last is the range start, vinfo the range end */
+		vinfo_last = vinfo;
+		vinfo = &vrange_end;
+
+		if (!br_vlan_valid_id(vinfo->vid, extack) ||
+		    !br_vlan_valid_range(vinfo, vinfo_last, extack))
+			return -EINVAL;
+	}
 
 	switch (cmd) {
 	case RTM_NEWVLAN:
