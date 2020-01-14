@@ -67,20 +67,14 @@ msg_queue_pop(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 	tail = queue->position;
 
 	available = head - tail;
-
-	if (available == 0) {
-		nvkm_warn(subdev, "no message data available\n");
-		return 0;
-	}
-
 	if (size > available) {
 		nvkm_warn(subdev, "message data smaller than read request\n");
-		size = available;
+		return -EINVAL;
 	}
 
 	nvkm_falcon_read_dmem(priv->falcon, tail, size, 0, data);
 	queue->position += ALIGN(size, QUEUE_ALIGNMENT);
-	return size;
+	return 0;
 }
 
 static int
@@ -88,19 +82,15 @@ msg_queue_read(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 	       struct nv_falcon_msg *hdr)
 {
 	const struct nvkm_subdev *subdev = priv->falcon->owner;
-	int ret;
+	int ret = 0;
 
 	msg_queue_open(priv, queue);
 
-	if (msg_queue_empty(priv, queue)) {
-		ret = 0;
+	if (msg_queue_empty(priv, queue))
 		goto close;
-	}
 
 	ret = msg_queue_pop(priv, queue, hdr, HDR_SIZE);
-	if (ret >= 0 && ret != HDR_SIZE)
-		ret = -EINVAL;
-	if (ret < 0) {
+	if (ret) {
 		nvkm_error(subdev, "failed to read message header: %d\n", ret);
 		goto close;
 	}
@@ -115,14 +105,13 @@ msg_queue_read(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 		u32 read_size = hdr->size - HDR_SIZE;
 
 		ret = msg_queue_pop(priv, queue, (hdr + 1), read_size);
-		if (ret >= 0 && ret != read_size)
-			ret = -EINVAL;
-		if (ret < 0) {
+		if (ret) {
 			nvkm_error(subdev, "failed to read message: %d\n", ret);
 			goto close;
 		}
 	}
 
+	ret = 1;
 close:
 	msg_queue_close(priv, queue, (ret >= 0));
 	return ret;
