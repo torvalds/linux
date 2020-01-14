@@ -145,56 +145,19 @@ struct nvkm_msgqueue_queue {
 };
 
 /**
- * struct nvkm_msgqueue_seq - keep track of ongoing commands
- *
- * Every time a command is sent, a sequence is assigned to it so the
- * corresponding message can be matched. Upon receiving the message, a callback
- * can be called and/or a completion signaled.
- *
- * @id:		sequence ID
- * @state:	current state
- * @callback:	callback to call upon receiving matching message
- * @completion:	completion to signal after callback is called
- */
-struct nvkm_msgqueue_seq {
-	u16 id;
-	enum {
-		SEQ_STATE_FREE = 0,
-		SEQ_STATE_PENDING,
-		SEQ_STATE_USED,
-		SEQ_STATE_CANCELLED
-	} state;
-	nvkm_msgqueue_callback callback;
-	struct completion *completion;
-};
-
-/*
- * We can have an arbitrary number of sequences, but realistically we will
- * probably not use that much simultaneously.
- */
-#define NVKM_MSGQUEUE_NUM_SEQUENCES 16
-
-/**
  * struct nvkm_msgqueue - manage a command/message based FW on a falcon
  *
  * @falcon:	falcon to be managed
  * @func:	implementation of the firmware to use
  * @init_msg_received:	whether the init message has already been received
  * @init_done:	whether all init is complete and commands can be processed
- * @seq_lock:	protects seq and seq_tbl
- * @seq:	sequences to match commands and messages
- * @seq_tbl:	bitmap of sequences currently in use
- */
+  */
 struct nvkm_msgqueue {
 	struct nvkm_falcon *falcon;
 	const struct nvkm_msgqueue_func *func;
 	u32 fw_version;
 	bool init_msg_received;
 	struct completion init_done;
-
-	struct mutex seq_lock;
-	struct nvkm_msgqueue_seq seq[NVKM_MSGQUEUE_NUM_SEQUENCES];
-	unsigned long seq_tbl[BITS_TO_LONGS(NVKM_MSGQUEUE_NUM_SEQUENCES)];
 };
 
 void nvkm_msgqueue_ctor(const struct nvkm_msgqueue_func *, struct nvkm_falcon *,

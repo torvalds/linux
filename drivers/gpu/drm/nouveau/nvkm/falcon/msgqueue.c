@@ -136,13 +136,8 @@ nvkm_msgqueue_ctor(const struct nvkm_msgqueue_func *func,
 		   struct nvkm_falcon *falcon,
 		   struct nvkm_msgqueue *queue)
 {
-	int i;
-
 	queue->func = func;
 	queue->falcon = falcon;
-	mutex_init(&queue->seq_lock);
-	for (i = 0; i < NVKM_MSGQUEUE_NUM_SEQUENCES; i++)
-		queue->seq[i].id = i;
 
 	init_completion(&queue->init_done);
 

@@ -164,7 +164,7 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 	if (IS_ERR(queue))
 		return PTR_ERR(queue);
 
-	seq = msgqueue_seq_acquire(priv);
+	seq = nvkm_falcon_qmgr_seq_acquire(queue->qmgr);
 	if (IS_ERR(seq))
 		return PTR_ERR(seq);
 
@@ -178,7 +178,7 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 	ret = cmd_write(priv, cmd, queue);
 	if (ret) {
 		seq->state = SEQ_STATE_PENDING;
-		msgqueue_seq_release(priv, seq);
+		nvkm_falcon_qmgr_seq_release(queue->qmgr, seq);
 	}
 
 	return ret;

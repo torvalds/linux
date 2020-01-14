@@ -134,12 +134,14 @@ close:
 }
 
 static int
-msgqueue_msg_handle(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *hdr)
+msgqueue_msg_handle(struct nvkm_msgqueue *priv,
+		    struct nvkm_falcon_msgq *msgq,
+		    struct nvkm_msgqueue_hdr *hdr)
 {
 	const struct nvkm_subdev *subdev = priv->falcon->owner;
 	struct nvkm_msgqueue_seq *seq;
 
-	seq = &priv->seq[hdr->seq_id];
+	seq = &msgq->qmgr->seq[hdr->seq_id];
 	if (seq->state != SEQ_STATE_USED && seq->state != SEQ_STATE_CANCELLED) {
 		nvkm_error(subdev, "msg for unknown sequence %d", seq->id);
 		return -EINVAL;
@@ -153,7 +155,7 @@ msgqueue_msg_handle(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *hdr)
 	if (seq->completion)
 		complete(seq->completion);
 
-	msgqueue_seq_release(priv, seq);
+	nvkm_falcon_qmgr_seq_release(msgq->qmgr, seq);
 	return 0;
 }
 
@@ -211,7 +213,7 @@ nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *priv,
 			priv->init_msg_received = true;
 	} else {
 		while (msg_queue_read(priv, queue, hdr) > 0)
-			msgqueue_msg_handle(priv, hdr);
+			msgqueue_msg_handle(priv, queue, hdr);
 	}
 }
 

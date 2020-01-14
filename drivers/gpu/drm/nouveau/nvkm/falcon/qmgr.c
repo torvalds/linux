@@ -23,7 +23,7 @@
 #include "qmgr.h"
 
 struct nvkm_msgqueue_seq *
-msgqueue_seq_acquire(struct nvkm_msgqueue *priv)
+nvkm_falcon_qmgr_seq_acquire(struct nvkm_falcon_qmgr *priv)
 {
 	const struct nvkm_subdev *subdev = priv->falcon->owner;
 	struct nvkm_msgqueue_seq *seq;
@@ -46,7 +46,8 @@ msgqueue_seq_acquire(struct nvkm_msgqueue *priv)
 }
 
 void
-msgqueue_seq_release(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_seq *seq)
+nvkm_falcon_qmgr_seq_release(struct nvkm_falcon_qmgr *priv,
+			     struct nvkm_msgqueue_seq *seq)
 {
 	/* no need to acquire seq_lock since clear_bit is atomic */
 	seq->state = SEQ_STATE_FREE;
@@ -70,10 +71,15 @@ nvkm_falcon_qmgr_new(struct nvkm_falcon *falcon,
 		     struct nvkm_falcon_qmgr **pqmgr)
 {
 	struct nvkm_falcon_qmgr *qmgr;
+	int i;
 
 	if (!(qmgr = *pqmgr = kzalloc(sizeof(*qmgr), GFP_KERNEL)))
 		return -ENOMEM;
 
 	qmgr->falcon = falcon;
+	mutex_init(&qmgr->seq_lock);
+	for (i = 0; i < NVKM_MSGQUEUE_NUM_SEQUENCES; i++)
+		qmgr->seq[i].id = i;
+
 	return 0;
 }
