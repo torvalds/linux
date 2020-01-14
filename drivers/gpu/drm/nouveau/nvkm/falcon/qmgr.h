@@ -10,7 +10,7 @@
 #define MSG_BUF_SIZE 128
 
 /**
- * struct nvkm_msgqueue_seq - keep track of ongoing commands
+ * struct nvkm_falcon_qmgr_seq - keep track of ongoing commands
  *
  * Every time a command is sent, a sequence is assigned to it so the
  * corresponding message can be matched. Upon receiving the message, a callback
@@ -21,7 +21,7 @@
  * @callback:	callback to call upon receiving matching message
  * @completion:	completion to signal after callback is called
  */
-struct nvkm_msgqueue_seq {
+struct nvkm_falcon_qmgr_seq {
 	u16 id;
 	enum {
 		SEQ_STATE_FREE = 0,
@@ -40,20 +40,22 @@ struct nvkm_msgqueue_seq {
  * We can have an arbitrary number of sequences, but realistically we will
  * probably not use that much simultaneously.
  */
-#define NVKM_MSGQUEUE_NUM_SEQUENCES 16
+#define NVKM_FALCON_QMGR_SEQ_NUM 16
 
 struct nvkm_falcon_qmgr {
 	struct nvkm_falcon *falcon;
 
-	struct mutex seq_lock;
-	struct nvkm_msgqueue_seq seq[NVKM_MSGQUEUE_NUM_SEQUENCES];
-	unsigned long seq_tbl[BITS_TO_LONGS(NVKM_MSGQUEUE_NUM_SEQUENCES)];
+	struct {
+		struct mutex mutex;
+		struct nvkm_falcon_qmgr_seq id[NVKM_FALCON_QMGR_SEQ_NUM];
+		unsigned long tbl[BITS_TO_LONGS(NVKM_FALCON_QMGR_SEQ_NUM)];
+	} seq;
 };
 
-struct nvkm_msgqueue_seq *
+struct nvkm_falcon_qmgr_seq *
 nvkm_falcon_qmgr_seq_acquire(struct nvkm_falcon_qmgr *);
 void nvkm_falcon_qmgr_seq_release(struct nvkm_falcon_qmgr *,
-				  struct nvkm_msgqueue_seq *);
+				  struct nvkm_falcon_qmgr_seq *);
 
 #define FLCNQ_PRINTK(t,q,f,a...)                                               \
        FLCN_PRINTK(t, (q)->qmgr->falcon, "%s: "f, (q)->name, ##a)

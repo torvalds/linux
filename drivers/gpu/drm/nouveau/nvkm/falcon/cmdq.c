@@ -152,7 +152,7 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 		   struct nvkm_msgqueue_hdr *cmd, nvkm_falcon_qmgr_callback cb,
 		   struct completion *completion, bool wait_init)
 {
-	struct nvkm_msgqueue_seq *seq;
+	struct nvkm_falcon_qmgr_seq *seq;
 	struct nvkm_msgqueue_queue *queue;
 	int ret;
 

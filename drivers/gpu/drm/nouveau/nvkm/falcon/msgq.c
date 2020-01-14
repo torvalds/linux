@@ -139,9 +139,9 @@ msgqueue_msg_handle(struct nvkm_msgqueue *priv,
 		    struct nv_falcon_msg *hdr)
 {
 	const struct nvkm_subdev *subdev = priv->falcon->owner;
-	struct nvkm_msgqueue_seq *seq;
+	struct nvkm_falcon_qmgr_seq *seq;
 
-	seq = &msgq->qmgr->seq[hdr->seq_id];
+	seq = &msgq->qmgr->seq.id[hdr->seq_id];
 	if (seq->state != SEQ_STATE_USED && seq->state != SEQ_STATE_CANCELLED) {
 		nvkm_error(subdev, "msg for unknown sequence %d", seq->id);
 		return -EINVAL;
