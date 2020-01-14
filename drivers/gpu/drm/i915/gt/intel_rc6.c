@@ -542,6 +542,8 @@ void intel_rc6_init(struct intel_rc6 *rc6)
 
 void intel_rc6_sanitize(struct intel_rc6 *rc6)
 {
+	memset(rc6->prev_hw_residency, 0, sizeof(rc6->prev_hw_residency));
+
 	if (rc6->enabled) { /* unbalanced suspend/resume */
 		rpm_get(rc6);
 		rc6->enabled = false;
