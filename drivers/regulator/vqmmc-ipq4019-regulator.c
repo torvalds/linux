@@ -18,13 +18,14 @@ static const unsigned int ipq4019_vmmc_voltages[] = {
 	1500000, 1800000, 2500000, 3000000,
 };
 
-static struct regulator_ops ipq4019_regulator_voltage_ops = {
+static const struct regulator_ops ipq4019_regulator_voltage_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 };
 
-static struct regulator_desc vmmc_regulator = {
+static const struct regulator_desc vmmc_regulator = {
 	.name		= "vmmcq",
 	.ops		= &ipq4019_regulator_voltage_ops,
 	.type		= REGULATOR_VOLTAGE,
@@ -35,7 +36,7 @@ static struct regulator_desc vmmc_regulator = {
 	.vsel_mask	= 0x3,
 };
 
-const struct regmap_config ipq4019_vmmcq_regmap_config = {
+static const struct regmap_config ipq4019_vmmcq_regmap_config = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
 	.val_bits	= 32,
