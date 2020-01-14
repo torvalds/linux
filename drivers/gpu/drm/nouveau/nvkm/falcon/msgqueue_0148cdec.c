@@ -38,13 +38,6 @@ struct msgqueue_0148cdec {
 	container_of(q, struct msgqueue_0148cdec, base)
 
 static void
-msgqueue_0148cdec_process_msgs(struct nvkm_msgqueue *queue)
-{
-	nvkm_msgqueue_process_msgs(queue, queue->falcon->owner->device->sec2->msgq);
-}
-
-
-static void
 init_gen_cmdline(struct nvkm_msgqueue *queue, void *buf)
 {
 	struct {
@@ -73,7 +66,6 @@ msgqueue_0148cdec_dtor(struct nvkm_msgqueue *queue)
 const struct nvkm_msgqueue_func
 msgqueue_0148cdec_func = {
 	.init_func = &msgqueue_0148cdec_init_func,
-	.recv = msgqueue_0148cdec_process_msgs,
 	.dtor = msgqueue_0148cdec_dtor,
 };
 

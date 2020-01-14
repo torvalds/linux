@@ -78,19 +78,6 @@ nvkm_msgqueue_del(struct nvkm_msgqueue **queue)
 }
 
 void
-nvkm_msgqueue_recv(struct nvkm_msgqueue *queue)
-{
-	if (!queue->func || !queue->func->recv) {
-		const struct nvkm_subdev *subdev = queue->falcon->owner;
-
-		nvkm_warn(subdev, "missing msgqueue recv function\n");
-		return;
-	}
-
-	queue->func->recv(queue);
-}
-
-void
 nvkm_msgqueue_ctor(const struct nvkm_msgqueue_func *func,
 		   struct nvkm_falcon *falcon,
 		   struct nvkm_msgqueue *queue)

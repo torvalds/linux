@@ -73,4 +73,5 @@ void nvkm_falcon_msgq_del(struct nvkm_falcon_msgq **);
 void nvkm_falcon_msgq_init(struct nvkm_falcon_msgq *,
 			   u32 index, u32 offset, u32 size);
 int nvkm_falcon_msgq_recv_initmsg(struct nvkm_falcon_msgq *, void *, u32 size);
+void nvkm_falcon_msgq_recv(struct nvkm_falcon_msgq *);
 #endif

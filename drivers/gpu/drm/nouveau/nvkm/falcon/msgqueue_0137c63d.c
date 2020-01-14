@@ -40,12 +40,6 @@ struct msgqueue_0137bca5 {
 	container_of(container_of(q, struct msgqueue_0137c63d, base), \
 		     struct msgqueue_0137bca5, base);
 
-static void
-msgqueue_0137c63d_process_msgs(struct nvkm_msgqueue *queue)
-{
-	nvkm_msgqueue_process_msgs(queue, queue->falcon->owner->device->pmu->msgq);
-}
-
 /* Init unit */
 static void
 init_gen_cmdline(struct nvkm_msgqueue *queue, void *buf)
@@ -87,7 +81,6 @@ msgqueue_0137c63d_dtor(struct nvkm_msgqueue *queue)
 static const struct nvkm_msgqueue_func
 msgqueue_0137c63d_func = {
 	.init_func = &msgqueue_0137c63d_init_func,
-	.recv = msgqueue_0137c63d_process_msgs,
 	.dtor = msgqueue_0137c63d_dtor,
 };
 
@@ -111,7 +104,6 @@ msgqueue_0137c63d_new(struct nvkm_falcon *falcon, const struct nvkm_secboot *sb,
 static const struct nvkm_msgqueue_func
 msgqueue_0137bca5_func = {
 	.init_func = &msgqueue_0137c63d_init_func,
-	.recv = msgqueue_0137c63d_process_msgs,
 	.dtor = msgqueue_0137c63d_dtor,
 };
 

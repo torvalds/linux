@@ -160,8 +160,7 @@ nvkm_falcon_msgq_recv_initmsg(struct nvkm_falcon_msgq *msgq,
 }
 
 void
-nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *priv,
-			   struct nvkm_msgqueue_queue *queue)
+nvkm_falcon_msgq_recv(struct nvkm_falcon_msgq *queue)
 {
 	/*
 	 * We are invoked from a worker thread, so normally we have plenty of

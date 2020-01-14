@@ -41,13 +41,7 @@ nvkm_sec2_recv(struct work_struct *work)
 		sec2->initmsg_received = true;
 	}
 
-	if (!sec2->queue) {
-		nvkm_warn(&sec2->engine.subdev,
-			  "recv function called while no firmware set!\n");
-		return;
-	}
-
-	nvkm_msgqueue_recv(sec2->queue);
+	nvkm_falcon_msgq_recv(sec2->msgq);
 }
 
 static void

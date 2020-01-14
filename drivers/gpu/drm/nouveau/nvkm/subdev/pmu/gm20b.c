@@ -135,13 +135,7 @@ gm20b_pmu_recv(struct nvkm_pmu *pmu)
 		pmu->initmsg_received = true;
 	}
 
-	if (!pmu->queue) {
-		nvkm_warn(&pmu->subdev,
-			  "recv function called while no firmware set!\n");
-		return;
-	}
-
-	nvkm_msgqueue_recv(pmu->queue);
+	nvkm_falcon_msgq_recv(pmu->msgq);
 }
 
 static const struct nvkm_pmu_func

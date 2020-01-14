@@ -67,7 +67,6 @@ struct nvkm_msgqueue_init_func {
 struct nvkm_msgqueue_func {
 	const struct nvkm_msgqueue_init_func *init_func;
 	void (*dtor)(struct nvkm_msgqueue *);
-	void (*recv)(struct nvkm_msgqueue *queue);
 };
 
 /**
@@ -114,8 +113,6 @@ struct nvkm_msgqueue {
 
 void nvkm_msgqueue_ctor(const struct nvkm_msgqueue_func *, struct nvkm_falcon *,
 			struct nvkm_msgqueue *);
-void nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *,
-				struct nvkm_msgqueue_queue *);
 
 int msgqueue_0137c63d_new(struct nvkm_falcon *, const struct nvkm_secboot *,
 			  struct nvkm_msgqueue **);
