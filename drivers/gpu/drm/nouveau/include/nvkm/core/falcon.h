@@ -30,9 +30,27 @@ int gp102_sec2_flcn_enable(struct nvkm_falcon *);
 #define FLCN_DBG(f,fmt,a...) FLCN_PRINTK(debug, (f), fmt, ##a)
 #define FLCN_ERR(f,fmt,a...) FLCN_PRINTK(error, (f), fmt, ##a)
 
+/**
+ * struct nv_falcon_msg - header for all messages
+ *
+ * @unit_id:	id of firmware process that sent the message
+ * @size:	total size of message
+ * @ctrl_flags:	control flags
+ * @seq_id:	used to match a message from its corresponding command
+ */
+struct nv_falcon_msg {
+	u8 unit_id;
+	u8 size;
+	u8 ctrl_flags;
+	u8 seq_id;
+};
+
 struct nvkm_falcon_qmgr;
 int nvkm_falcon_qmgr_new(struct nvkm_falcon *, struct nvkm_falcon_qmgr **);
 void nvkm_falcon_qmgr_del(struct nvkm_falcon_qmgr **);
+
+typedef int
+(*nvkm_falcon_qmgr_callback)(void *priv, struct nv_falcon_msg *);
 
 struct nvkm_falcon_cmdq;
 int nvkm_falcon_cmdq_new(struct nvkm_falcon_qmgr *, const char *name,

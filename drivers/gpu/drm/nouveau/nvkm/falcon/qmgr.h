@@ -4,7 +4,7 @@
 #include <core/falcon.h>
 #include "msgqueue.h"
 
-#define HDR_SIZE sizeof(struct nvkm_msgqueue_hdr)
+#define HDR_SIZE sizeof(struct nv_falcon_msg)
 #define QUEUE_ALIGNMENT 4
 /* max size of the messages we can receive */
 #define MSG_BUF_SIZE 128
@@ -29,8 +29,10 @@ struct nvkm_msgqueue_seq {
 		SEQ_STATE_USED,
 		SEQ_STATE_CANCELLED
 	} state;
-	nvkm_msgqueue_callback callback;
+	nvkm_falcon_qmgr_callback callback;
+	void *priv;
 	struct completion *completion;
+	int result;
 };
 
 /*

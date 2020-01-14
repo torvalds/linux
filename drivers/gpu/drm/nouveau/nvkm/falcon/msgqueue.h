@@ -23,7 +23,7 @@
 
 #ifndef __NVKM_CORE_FALCON_MSGQUEUE_H
 #define __NVKM_CORE_FALCON_MSGQUEUE_H
-
+#include <core/falcon.h>
 #include <core/msgqueue.h>
 
 /*
@@ -83,8 +83,6 @@ struct nvkm_msgqueue_msg {
 };
 
 struct nvkm_msgqueue;
-typedef void
-(*nvkm_msgqueue_callback)(struct nvkm_msgqueue *, struct nvkm_msgqueue_hdr *);
 
 /**
  * struct nvkm_msgqueue_init_func - msgqueue functions related to initialization
@@ -163,7 +161,7 @@ struct nvkm_msgqueue {
 void nvkm_msgqueue_ctor(const struct nvkm_msgqueue_func *, struct nvkm_falcon *,
 			struct nvkm_msgqueue *);
 int nvkm_msgqueue_post(struct nvkm_msgqueue *, enum msgqueue_msg_priority,
-		       struct nvkm_msgqueue_hdr *, nvkm_msgqueue_callback,
+		       struct nvkm_msgqueue_hdr *, nvkm_falcon_qmgr_callback,
 		       struct completion *, bool);
 void nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *,
 				struct nvkm_msgqueue_queue *);

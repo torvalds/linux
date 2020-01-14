@@ -147,13 +147,13 @@ enum {
 	ACR_CMD_BOOTSTRAP_FALCON = 0x00,
 };
 
-static void
-acr_boot_falcon_callback(struct nvkm_msgqueue *priv,
-			 struct nvkm_msgqueue_hdr *hdr)
+static int
+acr_boot_falcon_callback(void *_priv, struct nv_falcon_msg *hdr)
 {
+	struct nvkm_msgqueue *priv = _priv;
 	struct acr_bootstrap_falcon_msg {
-		struct nvkm_msgqueue_msg base;
-
+		struct nv_falcon_msg base;
+		u8 msg_type;
 		u32 error_code;
 		u32 falcon_id;
 	} *msg = (void *)hdr;
@@ -164,16 +164,17 @@ acr_boot_falcon_callback(struct nvkm_msgqueue *priv,
 		nvkm_error(subdev, "in bootstrap falcon callback:\n");
 		nvkm_error(subdev, "expected error code 0x%x\n",
 			   msg->error_code);
-		return;
+		return -EINVAL;
 	}
 
 	if (falcon_id >= NVKM_SECBOOT_FALCON_END) {
 		nvkm_error(subdev, "in bootstrap falcon callback:\n");
 		nvkm_error(subdev, "invalid falcon ID 0x%x\n", falcon_id);
-		return;
+		return -EINVAL;
 	}
 
 	nvkm_debug(subdev, "%s booted\n", nvkm_secboot_falcon_name[falcon_id]);
+	return 0;
 }
 
 enum {

@@ -149,7 +149,7 @@ cmd_write(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *cmd,
 
 int
 nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
-		   struct nvkm_msgqueue_hdr *cmd, nvkm_msgqueue_callback cb,
+		   struct nvkm_msgqueue_hdr *cmd, nvkm_falcon_qmgr_callback cb,
 		   struct completion *completion, bool wait_init)
 {
 	struct nvkm_msgqueue_seq *seq;
@@ -172,6 +172,7 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 	cmd->ctrl_flags = CMD_FLAGS_STATUS | CMD_FLAGS_INTR;
 
 	seq->callback = cb;
+	seq->priv = priv;
 	seq->state = SEQ_STATE_USED;
 	seq->completion = completion;
 

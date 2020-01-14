@@ -86,7 +86,7 @@ msg_queue_pop(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 
 static int
 msg_queue_read(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
-	       struct nvkm_msgqueue_hdr *hdr)
+	       struct nv_falcon_msg *hdr)
 {
 	const struct nvkm_subdev *subdev = priv->falcon->owner;
 	int ret;
@@ -136,7 +136,7 @@ close:
 static int
 msgqueue_msg_handle(struct nvkm_msgqueue *priv,
 		    struct nvkm_falcon_msgq *msgq,
-		    struct nvkm_msgqueue_hdr *hdr)
+		    struct nv_falcon_msg *hdr)
 {
 	const struct nvkm_subdev *subdev = priv->falcon->owner;
 	struct nvkm_msgqueue_seq *seq;
@@ -149,7 +149,7 @@ msgqueue_msg_handle(struct nvkm_msgqueue *priv,
 
 	if (seq->state == SEQ_STATE_USED) {
 		if (seq->callback)
-			seq->callback(priv, hdr);
+			seq->result = seq->callback(seq->priv, hdr);
 	}
 
 	if (seq->completion)
@@ -160,12 +160,13 @@ msgqueue_msg_handle(struct nvkm_msgqueue *priv,
 }
 
 static int
-msgqueue_handle_init_msg(struct nvkm_msgqueue *priv,
-			 struct nvkm_msgqueue_hdr *hdr)
+msgqueue_handle_init_msg(struct nvkm_msgqueue *priv)
 {
 	struct nvkm_falcon *falcon = priv->falcon;
 	const struct nvkm_subdev *subdev = falcon->owner;
 	const u32 tail_reg = falcon->func->msgq.tail;
+	u8 msg_buffer[MSG_BUF_SIZE];
+	struct nvkm_msgqueue_hdr *hdr = (void *)msg_buffer;
 	u32 tail;
 	int ret;
 
@@ -203,12 +204,12 @@ nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *priv,
 	 * stack space to work with.
 	 */
 	u8 msg_buffer[MSG_BUF_SIZE];
-	struct nvkm_msgqueue_hdr *hdr = (void *)msg_buffer;
+	struct nv_falcon_msg *hdr = (void *)msg_buffer;
 	int ret;
 
 	/* the first message we receive must be the init message */
 	if ((!priv->init_msg_received)) {
-		ret = msgqueue_handle_init_msg(priv, hdr);
+		ret = msgqueue_handle_init_msg(priv);
 		if (!ret)
 			priv->init_msg_received = true;
 	} else {

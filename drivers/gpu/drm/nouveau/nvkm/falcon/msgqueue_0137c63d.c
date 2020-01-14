@@ -169,12 +169,13 @@ enum {
 	ACR_CMD_BOOTSTRAP_MULTIPLE_FALCONS = 0x03,
 };
 
-static void
-acr_init_wpr_callback(struct nvkm_msgqueue *queue,
-		      struct nvkm_msgqueue_hdr *hdr)
+static int
+acr_init_wpr_callback(void *priv, struct nv_falcon_msg *hdr)
 {
+	struct nvkm_msgqueue *queue = priv;
 	struct {
-		struct nvkm_msgqueue_msg base;
+		struct nv_falcon_msg base;
+		u8 msg_type;
 		u32 error_code;
 	} *msg = (void *)hdr;
 	const struct nvkm_subdev *subdev = queue->falcon->owner;
@@ -182,11 +183,12 @@ acr_init_wpr_callback(struct nvkm_msgqueue *queue,
 	if (msg->error_code) {
 		nvkm_error(subdev, "ACR WPR init failure: %d\n",
 			   msg->error_code);
-		return;
+		return -EINVAL;
 	}
 
 	nvkm_debug(subdev, "ACR WPR init complete\n");
 	complete_all(&queue->init_done);
+	return 0;
 }
 
 static int
@@ -217,13 +219,13 @@ acr_init_wpr(struct nvkm_msgqueue *queue)
 }
 
 
-static void
-acr_boot_falcon_callback(struct nvkm_msgqueue *priv,
-			 struct nvkm_msgqueue_hdr *hdr)
+static int
+acr_boot_falcon_callback(void *_priv, struct nv_falcon_msg *hdr)
 {
+	struct nvkm_msgqueue *priv = _priv;
 	struct acr_bootstrap_falcon_msg {
-		struct nvkm_msgqueue_msg base;
-
+		struct nv_falcon_msg base;
+		u8 msg_type;
 		u32 falcon_id;
 	} *msg = (void *)hdr;
 	const struct nvkm_subdev *subdev = priv->falcon->owner;
@@ -232,9 +234,11 @@ acr_boot_falcon_callback(struct nvkm_msgqueue *priv,
 	if (falcon_id >= NVKM_SECBOOT_FALCON_END) {
 		nvkm_error(subdev, "in bootstrap falcon callback:\n");
 		nvkm_error(subdev, "invalid falcon ID 0x%x\n", falcon_id);
-		return;
+		return -EINVAL;
 	}
+
 	nvkm_debug(subdev, "%s booted\n", nvkm_secboot_falcon_name[falcon_id]);
+	return 0;
 }
 
 enum {
@@ -273,13 +277,13 @@ acr_boot_falcon(struct nvkm_msgqueue *priv, enum nvkm_secboot_falcon falcon)
 	return 0;
 }
 
-static void
-acr_boot_multiple_falcons_callback(struct nvkm_msgqueue *priv,
-				   struct nvkm_msgqueue_hdr *hdr)
+static int
+acr_boot_multiple_falcons_callback(void *_priv, struct nv_falcon_msg *hdr)
 {
+	struct nvkm_msgqueue *priv = _priv;
 	struct acr_bootstrap_falcon_msg {
-		struct nvkm_msgqueue_msg base;
-
+		struct nv_falcon_msg base;
+		u8 msg_type;
 		u32 falcon_mask;
 	} *msg = (void *)hdr;
 	const struct nvkm_subdev *subdev = priv->falcon->owner;
@@ -296,8 +300,10 @@ acr_boot_multiple_falcons_callback(struct nvkm_msgqueue *priv,
 		nvkm_error(subdev, "in bootstrap falcon callback:\n");
 		nvkm_error(subdev, "invalid falcon mask 0x%x\n",
 			   msg->falcon_mask);
-		return;
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 static int
