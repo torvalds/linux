@@ -197,15 +197,16 @@ u8 rtw_hal_antdiv_before_linked(struct adapter *Adapter)
 	if (check_fwstate(pmlmepriv, _FW_LINKED))
 		return false;
 
-	if (dm_swat_tbl->SWAS_NoLink_State == 0) {
-		/* switch channel */
-		dm_swat_tbl->SWAS_NoLink_State = 1;
-		dm_swat_tbl->CurAntenna = (dm_swat_tbl->CurAntenna == Antenna_A) ? Antenna_B : Antenna_A;
-
-		rtw_antenna_select_cmd(Adapter, dm_swat_tbl->CurAntenna, false);
-		return true;
-	} else {
+	if (dm_swat_tbl->SWAS_NoLink_State != 0) {
 		dm_swat_tbl->SWAS_NoLink_State = 0;
 		return false;
 	}
+
+	/* switch channel */
+	dm_swat_tbl->SWAS_NoLink_State = 1;
+	dm_swat_tbl->CurAntenna = (dm_swat_tbl->CurAntenna == Antenna_A) ?
+				  Antenna_B : Antenna_A;
+
+	rtw_antenna_select_cmd(Adapter, dm_swat_tbl->CurAntenna, false);
+	return true;
 }
