@@ -819,7 +819,6 @@ EXPORT_SYMBOL(sdw_cdns_thread);
 /**
  * sdw_cdns_exit_reset() - Program reset parameters and start bus operations
  * @cdns: Cadence instance
- * @state: True if we are trying to enable interrupt.
  */
 int sdw_cdns_exit_reset(struct sdw_cdns *cdns)
 {
@@ -846,6 +845,7 @@ EXPORT_SYMBOL(sdw_cdns_exit_reset);
 /**
  * sdw_cdns_enable_interrupt() - Enable SDW interrupts
  * @cdns: Cadence instance
+ * @state: True if we are trying to enable interrupt.
  */
 int sdw_cdns_enable_interrupt(struct sdw_cdns *cdns, bool state)
 {
