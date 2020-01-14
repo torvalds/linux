@@ -442,12 +442,11 @@ int nfs4_submount(struct fs_context *fc, struct nfs_server *server)
 	struct dentry *dentry = ctx->clone_data.dentry;
 	struct dentry *parent = dget_parent(dentry);
 	struct inode *dir = d_inode(parent);
-	const struct qstr *name = &dentry->d_name;
 	struct rpc_clnt *client;
 	int ret;
 
 	/* Look it up again to get its attributes and sec flavor */
-	client = nfs4_proc_lookup_mountpoint(dir, name, ctx->mntfh,
+	client = nfs4_proc_lookup_mountpoint(dir, dentry, ctx->mntfh,
 					     ctx->clone_data.fattr);
 	dput(parent);
 	if (IS_ERR(client))
