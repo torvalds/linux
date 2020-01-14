@@ -22,6 +22,7 @@
 #define DMA_DEBUG_STATUS_1		0x00001010
 #define DMA_DEBUG_STATUS_2		0x00001014
 #define DMA_AXI_BUS_MODE		0x00001028
+#define DMA_TBS_CTRL			0x00001050
 
 /* DMA Bus Mode bitmap */
 #define DMA_BUS_MODE_SFT_RESET		BIT(0)
@@ -82,6 +83,11 @@
 
 #define DMA_AXI_BURST_LEN_MASK		0x000000FE
 
+/* DMA TBS Control */
+#define DMA_TBS_FTOS			GENMASK(31, 8)
+#define DMA_TBS_FTOV			BIT(0)
+#define DMA_TBS_DEF_FTOS		(DMA_TBS_FTOS | DMA_TBS_FTOV)
+
 /* Following DMA defines are chanels oriented */
 #define DMA_CHAN_BASE_ADDR		0x00001100
 #define DMA_CHAN_BASE_OFFSET		0x80
@@ -114,6 +120,7 @@
 #define DMA_CONTROL_MSS_MASK		GENMASK(13, 0)
 
 /* DMA Tx Channel X Control register defines */
+#define DMA_CONTROL_EDSE		BIT(28)
 #define DMA_CONTROL_TSE			BIT(12)
 #define DMA_CONTROL_OSP			BIT(4)
 #define DMA_CONTROL_ST			BIT(0)
