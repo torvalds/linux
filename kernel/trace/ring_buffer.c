@@ -2331,11 +2331,11 @@ static inline bool rb_event_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
 
 /**
  * rb_update_event - update event type and data
+ * @cpu_buffer: The per cpu buffer of the @event
  * @event: the event to update
- * @type: the type of event
- * @length: the size of the event field in the ring buffer
+ * @info: The info to update the @event with (contains length and delta)
  *
- * Update the type and data fields of the event. The length
+ * Update the type and data fields of the @event. The length
  * is the actual size that is written to the ring buffer,
  * and with this, we can determine what to place into the
  * data field.
