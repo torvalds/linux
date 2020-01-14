@@ -46,10 +46,10 @@ struct ovl_path {
 struct ovl_fs {
 	struct vfsmount *upper_mnt;
 	unsigned int numlayer;
-	/* Number of unique lower sb that differ from upper sb */
-	unsigned int numlowerfs;
+	/* Number of unique fs among layers including upper fs */
+	unsigned int numfs;
 	struct ovl_layer *layers;
-	struct ovl_sb *lower_fs;
+	struct ovl_sb *fs;
 	/* workbasedir is the path at workdir= mount option */
 	struct dentry *workbasedir;
 	/* workdir is the 'work' directory under workbasedir */

@@ -228,10 +228,11 @@ static void ovl_free_fs(struct ovl_fs *ofs)
 		iput(ofs->layers[i].trap);
 		mntput(ofs->layers[i].mnt);
 	}
-	for (i = 0; i < ofs->numlowerfs; i++)
-		free_anon_bdev(ofs->lower_fs[i].pseudo_dev);
 	kfree(ofs->layers);
-	kfree(ofs->lower_fs);
+	/* fs[0].pseudo_dev is either null or real upper st_dev */
+	for (i = 1; i < ofs->numfs; i++)
+		free_anon_bdev(ofs->fs[i].pseudo_dev);
+	kfree(ofs->fs);
 
 	kfree(ofs->config.lowerdir);
 	kfree(ofs->config.upperdir);
@@ -1259,7 +1260,7 @@ static bool ovl_lower_uuid_ok(struct ovl_fs *ofs, const uuid_t *uuid)
 	if (!ofs->config.nfs_export && !ofs->upper_mnt)
 		return true;
 
-	for (i = 0; i < ofs->numlowerfs; i++) {
+	for (i = 1; i < ofs->numfs; i++) {
 		/*
 		 * We use uuid to associate an overlay lower file handle with a
 		 * lower layer, so we can accept lower fs with null uuid as long
@@ -1267,8 +1268,8 @@ static bool ovl_lower_uuid_ok(struct ovl_fs *ofs, const uuid_t *uuid)
 		 * if we detect multiple lower fs with the same uuid, we
 		 * disable lower file handle decoding on all of them.
 		 */
-		if (uuid_equal(&ofs->lower_fs[i].sb->s_uuid, uuid)) {
-			ofs->lower_fs[i].bad_uuid = true;
+		if (uuid_equal(&ofs->fs[i].sb->s_uuid, uuid)) {
+			ofs->fs[i].bad_uuid = true;
 			return false;
 		}
 	}
@@ -1284,13 +1285,9 @@ static int ovl_get_fsid(struct ovl_fs *ofs, const struct path *path)
 	int err;
 	bool bad_uuid = false;
 
-	/* fsid 0 is reserved for upper fs even with non upper overlay */
-	if (ofs->upper_mnt && ofs->upper_mnt->mnt_sb == sb)
-		return 0;
-
-	for (i = 0; i < ofs->numlowerfs; i++) {
-		if (ofs->lower_fs[i].sb == sb)
-			return i + 1;
+	for (i = 0; i < ofs->numfs; i++) {
+		if (ofs->fs[i].sb == sb)
+			return i;
 	}
 
 	if (!ovl_lower_uuid_ok(ofs, &sb->s_uuid)) {
@@ -1311,12 +1308,11 @@ static int ovl_get_fsid(struct ovl_fs *ofs, const struct path *path)
 		return err;
 	}
 
-	ofs->lower_fs[ofs->numlowerfs].sb = sb;
-	ofs->lower_fs[ofs->numlowerfs].pseudo_dev = dev;
-	ofs->lower_fs[ofs->numlowerfs].bad_uuid = bad_uuid;
-	ofs->numlowerfs++;
+	ofs->fs[ofs->numfs].sb = sb;
+	ofs->fs[ofs->numfs].pseudo_dev = dev;
+	ofs->fs[ofs->numfs].bad_uuid = bad_uuid;
 
-	return ofs->numlowerfs;
+	return ofs->numfs++;
 }
 
 static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
@@ -1331,16 +1327,26 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	if (ofs->layers == NULL)
 		goto out;
 
-	ofs->lower_fs = kcalloc(numlower, sizeof(struct ovl_sb),
-				GFP_KERNEL);
-	if (ofs->lower_fs == NULL)
+	ofs->fs = kcalloc(numlower + 1, sizeof(struct ovl_sb), GFP_KERNEL);
+	if (ofs->fs == NULL)
 		goto out;
 
-	/* idx 0 is reserved for upper fs even with lower only overlay */
+	/* idx/fsid 0 are reserved for upper fs even with lower only overlay */
+	ofs->numfs++;
+
 	ofs->layers[0].mnt = ofs->upper_mnt;
 	ofs->layers[0].idx = 0;
 	ofs->layers[0].fsid = 0;
 	ofs->numlayer = 1;
+
+	/*
+	 * All lower layers that share the same fs as upper layer, use the real
+	 * upper st_dev.
+	 */
+	if (ofs->upper_mnt) {
+		ofs->fs[0].sb = ofs->upper_mnt->mnt_sb;
+		ofs->fs[0].pseudo_dev = ofs->upper_mnt->mnt_sb->s_dev;
+	}
 
 	for (i = 0; i < numlower; i++) {
 		struct vfsmount *mnt;
@@ -1379,10 +1385,7 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		ofs->layers[ofs->numlayer].mnt = mnt;
 		ofs->layers[ofs->numlayer].idx = ofs->numlayer;
 		ofs->layers[ofs->numlayer].fsid = fsid;
-		if (fsid) {
-			ofs->layers[ofs->numlayer].fs =
-				&ofs->lower_fs[fsid - 1];
-		}
+		ofs->layers[ofs->numlayer].fs = &ofs->fs[fsid];
 		ofs->numlayer++;
 	}
 
@@ -1394,18 +1397,18 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	 * bits reserved for fsid, it emits a warning and uses the original
 	 * inode number.
 	 */
-	if (!ofs->numlowerfs || (ofs->numlowerfs == 1 && !ofs->upper_mnt)) {
+	if (ofs->numfs - !ofs->upper_mnt == 1) {
 		if (ofs->config.xino == OVL_XINO_ON)
 			pr_info("\"xino=on\" is useless with all layers on same fs, ignore.\n");
 		ofs->xino_mode = 0;
 	} else if (ofs->config.xino == OVL_XINO_ON && ofs->xino_mode < 0) {
 		/*
-		 * This is a roundup of number of bits needed for numlowerfs+1
-		 * (i.e. ilog2(numlowerfs+1 - 1) + 1). fsid 0 is reserved for
-		 * upper fs even with non upper overlay.
+		 * This is a roundup of number of bits needed for encoding
+		 * fsid, where fsid 0 is reserved for upper fs even with
+		 * lower only overlay.
 		 */
 		BUILD_BUG_ON(ilog2(OVL_MAX_STACK) > 31);
-		ofs->xino_mode = ilog2(ofs->numlowerfs) + 1;
+		ofs->xino_mode = ilog2(ofs->numfs - 1) + 1;
 	}
 
 	if (ofs->xino_mode > 0) {
