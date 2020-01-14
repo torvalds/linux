@@ -25,30 +25,17 @@
 #include <subdev/acr.h>
 #include <subdev/top.h>
 
-static int
-nvkm_gsp_oneinit(struct nvkm_subdev *subdev)
-{
-	struct nvkm_gsp *gsp = nvkm_gsp(subdev);
-
-	gsp->addr = nvkm_top_addr(subdev->device, subdev->index);
-	if (!gsp->addr)
-		return -EINVAL;
-
-	return nvkm_falcon_v1_new(subdev, "GSP", gsp->addr, &gsp->falcon);
-}
-
 static void *
 nvkm_gsp_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_gsp *gsp = nvkm_gsp(subdev);
-	nvkm_falcon_del(&gsp->falcon);
+	nvkm_falcon_dtor(&gsp->falcon);
 	return gsp;
 }
 
 static const struct nvkm_subdev_func
 nvkm_gsp = {
 	.dtor = nvkm_gsp_dtor,
-	.oneinit = nvkm_gsp_oneinit,
 };
 
 int
@@ -66,5 +53,7 @@ nvkm_gsp_new_(const struct nvkm_gsp_fwif *fwif, struct nvkm_device *device,
 	if (IS_ERR(fwif))
 		return PTR_ERR(fwif);
 
-	return 0;
+	return nvkm_falcon_ctor(fwif->flcn, &gsp->subdev,
+				nvkm_subdev_name[gsp->subdev.index], 0,
+				&gsp->falcon);
 }
