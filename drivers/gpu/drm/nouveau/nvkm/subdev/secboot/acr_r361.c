@@ -172,7 +172,7 @@ acr_r361_generate_sec2_bl_desc(const struct nvkm_acr *acr,
 	/* For some reason we should not add app_resident_code_offset here */
 	addr_code = base;
 	addr_data = base + pdesc->app_resident_data_offset;
-	addr_args = sec->falcon->data.limit;
+	addr_args = sec->falcon.data.limit;
 	addr_args -= NVKM_MSGQUEUE_CMDLINE_SIZE;
 
 	desc->dma_idx = FALCON_SEC2_DMAIDX_UCODE;

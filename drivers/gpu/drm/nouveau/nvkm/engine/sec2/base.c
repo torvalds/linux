@@ -24,7 +24,6 @@
 #include <core/firmware.h>
 #include <core/msgqueue.h>
 #include <subdev/top.h>
-#include <engine/falcon.h>
 
 static void
 nvkm_sec2_intr(struct nvkm_engine *engine)
@@ -62,22 +61,6 @@ nvkm_sec2_recv(struct work_struct *work)
 	nvkm_msgqueue_recv(sec2->queue);
 }
 
-
-static int
-nvkm_sec2_oneinit(struct nvkm_engine *engine)
-{
-	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
-	struct nvkm_subdev *subdev = &sec2->engine.subdev;
-
-	if (!sec2->addr) {
-		sec2->addr = nvkm_top_addr(subdev->device, subdev->index);
-		if (WARN_ON(!sec2->addr))
-			return -EINVAL;
-	}
-
-	return nvkm_falcon_v1_new(subdev, "SEC2", sec2->addr, &sec2->falcon);
-}
-
 static int
 nvkm_sec2_fini(struct nvkm_engine *engine, bool suspend)
 {
@@ -91,14 +74,13 @@ nvkm_sec2_dtor(struct nvkm_engine *engine)
 {
 	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
 	nvkm_msgqueue_del(&sec2->queue);
-	nvkm_falcon_del(&sec2->falcon);
+	nvkm_falcon_dtor(&sec2->falcon);
 	return sec2;
 }
 
 static const struct nvkm_engine_func
 nvkm_sec2 = {
 	.dtor = nvkm_sec2_dtor,
-	.oneinit = nvkm_sec2_oneinit,
 	.fini = nvkm_sec2_fini,
 	.intr = nvkm_sec2_intr,
 };
@@ -123,6 +105,11 @@ nvkm_sec2_new_(const struct nvkm_sec2_fwif *fwif, struct nvkm_device *device,
 		return PTR_ERR(fwif);
 
 	sec2->func = fwif->func;
+
+	ret = nvkm_falcon_ctor(sec2->func->flcn, &sec2->engine.subdev,
+			       nvkm_subdev_name[index], addr, &sec2->falcon);
+	if (ret)
+		return ret;
 
 	INIT_WORK(&sec2->work, nvkm_sec2_recv);
 	return 0;

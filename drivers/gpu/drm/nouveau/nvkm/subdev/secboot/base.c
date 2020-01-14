@@ -138,7 +138,7 @@ nvkm_secboot_oneinit(struct nvkm_subdev *subdev)
 	case NVKM_SECBOOT_FALCON_SEC2:
 		/* we must keep SEC2 alive forever since ACR will run on it */
 		nvkm_engine_ref(&subdev->device->sec2->engine);
-		sb->boot_falcon = subdev->device->sec2->falcon;
+		sb->boot_falcon = &subdev->device->sec2->falcon;
 		sb->halt_falcon = &subdev->device->pmu->falcon;
 		break;
 	default:

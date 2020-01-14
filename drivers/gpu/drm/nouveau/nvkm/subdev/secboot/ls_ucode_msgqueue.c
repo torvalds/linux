@@ -148,7 +148,7 @@ acr_ls_ucode_load_sec2(const struct nvkm_secboot *sb, int maxver,
 		return ver;
 
 	/* Allocate the PMU queue corresponding to the FW version */
-	ret = nvkm_msgqueue_new(img->ucode_desc.app_version, sec->falcon,
+	ret = nvkm_msgqueue_new(img->ucode_desc.app_version, &sec->falcon,
 				sb, &sec->queue);
 	if (ret)
 		return ret;
@@ -166,7 +166,7 @@ acr_ls_sec2_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 	const u32 addr_args = 0x01000000;
 	int ret;
 
-	ret = acr_ls_msgqueue_post_run(sec->queue, sec->falcon, addr_args);
+	ret = acr_ls_msgqueue_post_run(sec->queue, &sec->falcon, addr_args);
 	if (ret)
 		return ret;
 

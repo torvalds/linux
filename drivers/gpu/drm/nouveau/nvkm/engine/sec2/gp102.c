@@ -26,8 +26,24 @@ static const struct nvkm_acr_lsf_func
 gp102_sec2_acr_0 = {
 };
 
+
+static const struct nvkm_falcon_func
+gp102_sec2_flcn = {
+	.load_imem = nvkm_falcon_v1_load_imem,
+	.load_dmem = nvkm_falcon_v1_load_dmem,
+	.read_dmem = nvkm_falcon_v1_read_dmem,
+	.bind_context = nvkm_falcon_v1_bind_context,
+	.wait_for_halt = nvkm_falcon_v1_wait_for_halt,
+	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
+	.set_start_addr = nvkm_falcon_v1_set_start_addr,
+	.start = nvkm_falcon_v1_start,
+	.enable = nvkm_falcon_v1_enable,
+	.disable = nvkm_falcon_v1_disable,
+};
+
 const struct nvkm_sec2_func
 gp102_sec2 = {
+	.flcn = &gp102_sec2_flcn,
 };
 
 MODULE_FIRMWARE("nvidia/gp102/sec2/desc.bin");
@@ -52,7 +68,7 @@ gp102_sec2_load(struct nvkm_sec2 *sec2, int ver,
 		const struct nvkm_sec2_fwif *fwif)
 {
 	return nvkm_acr_lsfw_load_sig_image_desc_v1(&sec2->engine.subdev,
-						    sec2->falcon,
+						    &sec2->falcon,
 						    NVKM_ACR_LSF_SEC2, "sec2/",
 						    ver, fwif->acr);
 }
