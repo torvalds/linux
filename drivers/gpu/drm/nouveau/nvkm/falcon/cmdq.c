@@ -23,21 +23,21 @@
 #include "qmgr.h"
 
 static bool
-cmd_queue_has_room(struct nvkm_msgqueue_queue *queue, u32 size, bool *rewind)
+nvkm_falcon_cmdq_has_room(struct nvkm_falcon_cmdq *cmdq, u32 size, bool *rewind)
 {
-	u32 head = nvkm_falcon_rd32(queue->qmgr->falcon, queue->head_reg);
-	u32 tail = nvkm_falcon_rd32(queue->qmgr->falcon, queue->tail_reg);
+	u32 head = nvkm_falcon_rd32(cmdq->qmgr->falcon, cmdq->head_reg);
+	u32 tail = nvkm_falcon_rd32(cmdq->qmgr->falcon, cmdq->tail_reg);
 	u32 free;
 
 	size = ALIGN(size, QUEUE_ALIGNMENT);
 
 	if (head >= tail) {
-		free = queue->offset + queue->size - head;
+		free = cmdq->offset + cmdq->size - head;
 		free -= HDR_SIZE;
 
 		if (size > free) {
 			*rewind = true;
-			head = queue->offset;
+			head = cmdq->offset;
 		}
 	}
 
@@ -48,73 +48,70 @@ cmd_queue_has_room(struct nvkm_msgqueue_queue *queue, u32 size, bool *rewind)
 }
 
 static void
-cmd_queue_push(struct nvkm_msgqueue_queue *queue, void *data, u32 size)
+nvkm_falcon_cmdq_push(struct nvkm_falcon_cmdq *cmdq, void *data, u32 size)
 {
-	struct nvkm_falcon *falcon = queue->qmgr->falcon;
-	nvkm_falcon_load_dmem(falcon, data, queue->position, size, 0);
-	queue->position += ALIGN(size, QUEUE_ALIGNMENT);
+	struct nvkm_falcon *falcon = cmdq->qmgr->falcon;
+	nvkm_falcon_load_dmem(falcon, data, cmdq->position, size, 0);
+	cmdq->position += ALIGN(size, QUEUE_ALIGNMENT);
 }
 
-/* REWIND unit is always 0x00 */
-#define MSGQUEUE_UNIT_REWIND 0x00
-
 static void
-cmd_queue_rewind(struct nvkm_msgqueue_queue *queue)
+nvkm_falcon_cmdq_rewind(struct nvkm_falcon_cmdq *cmdq)
 {
 	struct nv_falcon_cmd cmd;
 
-	cmd.unit_id = MSGQUEUE_UNIT_REWIND;
+	cmd.unit_id = NV_FALCON_CMD_UNIT_ID_REWIND;
 	cmd.size = sizeof(cmd);
-	cmd_queue_push(queue, &cmd, cmd.size);
+	nvkm_falcon_cmdq_push(cmdq, &cmd, cmd.size);
 
-	queue->position = queue->offset;
+	cmdq->position = cmdq->offset;
 }
 
 static int
-cmd_queue_open(struct nvkm_msgqueue_queue *queue, u32 size)
+nvkm_falcon_cmdq_open(struct nvkm_falcon_cmdq *cmdq, u32 size)
 {
-	struct nvkm_falcon *falcon = queue->qmgr->falcon;
+	struct nvkm_falcon *falcon = cmdq->qmgr->falcon;
 	bool rewind = false;
 
-	mutex_lock(&queue->mutex);
+	mutex_lock(&cmdq->mutex);
 
-	if (!cmd_queue_has_room(queue, size, &rewind)) {
-		FLCNQ_DBG(queue, "queue full");
-		mutex_unlock(&queue->mutex);
+	if (!nvkm_falcon_cmdq_has_room(cmdq, size, &rewind)) {
+		FLCNQ_DBG(cmdq, "queue full");
+		mutex_unlock(&cmdq->mutex);
 		return -EAGAIN;
 	}
 
-	queue->position = nvkm_falcon_rd32(falcon, queue->head_reg);
+	cmdq->position = nvkm_falcon_rd32(falcon, cmdq->head_reg);
 
 	if (rewind)
-		cmd_queue_rewind(queue);
+		nvkm_falcon_cmdq_rewind(cmdq);
 
 	return 0;
 }
 
 static void
-cmd_queue_close(struct nvkm_msgqueue_queue *queue)
+nvkm_falcon_cmdq_close(struct nvkm_falcon_cmdq *cmdq)
 {
-	nvkm_falcon_wr32(queue->qmgr->falcon, queue->head_reg, queue->position);
-	mutex_unlock(&queue->mutex);
+	nvkm_falcon_wr32(cmdq->qmgr->falcon, cmdq->head_reg, cmdq->position);
+	mutex_unlock(&cmdq->mutex);
 }
 
 static int
-cmd_write(struct nvkm_msgqueue_queue *queue, struct nv_falcon_cmd *cmd)
+nvkm_falcon_cmdq_write(struct nvkm_falcon_cmdq *cmdq, struct nv_falcon_cmd *cmd)
 {
 	static unsigned timeout = 2000;
 	unsigned long end_jiffies = jiffies + msecs_to_jiffies(timeout);
 	int ret = -EAGAIN;
 
 	while (ret == -EAGAIN && time_before(jiffies, end_jiffies))
-		ret = cmd_queue_open(queue, cmd->size);
+		ret = nvkm_falcon_cmdq_open(cmdq, cmd->size);
 	if (ret) {
-		FLCNQ_ERR(queue, "timeout waiting for queue space");
+		FLCNQ_ERR(cmdq, "timeout waiting for queue space");
 		return ret;
 	}
 
-	cmd_queue_push(queue, cmd, cmd->size);
-	cmd_queue_close(queue);
+	nvkm_falcon_cmdq_push(cmdq, cmd, cmd->size);
+	nvkm_falcon_cmdq_close(cmdq);
 	return ret;
 }
 
@@ -124,21 +121,20 @@ cmd_write(struct nvkm_msgqueue_queue *queue, struct nv_falcon_cmd *cmd)
 #define CMD_FLAGS_INTR BIT(1)
 
 int
-nvkm_falcon_cmdq_send(struct nvkm_falcon_cmdq *queue,
-		      struct nv_falcon_cmd *cmd,
+nvkm_falcon_cmdq_send(struct nvkm_falcon_cmdq *cmdq, struct nv_falcon_cmd *cmd,
 		      nvkm_falcon_qmgr_callback cb, void *priv,
 		      unsigned long timeout)
 {
 	struct nvkm_falcon_qmgr_seq *seq;
 	int ret;
 
-	if (!wait_for_completion_timeout(&queue->ready,
+	if (!wait_for_completion_timeout(&cmdq->ready,
 					 msecs_to_jiffies(1000))) {
-		FLCNQ_ERR(queue, "timeout waiting for queue ready");
+		FLCNQ_ERR(cmdq, "timeout waiting for queue ready");
 		return -ETIMEDOUT;
 	}
 
-	seq = nvkm_falcon_qmgr_seq_acquire(queue->qmgr);
+	seq = nvkm_falcon_qmgr_seq_acquire(cmdq->qmgr);
 	if (IS_ERR(seq))
 		return PTR_ERR(seq);
 
@@ -150,20 +146,20 @@ nvkm_falcon_cmdq_send(struct nvkm_falcon_cmdq *queue,
 	seq->callback = cb;
 	seq->priv = priv;
 
-	ret = cmd_write(queue, cmd);
+	ret = nvkm_falcon_cmdq_write(cmdq, cmd);
 	if (ret) {
 		seq->state = SEQ_STATE_PENDING;
-		nvkm_falcon_qmgr_seq_release(queue->qmgr, seq);
+		nvkm_falcon_qmgr_seq_release(cmdq->qmgr, seq);
 		return ret;
 	}
 
 	if (!seq->async) {
 		if (!wait_for_completion_timeout(&seq->done, timeout)) {
-			FLCNQ_ERR(queue, "timeout waiting for reply");
+			FLCNQ_ERR(cmdq, "timeout waiting for reply");
 			return -ETIMEDOUT;
 		}
 		ret = seq->result;
-		nvkm_falcon_qmgr_seq_release(queue->qmgr, seq);
+		nvkm_falcon_qmgr_seq_release(cmdq->qmgr, seq);
 	}
 
 	return ret;

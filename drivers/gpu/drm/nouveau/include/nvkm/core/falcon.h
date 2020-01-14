@@ -46,6 +46,7 @@ struct nv_falcon_msg {
 };
 
 #define nv_falcon_cmd nv_falcon_msg
+#define NV_FALCON_CMD_UNIT_ID_REWIND                                       0x00
 
 struct nvkm_falcon_qmgr;
 int nvkm_falcon_qmgr_new(struct nvkm_falcon *, struct nvkm_falcon_qmgr **);
