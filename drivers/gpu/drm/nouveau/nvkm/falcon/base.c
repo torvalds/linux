@@ -22,6 +22,7 @@
 #include "priv.h"
 
 #include <subdev/mc.h>
+#include <subdev/top.h>
 
 void
 nvkm_falcon_load_imem(struct nvkm_falcon *falcon, void *data, u32 start,
@@ -140,6 +141,12 @@ nvkm_falcon_oneinit(struct nvkm_falcon *falcon)
 	const struct nvkm_subdev *subdev = falcon->owner;
 	u32 debug_reg;
 	u32 reg;
+
+	if (!falcon->addr) {
+		falcon->addr = nvkm_top_addr(subdev->device, subdev->index);
+		if (WARN_ON(!falcon->addr))
+			return -ENODEV;
+	}
 
 	reg = nvkm_falcon_rd32(falcon, 0x12c);
 	falcon->version = reg & 0xf;
