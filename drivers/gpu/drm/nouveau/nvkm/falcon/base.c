@@ -134,51 +134,12 @@ nvkm_falcon_clear_interrupt(struct nvkm_falcon *falcon, u32 mask)
 	return falcon->func->clear_interrupt(falcon, mask);
 }
 
-void
-nvkm_falcon_put(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
+static int
+nvkm_falcon_oneinit(struct nvkm_falcon *falcon)
 {
-	if (unlikely(!falcon))
-		return;
-
-	mutex_lock(&falcon->mutex);
-	if (falcon->user == user) {
-		nvkm_debug(falcon->user, "released %s falcon\n", falcon->name);
-		falcon->user = NULL;
-	}
-	mutex_unlock(&falcon->mutex);
-}
-
-int
-nvkm_falcon_get(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
-{
-	mutex_lock(&falcon->mutex);
-	if (falcon->user) {
-		nvkm_error(user, "%s falcon already acquired by %s!\n",
-			   falcon->name, nvkm_subdev_name[falcon->user->index]);
-		mutex_unlock(&falcon->mutex);
-		return -EBUSY;
-	}
-
-	nvkm_debug(user, "acquired %s falcon\n", falcon->name);
-	falcon->user = user;
-	mutex_unlock(&falcon->mutex);
-	return 0;
-}
-
-void
-nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
-		 struct nvkm_subdev *subdev, const char *name, u32 addr,
-		 struct nvkm_falcon *falcon)
-{
+	const struct nvkm_subdev *subdev = falcon->owner;
 	u32 debug_reg;
 	u32 reg;
-
-	falcon->func = func;
-	falcon->owner = subdev;
-	falcon->name = name;
-	falcon->addr = addr;
-	mutex_init(&falcon->mutex);
-	mutex_init(&falcon->dmem_mutex);
 
 	reg = nvkm_falcon_rd32(falcon, 0x12c);
 	falcon->version = reg & 0xf;
@@ -218,6 +179,56 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 		u32 val = nvkm_falcon_rd32(falcon, debug_reg);
 		falcon->debug = (val >> 20) & 0x1;
 	}
+
+	return 0;
+}
+
+void
+nvkm_falcon_put(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
+{
+	if (unlikely(!falcon))
+		return;
+
+	mutex_lock(&falcon->mutex);
+	if (falcon->user == user) {
+		nvkm_debug(falcon->user, "released %s falcon\n", falcon->name);
+		falcon->user = NULL;
+	}
+	mutex_unlock(&falcon->mutex);
+}
+
+int
+nvkm_falcon_get(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
+{
+	int ret = 0;
+
+	mutex_lock(&falcon->mutex);
+	if (falcon->user) {
+		nvkm_error(user, "%s falcon already acquired by %s!\n",
+			   falcon->name, nvkm_subdev_name[falcon->user->index]);
+		mutex_unlock(&falcon->mutex);
+		return -EBUSY;
+	}
+
+	nvkm_debug(user, "acquired %s falcon\n", falcon->name);
+	if (!falcon->oneinit)
+		ret = nvkm_falcon_oneinit(falcon);
+	falcon->user = user;
+	mutex_unlock(&falcon->mutex);
+	return ret;
+}
+
+void
+nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
+		 struct nvkm_subdev *subdev, const char *name, u32 addr,
+		 struct nvkm_falcon *falcon)
+{
+	falcon->func = func;
+	falcon->owner = subdev;
+	falcon->name = name;
+	falcon->addr = addr;
+	mutex_init(&falcon->mutex);
+	mutex_init(&falcon->dmem_mutex);
 }
 
 void
