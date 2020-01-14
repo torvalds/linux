@@ -73,7 +73,7 @@ struct mmu_notifier_ops {
 	 * through the gart alias address, so leading to memory
 	 * corruption.
 	 */
-	void (*release)(struct mmu_notifier *mn,
+	void (*release)(struct mmu_notifier *subscription,
 			struct mm_struct *mm);
 
 	/*
@@ -85,7 +85,7 @@ struct mmu_notifier_ops {
 	 * Start-end is necessary in case the secondary MMU is mapping the page
 	 * at a smaller granularity than the primary MMU.
 	 */
-	int (*clear_flush_young)(struct mmu_notifier *mn,
+	int (*clear_flush_young)(struct mmu_notifier *subscription,
 				 struct mm_struct *mm,
 				 unsigned long start,
 				 unsigned long end);
@@ -95,7 +95,7 @@ struct mmu_notifier_ops {
 	 * latter, it is supposed to test-and-clear the young/accessed bitflag
 	 * in the secondary pte, but it may omit flushing the secondary tlb.
 	 */
-	int (*clear_young)(struct mmu_notifier *mn,
+	int (*clear_young)(struct mmu_notifier *subscription,
 			   struct mm_struct *mm,
 			   unsigned long start,
 			   unsigned long end);
@@ -106,7 +106,7 @@ struct mmu_notifier_ops {
 	 * frequently used without actually clearing the flag or tearing
 	 * down the secondary mapping on the page.
 	 */
-	int (*test_young)(struct mmu_notifier *mn,
+	int (*test_young)(struct mmu_notifier *subscription,
 			  struct mm_struct *mm,
 			  unsigned long address);
 
@@ -114,7 +114,7 @@ struct mmu_notifier_ops {
 	 * change_pte is called in cases that pte mapping to page is changed:
 	 * for example, when ksm remaps pte to point to a new shared page.
 	 */
-	void (*change_pte)(struct mmu_notifier *mn,
+	void (*change_pte)(struct mmu_notifier *subscription,
 			   struct mm_struct *mm,
 			   unsigned long address,
 			   pte_t pte);
@@ -169,9 +169,9 @@ struct mmu_notifier_ops {
 	 * invalidate_range_end.
 	 *
 	 */
-	int (*invalidate_range_start)(struct mmu_notifier *mn,
+	int (*invalidate_range_start)(struct mmu_notifier *subscription,
 				      const struct mmu_notifier_range *range);
-	void (*invalidate_range_end)(struct mmu_notifier *mn,
+	void (*invalidate_range_end)(struct mmu_notifier *subscription,
 				     const struct mmu_notifier_range *range);
 
 	/*
@@ -192,8 +192,10 @@ struct mmu_notifier_ops {
 	 * of what was passed to invalidate_range_start()/end(), if
 	 * called between those functions.
 	 */
-	void (*invalidate_range)(struct mmu_notifier *mn, struct mm_struct *mm,
-				 unsigned long start, unsigned long end);
+	void (*invalidate_range)(struct mmu_notifier *subscription,
+				 struct mm_struct *mm,
+				 unsigned long start,
+				 unsigned long end);
 
 	/*
 	 * These callbacks are used with the get/put interface to manage the
@@ -206,7 +208,7 @@ struct mmu_notifier_ops {
 	 * and cannot sleep.
 	 */
 	struct mmu_notifier *(*alloc_notifier)(struct mm_struct *mm);
-	void (*free_notifier)(struct mmu_notifier *mn);
+	void (*free_notifier)(struct mmu_notifier *subscription);
 };
 
 /*
@@ -280,14 +282,14 @@ mmu_notifier_get(const struct mmu_notifier_ops *ops, struct mm_struct *mm)
 	up_write(&mm->mmap_sem);
 	return ret;
 }
-void mmu_notifier_put(struct mmu_notifier *mn);
+void mmu_notifier_put(struct mmu_notifier *subscription);
 void mmu_notifier_synchronize(void);
 
-extern int mmu_notifier_register(struct mmu_notifier *mn,
+extern int mmu_notifier_register(struct mmu_notifier *subscription,
 				 struct mm_struct *mm);
-extern int __mmu_notifier_register(struct mmu_notifier *mn,
+extern int __mmu_notifier_register(struct mmu_notifier *subscription,
 				   struct mm_struct *mm);
-extern void mmu_notifier_unregister(struct mmu_notifier *mn,
+extern void mmu_notifier_unregister(struct mmu_notifier *subscription,
 				    struct mm_struct *mm);
 
 unsigned long mmu_interval_read_begin(struct mmu_interval_notifier *mni);
