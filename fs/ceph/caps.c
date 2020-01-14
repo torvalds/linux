@@ -511,7 +511,7 @@ static void __cap_delay_requeue(struct ceph_mds_client *mdsc,
 				struct ceph_inode_info *ci,
 				bool set_timeout)
 {
-	dout("__cap_delay_requeue %p flags %d at %lu\n", &ci->vfs_inode,
+	dout("__cap_delay_requeue %p flags 0x%lx at %lu\n", &ci->vfs_inode,
 	     ci->i_ceph_flags, ci->i_hold_caps_max);
 	if (!mdsc->stopping) {
 		spin_lock(&mdsc->cap_delay_lock);
@@ -1293,6 +1293,13 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	int wake = 0;
 	int delayed = 0;
 	int ret;
+
+	/* Don't send anything if it's still being created. Return delayed */
+	if (ci->i_ceph_flags & CEPH_I_ASYNC_CREATE) {
+		spin_unlock(&ci->i_ceph_lock);
+		dout("%s async create in flight for %p\n", __func__, inode);
+		return 1;
+	}
 
 	held = cap->issued | cap->implemented;
 	revoking = cap->implemented & ~cap->issued;
@@ -2251,6 +2258,10 @@ int ceph_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 	ret = file_write_and_wait_range(file, start, end);
 	if (datasync)
+		goto out;
+
+	ret = ceph_wait_on_async_create(inode);
+	if (ret)
 		goto out;
 
 	dirty = try_flush_caps(inode, &flush_tid);

@@ -316,7 +316,7 @@ struct ceph_inode_info {
 	u64 i_inline_version;
 	u32 i_time_warp_seq;
 
-	unsigned i_ceph_flags;
+	unsigned long i_ceph_flags;
 	atomic64_t i_release_count;
 	atomic64_t i_ordered_count;
 	atomic64_t i_complete_seq[2];
@@ -524,6 +524,8 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 #define CEPH_I_ERROR_WRITE	(1 << 10) /* have seen write errors */
 #define CEPH_I_ERROR_FILELOCK	(1 << 11) /* have seen file lock errors */
 #define CEPH_I_ODIRECT		(1 << 12) /* inode in direct I/O mode */
+#define CEPH_ASYNC_CREATE_BIT	(13)	  /* async create in flight for this */
+#define CEPH_I_ASYNC_CREATE	(1 << CEPH_ASYNC_CREATE_BIT)
 
 /*
  * Masks of ceph inode work.

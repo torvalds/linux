@@ -2730,7 +2730,7 @@ static void kick_requests(struct ceph_mds_client *mdsc, int mds)
 int ceph_mdsc_submit_request(struct ceph_mds_client *mdsc, struct inode *dir,
 			      struct ceph_mds_request *req)
 {
-	int err;
+	int err = 0;
 
 	/* take CAP_PIN refs for r_inode, r_parent, r_old_dentry */
 	if (req->r_inode)
@@ -2742,6 +2742,24 @@ int ceph_mdsc_submit_request(struct ceph_mds_client *mdsc, struct inode *dir,
 	if (req->r_old_dentry_dir)
 		ceph_get_cap_refs(ceph_inode(req->r_old_dentry_dir),
 				  CEPH_CAP_PIN);
+
+	if (req->r_inode) {
+		err = ceph_wait_on_async_create(req->r_inode);
+		if (err) {
+			dout("%s: wait for async create returned: %d\n",
+			     __func__, err);
+			return err;
+		}
+	}
+
+	if (!err && req->r_old_inode) {
+		err = ceph_wait_on_async_create(req->r_old_inode);
+		if (err) {
+			dout("%s: wait for async create returned: %d\n",
+			     __func__, err);
+			return err;
+		}
+	}
 
 	dout("submit_request on %p for inode %p\n", req, dir);
 	mutex_lock(&mdsc->mutex);
