@@ -52,7 +52,7 @@ nvkm_falcon_qmgr_seq_release(struct nvkm_falcon_qmgr *priv,
 	/* no need to acquire seq_lock since clear_bit is atomic */
 	seq->state = SEQ_STATE_FREE;
 	seq->callback = NULL;
-	seq->completion = NULL;
+	reinit_completion(&seq->done);
 	clear_bit(seq->id, priv->seq_tbl);
 }
 
@@ -78,8 +78,10 @@ nvkm_falcon_qmgr_new(struct nvkm_falcon *falcon,
 
 	qmgr->falcon = falcon;
 	mutex_init(&qmgr->seq_lock);
-	for (i = 0; i < NVKM_MSGQUEUE_NUM_SEQUENCES; i++)
+	for (i = 0; i < NVKM_MSGQUEUE_NUM_SEQUENCES; i++) {
 		qmgr->seq[i].id = i;
+		init_completion(&qmgr->seq[i].done);
+	}
 
 	return 0;
 }

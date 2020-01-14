@@ -152,10 +152,12 @@ msgqueue_msg_handle(struct nvkm_msgqueue *priv,
 			seq->result = seq->callback(seq->priv, hdr);
 	}
 
-	if (seq->completion)
-		complete(seq->completion);
+	if (seq->async) {
+		nvkm_falcon_qmgr_seq_release(msgq->qmgr, seq);
+		return 0;
+	}
 
-	nvkm_falcon_qmgr_seq_release(msgq->qmgr, seq);
+	complete_all(&seq->done);
 	return 0;
 }
 

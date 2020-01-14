@@ -29,9 +29,10 @@ struct nvkm_msgqueue_seq {
 		SEQ_STATE_USED,
 		SEQ_STATE_CANCELLED
 	} state;
+	bool async;
 	nvkm_falcon_qmgr_callback callback;
 	void *priv;
-	struct completion *completion;
+	struct completion done;
 	int result;
 };
 

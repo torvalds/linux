@@ -204,13 +204,8 @@ acr_boot_falcon(struct nvkm_msgqueue *priv, enum nvkm_secboot_falcon falcon)
 	cmd.cmd_type = ACR_CMD_BOOTSTRAP_FALCON;
 	cmd.flags = ACR_CMD_BOOTSTRAP_FALCON_FLAGS_RESET_YES;
 	cmd.falcon_id = falcon;
-	nvkm_msgqueue_post(priv, MSGQUEUE_MSG_PRIORITY_HIGH, &cmd.hdr,
-			   acr_boot_falcon_callback, &completed, true);
-
-	if (!wait_for_completion_timeout(&completed, msecs_to_jiffies(1000)))
-		return -ETIMEDOUT;
-
-	return 0;
+	return nvkm_msgqueue_post(priv, MSGQUEUE_MSG_PRIORITY_HIGH, &cmd.hdr,
+				  acr_boot_falcon_callback, &completed, true);
 }
 
 const struct nvkm_msgqueue_acr_func

@@ -211,11 +211,8 @@ acr_init_wpr(struct nvkm_msgqueue *queue)
 	cmd.cmd_type = ACR_CMD_INIT_WPR_REGION;
 	cmd.region_id = 0x01;
 	cmd.wpr_offset = 0x00;
-
-	nvkm_msgqueue_post(queue, MSGQUEUE_MSG_PRIORITY_HIGH, &cmd.hdr,
-			   acr_init_wpr_callback, NULL, false);
-
-	return 0;
+	return nvkm_msgqueue_post(queue, MSGQUEUE_MSG_PRIORITY_HIGH, &cmd.hdr,
+				  acr_init_wpr_callback, NULL, false);
 }
 
 
@@ -268,13 +265,8 @@ acr_boot_falcon(struct nvkm_msgqueue *priv, enum nvkm_secboot_falcon falcon)
 	cmd.cmd_type = ACR_CMD_BOOTSTRAP_FALCON;
 	cmd.flags = ACR_CMD_BOOTSTRAP_FALCON_FLAGS_RESET_YES;
 	cmd.falcon_id = falcon;
-	nvkm_msgqueue_post(priv, MSGQUEUE_MSG_PRIORITY_HIGH, &cmd.hdr,
-			acr_boot_falcon_callback, &completed, true);
-
-	if (!wait_for_completion_timeout(&completed, msecs_to_jiffies(1000)))
-		return -ETIMEDOUT;
-
-	return 0;
+	return nvkm_msgqueue_post(priv, MSGQUEUE_MSG_PRIORITY_HIGH, &cmd.hdr,
+				  acr_boot_falcon_callback, &completed, true);
 }
 
 static int
@@ -334,13 +326,9 @@ acr_boot_multiple_falcons(struct nvkm_msgqueue *priv, unsigned long falcon_mask)
 	cmd.falcon_mask = falcon_mask;
 	cmd.wpr_lo = lower_32_bits(queue->wpr_addr);
 	cmd.wpr_hi = upper_32_bits(queue->wpr_addr);
-	nvkm_msgqueue_post(priv, MSGQUEUE_MSG_PRIORITY_HIGH, &cmd.hdr,
-			acr_boot_multiple_falcons_callback, &completed, true);
-
-	if (!wait_for_completion_timeout(&completed, msecs_to_jiffies(1000)))
-		return -ETIMEDOUT;
-
-	return 0;
+	return nvkm_msgqueue_post(priv, MSGQUEUE_MSG_PRIORITY_HIGH, &cmd.hdr,
+				  acr_boot_multiple_falcons_callback,
+				  &completed, true);
 }
 
 static const struct nvkm_msgqueue_acr_func

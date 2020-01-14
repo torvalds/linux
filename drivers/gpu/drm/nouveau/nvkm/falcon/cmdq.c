@@ -171,14 +171,23 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 	cmd->seq_id = seq->id;
 	cmd->ctrl_flags = CMD_FLAGS_STATUS | CMD_FLAGS_INTR;
 
+	seq->state = SEQ_STATE_USED;
+	seq->async = !completion;
 	seq->callback = cb;
 	seq->priv = priv;
-	seq->state = SEQ_STATE_USED;
-	seq->completion = completion;
 
 	ret = cmd_write(priv, cmd, queue);
 	if (ret) {
 		seq->state = SEQ_STATE_PENDING;
+		nvkm_falcon_qmgr_seq_release(queue->qmgr, seq);
+		return ret;
+	}
+
+	if (!seq->async) {
+		if (!wait_for_completion_timeout(&seq->done,
+						 msecs_to_jiffies(1000)))
+			return -ETIMEDOUT;
+		ret = seq->result;
 		nvkm_falcon_qmgr_seq_release(queue->qmgr, seq);
 	}
 
