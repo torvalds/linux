@@ -556,6 +556,31 @@ static int handle_hca_cap(struct mlx5_core_dev *dev, void *set_ctx)
 	return set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE);
 }
 
+static int handle_hca_cap_roce(struct mlx5_core_dev *dev, void *set_ctx)
+{
+	void *set_hca_cap;
+	int err;
+
+	if (!MLX5_CAP_GEN(dev, roce))
+		return 0;
+
+	err = mlx5_core_get_caps(dev, MLX5_CAP_ROCE);
+	if (err)
+		return err;
+
+	if (MLX5_CAP_ROCE(dev, sw_r_roce_src_udp_port) ||
+	    !MLX5_CAP_ROCE_MAX(dev, sw_r_roce_src_udp_port))
+		return 0;
+
+	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
+	memcpy(set_hca_cap, dev->caps.hca_cur[MLX5_CAP_ROCE],
+	       MLX5_ST_SZ_BYTES(roce_cap));
+	MLX5_SET(roce_cap, set_hca_cap, sw_r_roce_src_udp_port, 1);
+
+	err = set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MOD_ROCE);
+	return err;
+}
+
 static int set_hca_cap(struct mlx5_core_dev *dev)
 {
 	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
@@ -583,6 +608,13 @@ static int set_hca_cap(struct mlx5_core_dev *dev)
 	err = handle_hca_cap_odp(dev, set_ctx);
 	if (err) {
 		mlx5_core_err(dev, "handle_hca_cap_odp failed\n");
+		goto out;
+	}
+
+	memset(set_ctx, 0, set_sz);
+	err = handle_hca_cap_roce(dev, set_ctx);
+	if (err) {
+		mlx5_core_err(dev, "handle_hca_cap_roce failed\n");
 		goto out;
 	}
 
