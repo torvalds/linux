@@ -84,7 +84,6 @@ static int listen_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 static int chtls_start_listen(struct chtls_dev *cdev, struct sock *sk)
 {
 	struct chtls_listen *clisten;
-	int err;
 
 	if (sk->sk_protocol != IPPROTO_TCP)
 		return -EPROTONOSUPPORT;
@@ -100,10 +99,10 @@ static int chtls_start_listen(struct chtls_dev *cdev, struct sock *sk)
 	clisten->cdev = cdev;
 	clisten->sk = sk;
 	mutex_lock(&notify_mutex);
-	err = raw_notifier_call_chain(&listen_notify_list,
+	raw_notifier_call_chain(&listen_notify_list,
 				      CHTLS_LISTEN_START, clisten);
 	mutex_unlock(&notify_mutex);
-	return err;
+	return 0;
 }
 
 static void chtls_stop_listen(struct chtls_dev *cdev, struct sock *sk)
