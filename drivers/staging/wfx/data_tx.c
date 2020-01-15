@@ -217,9 +217,8 @@ static void wfx_tx_policy_put(struct wfx_vif *wvif, int idx)
 
 static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 {
-	struct hif_mib_set_tx_rate_retry_policy *arg =
-		kzalloc(struct_size(arg, tx_rate_retry_policy, 1), GFP_KERNEL);
 	struct tx_policy *policies = wvif->tx_policy_cache.cache;
+	u8 tmp_rates[12];
 	int i;
 
 	do {
@@ -230,22 +229,13 @@ static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 				break;
 		if (i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES) {
 			policies[i].uploaded = 1;
-			arg->num_tx_rate_policies = 1;
-			arg->tx_rate_retry_policy[0].policy_index = i;
-			arg->tx_rate_retry_policy[0].short_retry_count = 255;
-			arg->tx_rate_retry_policy[0].long_retry_count = 255;
-			arg->tx_rate_retry_policy[0].first_rate_sel = 1;
-			arg->tx_rate_retry_policy[0].terminate = 1;
-			arg->tx_rate_retry_policy[0].count_init = 1;
-			memcpy(&arg->tx_rate_retry_policy[0].rates,
-			       policies[i].rates, sizeof(policies[i].rates));
+			memcpy(tmp_rates, policies[i].rates, sizeof(tmp_rates));
 			spin_unlock_bh(&wvif->tx_policy_cache.lock);
-			hif_set_tx_rate_retry_policy(wvif, arg);
+			hif_set_tx_rate_retry_policy(wvif, i, tmp_rates);
 		} else {
 			spin_unlock_bh(&wvif->tx_policy_cache.lock);
 		}
 	} while (i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES);
-	kfree(arg);
 	return 0;
 }
 

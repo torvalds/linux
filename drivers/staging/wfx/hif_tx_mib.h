@@ -181,13 +181,26 @@ static inline int hif_set_association_mode(struct wfx_vif *wvif,
 }
 
 static inline int hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
-					       struct hif_mib_set_tx_rate_retry_policy *arg)
+					       int policy_index, uint8_t *rates)
 {
-	size_t size = struct_size(arg, tx_rate_retry_policy,
-				  arg->num_tx_rate_policies);
+	struct hif_mib_set_tx_rate_retry_policy *arg;
+	size_t size = struct_size(arg, tx_rate_retry_policy, 1);
+	int ret;
 
-	return hif_write_mib(wvif->wdev, wvif->id,
-			     HIF_MIB_ID_SET_TX_RATE_RETRY_POLICY, arg, size);
+	arg = kzalloc(size, GFP_KERNEL);
+	arg->num_tx_rate_policies = 1;
+	arg->tx_rate_retry_policy[0].policy_index = policy_index;
+	arg->tx_rate_retry_policy[0].short_retry_count = 255;
+	arg->tx_rate_retry_policy[0].long_retry_count = 255;
+	arg->tx_rate_retry_policy[0].first_rate_sel = 1;
+	arg->tx_rate_retry_policy[0].terminate = 1;
+	arg->tx_rate_retry_policy[0].count_init = 1;
+	memcpy(&arg->tx_rate_retry_policy[0].rates, rates,
+	       sizeof(arg->tx_rate_retry_policy[0].rates));
+	ret = hif_write_mib(wvif->wdev, wvif->id,
+			    HIF_MIB_ID_SET_TX_RATE_RETRY_POLICY, arg, size);
+	kfree(arg);
+	return ret;
 }
 
 static inline int hif_set_mac_addr_condition(struct wfx_vif *wvif,

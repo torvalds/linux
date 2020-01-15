@@ -19,7 +19,7 @@
 
 #define HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES 2
 
-static u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates)
+u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates)
 {
 	int i;
 	u32 ret = 0;
