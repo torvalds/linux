@@ -32,7 +32,10 @@
 #define SWITCHTEC_IOCTL_PART_VENDOR5	10
 #define SWITCHTEC_IOCTL_PART_VENDOR6	11
 #define SWITCHTEC_IOCTL_PART_VENDOR7	12
-#define SWITCHTEC_IOCTL_NUM_PARTITIONS	13
+#define SWITCHTEC_NUM_PARTITIONS_GEN3	13
+
+/* obsolete: for compatibility with old userspace software */
+#define SWITCHTEC_IOCTL_NUM_PARTITIONS	SWITCHTEC_NUM_PARTITIONS_GEN3
 
 struct switchtec_ioctl_flash_info {
 	__u64 flash_length;
