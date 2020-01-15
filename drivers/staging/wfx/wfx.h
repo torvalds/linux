@@ -59,8 +59,6 @@ struct wfx_dev {
 
 	struct hif_rx_stats	rx_stats;
 	struct mutex		rx_stats_lock;
-
-	int			output_power;
 };
 
 struct wfx_vif {

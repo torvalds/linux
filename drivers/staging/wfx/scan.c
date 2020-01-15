@@ -60,8 +60,8 @@ static int send_scan_req(struct wfx_vif *wvif,
 	if (timeout < 0)
 		return timeout;
 	ret = wait_for_completion_timeout(&wvif->scan_complete, timeout);
-	if (req->channels[start_idx]->max_power != wvif->wdev->output_power)
-		hif_set_output_power(wvif, wvif->wdev->output_power);
+	if (req->channels[start_idx]->max_power != wvif->vif->bss_conf.txpower)
+		hif_set_output_power(wvif, wvif->vif->bss_conf.txpower);
 	wfx_tx_unlock(wvif->wdev);
 	if (!ret) {
 		dev_notice(wvif->wdev->dev, "scan timeout\n");

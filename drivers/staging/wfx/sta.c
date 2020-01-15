@@ -503,7 +503,6 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	hif_keep_alive_period(wvif, 0);
 	hif_reset(wvif, false);
 	wfx_tx_policy_init(wvif);
-	hif_set_output_power(wvif, wvif->wdev->output_power);
 	wvif->dtim_period = 0;
 	hif_set_macaddr(wvif, wvif->vif->addr);
 	wfx_free_event_queue(wvif);
@@ -990,11 +989,8 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 					    info->cqm_rssi_hyst);
 	}
 
-	if (changed & BSS_CHANGED_TXPOWER &&
-	    info->txpower != wdev->output_power) {
-		wdev->output_power = info->txpower;
-		hif_set_output_power(wvif, wdev->output_power);
-	}
+	if (changed & BSS_CHANGED_TXPOWER)
+		hif_set_output_power(wvif, info->txpower);
 	mutex_unlock(&wdev->conf_mutex);
 
 	if (do_join)
@@ -1232,7 +1228,6 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 {
 	int ret = 0;
 	struct wfx_dev *wdev = hw->priv;
-	struct ieee80211_conf *conf = &hw->conf;
 	struct wfx_vif *wvif;
 
 	// FIXME: Interface id should not been hardcoded
@@ -1242,13 +1237,7 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 		return 0;
 	}
 
-	mutex_lock(&wvif->scan_lock);
 	mutex_lock(&wdev->conf_mutex);
-	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		wdev->output_power = conf->power_level;
-		hif_set_output_power(wvif, wdev->output_power);
-	}
-
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
 		wvif = NULL;
 		while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
@@ -1257,7 +1246,6 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	mutex_unlock(&wdev->conf_mutex);
-	mutex_unlock(&wvif->scan_lock);
 	return ret;
 }
 
