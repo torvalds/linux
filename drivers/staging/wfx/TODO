@@ -1,18 +1,8 @@
 This is a list of things that need to be done to get this driver out of the
 staging directory.
 
-  - Allocation of "link ids" is too complex. Allocation/release of link ids from
-    sta_add()/sta_remove() should be sufficient.
-
-  - The path for packets with IEEE80211_TX_CTL_SEND_AFTER_DTIM flags should be
-    cleaned up. Currently, the process involve multiple work structs and a
-    timer. It could be simplifed. In add, the requeue mechanism triggers more
-    frequently than it should.
-
   - All structures defined in hif_api_*.h are intended to sent/received to/from
-    hardware. All their members whould be declared __le32 or __le16. These
-    structs should only been used in files named hif_* (and maybe in data_*.c).
-    The upper layers (sta.c, scan.c etc...) should manage mac80211 structures.
+    hardware. All their members whould be declared __le32 or __le16.
     See:
        https://lore.kernel.org/lkml/20191111202852.GX26530@ZenIV.linux.org.uk
 
