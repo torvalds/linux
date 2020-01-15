@@ -12,6 +12,31 @@
 
 #define FALLBACK_STATIC_TEMPERATURE 55000
 
+static void calculate_static_coefficient(struct ipa_power_model_data *data)
+{
+	s32 *ls = data->ls;
+	u32 lkg = data->leakage;
+	u32 ref_lkg = data->ref_leakage;
+	u32 min = data->lkg_range[0], max = data->lkg_range[1];
+	u32 static_coeff = data->static_coefficient;
+	u32 lkg_scaling_factor;
+
+	/* leakage=0, use static_coefficient in devicetree */
+	if (!lkg)
+		return;
+	if (ref_lkg) {
+		data->static_coefficient = static_coeff * lkg / ref_lkg;
+		return;
+	}
+	if (lkg < min)
+		lkg = min;
+	if (lkg > max)
+		lkg = max;
+	/* As ts have beed multiplied by 1000 in devicetree */
+	lkg_scaling_factor = (ls[2] * lkg * lkg + ls[1] * lkg + ls[0]) / 1000;
+	data->static_coefficient = static_coeff * lkg_scaling_factor / 100;
+}
+
 /**
  * rockchip_ipa_power_model_init() - initialise ipa power model parameter
  * @dev:	device for which we do this operation
@@ -69,8 +94,23 @@ struct ipa_power_model_data *rockchip_ipa_power_model_init(struct device *dev,
 		goto err;
 	}
 	rockchip_of_get_leakage(dev, lkg_name, &model_data->leakage);
-	of_property_read_u32(model_node, "ref-leakage",
-			     &model_data->ref_leakage);
+	if (!of_property_read_u32(model_node, "ref-leakage",
+				&model_data->ref_leakage))
+		goto cal_static_coeff;
+	if (of_property_read_u32_array(model_node, "leakage-range",
+				       (u32 *)model_data->lkg_range, 2)) {
+		dev_err(dev, "leakage-range isn't available\n");
+		ret = -EINVAL;
+		goto err;
+	}
+	if (of_property_read_u32_array(model_node, "ls",
+				       (u32 *)model_data->ls, 3)) {
+		dev_err(dev, "ls isn't available\n");
+		ret = -EINVAL;
+		goto err;
+	}
+cal_static_coeff:
+	calculate_static_coefficient(model_data);
 
 	return model_data;
 err:
@@ -146,7 +186,7 @@ rockchip_ipa_get_static_power(struct ipa_power_model_data *data,
 			      unsigned long voltage_mv)
 {
 	u32 temp_scaling_factor, volt_scaling_factor, static_power;
-	u64 coeff_big;
+	u64 power_big;
 	int temp;
 	int ret;
 
@@ -158,21 +198,19 @@ rockchip_ipa_get_static_power(struct ipa_power_model_data *data,
 	}
 
 	temp_scaling_factor = calculate_temp_scaling_factor(data->ts, temp);
-	coeff_big = (u64)data->static_coefficient * (u64)temp_scaling_factor;
-	static_power = div_u64(coeff_big, 1000000);
-
 	volt_scaling_factor = calculate_volt_scaling_factor((u32)voltage_mv);
-	coeff_big = (u64)static_power * (u64)volt_scaling_factor;
-	static_power = div_u64(coeff_big, 1000000);
-	if (data->leakage && data->ref_leakage)
-		static_power = static_power * data->leakage /
-			data->ref_leakage;
 
-	trace_thermal_power_get_static_power(data->static_coefficient, temp,
+	power_big = (u64)data->static_coefficient * (u64)temp_scaling_factor;
+	static_power = div_u64(power_big, 1000000);
+	power_big = (u64)static_power * (u64)volt_scaling_factor;
+	static_power = div_u64(power_big, 1000000);
+
+	trace_thermal_power_get_static_power(data->leakage,
+					     data->static_coefficient,
+					     temp,
 					     temp_scaling_factor,
 					     (u32)voltage_mv,
 					     volt_scaling_factor,
-					     data->leakage, data->ref_leakage,
 					     static_power);
 
 	return static_power;

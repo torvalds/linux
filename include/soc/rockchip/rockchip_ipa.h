@@ -8,10 +8,12 @@
 struct ipa_power_model_data {
 	u32 static_coefficient;
 	u32 dynamic_coefficient;
-	s32 ts[4];
+	s32 ts[4];			/* temperature scaling factor */
 	struct thermal_zone_device *tz;
 	u32 leakage;
 	u32 ref_leakage;
+	u32 lkg_range[2];		/* min leakage and max leakage */
+	s32 ls[3];			/* leakage scaling factor */
 };
 
 #ifdef CONFIG_ROCKCHIP_IPA
