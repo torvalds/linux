@@ -461,15 +461,14 @@ int hif_map_link(struct wfx_vif *wvif, u8 *mac_addr, int flags, int sta_id)
 	return ret;
 }
 
-int hif_update_ie(struct wfx_vif *wvif, const struct hif_ie_flags *target_frame,
-		  const u8 *ies, size_t ies_len)
+int hif_update_ie_beacon(struct wfx_vif *wvif, const u8 *ies, size_t ies_len)
 {
 	int ret;
 	struct hif_msg *hif;
 	int buf_len = sizeof(struct hif_req_update_ie) + ies_len;
 	struct hif_req_update_ie *body = wfx_alloc_hif(buf_len, &hif);
 
-	memcpy(&body->ie_flags, target_frame, sizeof(struct hif_ie_flags));
+	body->ie_flags.beacon = 1;
 	body->num_ies = cpu_to_le16(1);
 	memcpy(body->ie, ies, ies_len);
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_UPDATE_IE, buf_len);
