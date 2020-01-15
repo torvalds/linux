@@ -1630,7 +1630,7 @@ static void set_default_caps(struct hns_roce_dev *hr_dev)
 	caps->max_srq_desc_sz	= HNS_ROCE_V2_MAX_SRQ_DESC_SZ;
 	caps->qpc_entry_sz	= HNS_ROCE_V2_QPC_ENTRY_SZ;
 	caps->irrl_entry_sz	= HNS_ROCE_V2_IRRL_ENTRY_SZ;
-	caps->trrl_entry_sz	= HNS_ROCE_V2_TRRL_ENTRY_SZ;
+	caps->trrl_entry_sz	= HNS_ROCE_V2_EXT_ATOMIC_TRRL_ENTRY_SZ;
 	caps->cqc_entry_sz	= HNS_ROCE_V2_CQC_ENTRY_SZ;
 	caps->srqc_entry_sz	= HNS_ROCE_V2_SRQC_ENTRY_SZ;
 	caps->mtpt_entry_sz	= HNS_ROCE_V2_MTPT_ENTRY_SZ;
@@ -3545,6 +3545,9 @@ static void set_access_flags(struct hns_roce_qp *hr_qp,
 	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S,
 		     !!(access_flags & IB_ACCESS_REMOTE_ATOMIC));
 	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S, 0);
+	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_EXT_ATE_S,
+		     !!(access_flags & IB_ACCESS_REMOTE_ATOMIC));
+	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_EXT_ATE_S, 0);
 }
 
 static void set_qpc_wqe_cnt(struct hns_roce_qp *hr_qp,
@@ -3912,6 +3915,12 @@ static void modify_qp_init_to_init(struct ib_qp *ibqp,
 			     IB_ACCESS_REMOTE_ATOMIC));
 		roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S,
 			     0);
+		roce_set_bit(context->byte_76_srqn_op_en,
+			     V2_QPC_BYTE_76_EXT_ATE_S,
+			     !!(attr->qp_access_flags &
+				IB_ACCESS_REMOTE_ATOMIC));
+		roce_set_bit(qpc_mask->byte_76_srqn_op_en,
+			     V2_QPC_BYTE_76_EXT_ATE_S, 0);
 	} else {
 		roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RRE_S,
 			     !!(hr_qp->access_flags & IB_ACCESS_REMOTE_READ));
@@ -3927,6 +3936,11 @@ static void modify_qp_init_to_init(struct ib_qp *ibqp,
 			     !!(hr_qp->access_flags & IB_ACCESS_REMOTE_ATOMIC));
 		roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S,
 			     0);
+		roce_set_bit(context->byte_76_srqn_op_en,
+			     V2_QPC_BYTE_76_EXT_ATE_S,
+			     !!(hr_qp->access_flags & IB_ACCESS_REMOTE_ATOMIC));
+		roce_set_bit(qpc_mask->byte_76_srqn_op_en,
+			     V2_QPC_BYTE_76_EXT_ATE_S, 0);
 	}
 
 	roce_set_field(context->byte_16_buf_ba_pg_sz, V2_QPC_BYTE_16_PD_M,
