@@ -321,6 +321,9 @@ static ssize_t field ## _show(struct device *dev, \
 	if (stdev->gen == SWITCHTEC_GEN3) \
 		return io_string_show(buf, &si->gen3.field, \
 				      sizeof(si->gen3.field)); \
+	else if (stdev->gen == SWITCHTEC_GEN4) \
+		return io_string_show(buf, &si->gen4.field, \
+				      sizeof(si->gen4.field)); \
 	else \
 		return -ENOTSUPP; \
 } \
@@ -1429,6 +1432,8 @@ static int switchtec_init_pci(struct switchtec_dev *stdev,
 
 	if (stdev->gen == SWITCHTEC_GEN3)
 		part_id = &stdev->mmio_sys_info->gen3.partition_id;
+	else if (stdev->gen == SWITCHTEC_GEN4)
+		part_id = &stdev->mmio_sys_info->gen4.partition_id;
 	else
 		return -ENOTSUPP;
 

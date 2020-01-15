@@ -34,6 +34,7 @@ enum {
 
 enum switchtec_gen {
 	SWITCHTEC_GEN3,
+	SWITCHTEC_GEN4,
 };
 
 struct mrpc_regs {
@@ -125,12 +126,54 @@ struct sys_info_regs_gen3 {
 	u8 component_revision;
 } __packed;
 
+struct sys_info_regs_gen4 {
+	u16 gas_layout_ver;
+	u8 evlist_ver;
+	u8 reserved1;
+	u16 mgmt_cmd_set_ver;
+	u16 fabric_cmd_set_ver;
+	u32 reserved2[2];
+	u8 mrpc_uart_ver;
+	u8 mrpc_twi_ver;
+	u8 mrpc_eth_ver;
+	u8 mrpc_inband_ver;
+	u32 reserved3[7];
+	u32 fw_update_tmo;
+	u32 xml_version_cfg;
+	u32 xml_version_img;
+	u32 partition_id;
+	u16 bl2_running;
+	u16 cfg_running;
+	u16 img_running;
+	u16 key_running;
+	u32 reserved4[43];
+	u32 vendor_seeprom_twi;
+	u32 vendor_table_revision;
+	u32 vendor_specific_info[2];
+	u16 p2p_vendor_id;
+	u16 p2p_device_id;
+	u8 p2p_revision_id;
+	u8 reserved5[3];
+	u32 p2p_class_id;
+	u16 subsystem_vendor_id;
+	u16 subsystem_id;
+	u32 p2p_serial_number[2];
+	u8 mac_addr[6];
+	u8 reserved6[2];
+	u32 reserved7[3];
+	char vendor_id[8];
+	char product_id[24];
+	char  product_revision[2];
+	u16 reserved8;
+} __packed;
+
 struct sys_info_regs {
 	u32 device_id;
 	u32 device_version;
 	u32 firmware_version;
 	union {
 		struct sys_info_regs_gen3 gen3;
+		struct sys_info_regs_gen4 gen4;
 	};
 } __packed;
 
