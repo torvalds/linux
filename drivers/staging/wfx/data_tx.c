@@ -217,37 +217,34 @@ static void wfx_tx_policy_put(struct wfx_vif *wvif, int idx)
 
 static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 {
-	int i;
-	struct tx_policy_cache *cache = &wvif->tx_policy_cache;
 	struct hif_mib_set_tx_rate_retry_policy *arg =
-		kzalloc(struct_size(arg,
-				    tx_rate_retry_policy,
-				    HIF_MIB_NUM_TX_RATE_RETRY_POLICIES),
-			GFP_KERNEL);
-	struct hif_mib_tx_rate_retry_policy *dst;
+		kzalloc(struct_size(arg, tx_rate_retry_policy, 1), GFP_KERNEL);
+	struct tx_policy *policies = wvif->tx_policy_cache.cache;
+	int i;
 
-	spin_lock_bh(&cache->lock);
-	/* Upload only modified entries. */
-	for (i = 0; i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES; ++i) {
-		struct tx_policy *src = &cache->cache[i];
-
-		if (!src->uploaded && memzcmp(src->rates, sizeof(src->rates))) {
-			dst = arg->tx_rate_retry_policy +
-				arg->num_tx_rate_policies;
-
-			dst->policy_index = i;
-			dst->short_retry_count = 255;
-			dst->long_retry_count = 255;
-			dst->first_rate_sel = 1;
-			dst->terminate = 1;
-			dst->count_init = 1;
-			memcpy(&dst->rates, src->rates, sizeof(src->rates));
-			src->uploaded = true;
-			arg->num_tx_rate_policies++;
+	do {
+		spin_lock_bh(&wvif->tx_policy_cache.lock);
+		for (i = 0; i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES; ++i)
+			if (!policies[i].uploaded &&
+			    memzcmp(policies[i].rates, sizeof(policies[i].rates)))
+				break;
+		if (i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES) {
+			policies[i].uploaded = 1;
+			arg->num_tx_rate_policies = 1;
+			arg->tx_rate_retry_policy[0].policy_index = i;
+			arg->tx_rate_retry_policy[0].short_retry_count = 255;
+			arg->tx_rate_retry_policy[0].long_retry_count = 255;
+			arg->tx_rate_retry_policy[0].first_rate_sel = 1;
+			arg->tx_rate_retry_policy[0].terminate = 1;
+			arg->tx_rate_retry_policy[0].count_init = 1;
+			memcpy(&arg->tx_rate_retry_policy[0].rates,
+			       policies[i].rates, sizeof(policies[i].rates));
+			spin_unlock_bh(&wvif->tx_policy_cache.lock);
+			hif_set_tx_rate_retry_policy(wvif, arg);
+		} else {
+			spin_unlock_bh(&wvif->tx_policy_cache.lock);
 		}
-	}
-	spin_unlock_bh(&cache->lock);
-	hif_set_tx_rate_retry_policy(wvif, arg);
+	} while (i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES);
 	kfree(arg);
 	return 0;
 }
