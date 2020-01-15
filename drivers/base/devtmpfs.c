@@ -30,11 +30,7 @@
 
 static struct task_struct *thread;
 
-#if defined CONFIG_DEVTMPFS_MOUNT
-static int mount_dev = 1;
-#else
-static int mount_dev;
-#endif
+static int mount_dev = IS_ENABLED(CONFIG_DEVTMPFS_MOUNT);
 
 static DEFINE_SPINLOCK(req_lock);
 
