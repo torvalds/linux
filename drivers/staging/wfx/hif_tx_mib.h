@@ -246,12 +246,20 @@ static inline int hif_set_mac_addr_condition(struct wfx_vif *wvif,
 			     arg, sizeof(*arg));
 }
 
-static inline int hif_set_uc_mc_bc_condition(struct wfx_vif *wvif,
-					     struct hif_mib_uc_mc_bc_data_frame_condition *arg)
+// FIXME: use a bitfield instead of 3 boolean values
+static inline int hif_set_uc_mc_bc_condition(struct wfx_vif *wvif, int idx,
+					     bool unic, bool multic, bool broadc)
 {
+	struct hif_mib_uc_mc_bc_data_frame_condition val = {
+		.condition_idx = idx,
+		.param.bits.type_unicast = unic,
+		.param.bits.type_multicast = multic,
+		.param.bits.type_broadcast = broadc,
+	};
+
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_UC_MC_BC_DATAFRAME_CONDITION,
-			     arg, sizeof(*arg));
+			     &val, sizeof(val));
 }
 
 static inline int hif_set_config_data_filter(struct wfx_vif *wvif,

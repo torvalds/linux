@@ -120,7 +120,6 @@ static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 	struct hif_mib_config_data_filter config = { };
 	struct hif_mib_set_data_filtering filter_data = { };
 	struct hif_mib_mac_addr_data_frame_condition filter_addr_val = { };
-	struct hif_mib_uc_mc_bc_data_frame_condition filter_addr_type = { };
 
 	// Temporary workaround for filters
 	return hif_set_data_filtering(wvif, &filter_data);
@@ -144,10 +143,7 @@ static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 	}
 
 	// Accept unicast and broadcast
-	filter_addr_type.condition_idx = 0;
-	filter_addr_type.param.bits.type_unicast = 1;
-	filter_addr_type.param.bits.type_broadcast = 1;
-	ret = hif_set_uc_mc_bc_condition(wvif, &filter_addr_type);
+	ret = hif_set_uc_mc_bc_condition(wvif, 0, true, false, true);
 	if (ret)
 		return ret;
 
