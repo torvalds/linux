@@ -31,8 +31,6 @@ void wfx_tx_flush(struct wfx_dev *wdev)
 {
 	int ret;
 
-	WARN(!atomic_read(&wdev->tx_lock), "tx_lock is not locked");
-
 	// Do not wait for any reply if chip is frozen
 	if (wdev->chip_frozen)
 		return;

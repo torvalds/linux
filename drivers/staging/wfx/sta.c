@@ -343,42 +343,25 @@ int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	return 0;
 }
 
-/* If successful, LOCKS the TX queue! */
 static int __wfx_flush(struct wfx_dev *wdev, bool drop)
 {
-	int ret;
-
 	for (;;) {
-		if (drop) {
+		if (drop)
 			wfx_tx_queues_clear(wdev);
-		} else {
-			ret = wait_event_timeout(
-				wdev->tx_queue_stats.wait_link_id_empty,
-				wfx_tx_queues_is_empty(wdev),
-				2 * HZ);
-		}
-
-		if (!drop && ret <= 0) {
-			ret = -ETIMEDOUT;
-			break;
-		}
-		ret = 0;
-
-		wfx_tx_lock_flush(wdev);
-		if (!wfx_tx_queues_is_empty(wdev)) {
-			/* Highly unlikely: WSM requeued frames. */
-			wfx_tx_unlock(wdev);
-			continue;
-		}
-		break;
+		if (wait_event_timeout(wdev->tx_queue_stats.wait_link_id_empty,
+				       wfx_tx_queues_is_empty(wdev),
+				       2 * HZ) <= 0)
+			return -ETIMEDOUT;
+		wfx_tx_flush(wdev);
+		if (wfx_tx_queues_is_empty(wdev))
+			return 0;
+		dev_warn(wdev->dev, "frames queued while flushing tx queues");
 	}
-	return ret;
 }
 
 void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  u32 queues, bool drop)
 {
-	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif;
 
 	if (vif) {
@@ -389,10 +372,8 @@ void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		    !wvif->enable_beacon)
 			drop = true;
 	}
-
 	// FIXME: only flush requested vif
-	if (!__wfx_flush(wdev, drop))
-		wfx_tx_unlock(wdev);
+	__wfx_flush(hw->priv, drop);
 }
 
 /* WSM callbacks */
@@ -1046,8 +1027,7 @@ static int wfx_set_tim_impl(struct wfx_vif *wvif, bool aid0_bit_set)
 	skb = ieee80211_beacon_get_tim(wvif->wdev->hw, wvif->vif,
 				       &tim_offset, &tim_length);
 	if (!skb) {
-		if (!__wfx_flush(wvif->wdev, true))
-			wfx_tx_unlock(wvif->wdev);
+		__wfx_flush(wvif->wdev, true);
 		return -ENOENT;
 	}
 	tim_ptr = skb->data + tim_offset;
