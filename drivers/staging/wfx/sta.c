@@ -712,7 +712,6 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 			      struct ieee80211_bss_conf *info)
 {
 	struct ieee80211_sta *sta = NULL;
-	struct hif_mib_set_association_mode association_mode = { };
 
 	wvif->beacon_int = info->beacon_int;
 	rcu_read_lock();
@@ -730,26 +729,13 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	else
 		hif_dual_cts_protection(wvif, false);
 
-	association_mode.preambtype_use = 1;
-	association_mode.mode = 1;
-	association_mode.rateset = 1;
-	association_mode.spacing = 1;
-	association_mode.short_preamble = info->use_short_preamble;
-	association_mode.basic_rate_set = cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, info->basic_rates));
-	if (sta && sta->ht_cap.ht_supported &&
-	    !(info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT))
-		association_mode.greenfield =
-			!!(sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD);
-	if (sta && sta->ht_cap.ht_supported)
-		association_mode.mpdu_start_spacing = sta->ht_cap.ampdu_density;
-
 	wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
 	cancel_work_sync(&wvif->unjoin_work);
 
 	wvif->bss_params.beacon_lost_count = 20;
 	wvif->bss_params.aid = info->aid;
 
-	hif_set_association_mode(wvif, &association_mode);
+	hif_set_association_mode(wvif, info, sta ? &sta->ht_cap : NULL);
 
 	if (!info->ibss_joined) {
 		hif_keep_alive_period(wvif, 30 /* sec */);

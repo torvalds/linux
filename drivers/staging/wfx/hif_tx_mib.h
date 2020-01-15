@@ -191,10 +191,28 @@ static inline int hif_set_block_ack_policy(struct wfx_vif *wvif,
 }
 
 static inline int hif_set_association_mode(struct wfx_vif *wvif,
-					   struct hif_mib_set_association_mode *arg)
+					   struct ieee80211_bss_conf *info,
+					   struct ieee80211_sta_ht_cap *ht_cap)
 {
+	int basic_rates = wfx_rate_mask_to_hw(wvif->wdev, info->basic_rates);
+	struct hif_mib_set_association_mode val = {
+		.preambtype_use = 1,
+		.mode = 1,
+		.rateset = 1,
+		.spacing = 1,
+		.short_preamble = info->use_short_preamble,
+		.basic_rate_set = cpu_to_le32(basic_rates)
+	};
+
+	// FIXME: it is strange to not retrieve all information from bss_info
+	if (ht_cap && ht_cap->ht_supported) {
+		val.mpdu_start_spacing = ht_cap->ampdu_density;
+		if (!(info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT))
+			val.greenfield = !!(ht_cap->cap & IEEE80211_HT_CAP_GRN_FLD);
+	}
+
 	return hif_write_mib(wvif->wdev, wvif->id,
-			     HIF_MIB_ID_SET_ASSOCIATION_MODE, arg, sizeof(*arg));
+			     HIF_MIB_ID_SET_ASSOCIATION_MODE, &val, sizeof(val));
 }
 
 static inline int hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
