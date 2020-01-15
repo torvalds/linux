@@ -326,8 +326,7 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	hif_set_edca_queue_params(wvif, queue, params);
 	if (wvif->vif->type == NL80211_IFTYPE_STATION) {
 		hif_set_uapsd_info(wvif, wvif->uapsd_mask);
-		if (wvif->setbssparams_done && wvif->state == WFX_STATE_STA)
-			ret = wfx_update_pm(wvif);
+		wfx_update_pm(wvif);
 	}
 	mutex_unlock(&wdev->conf_mutex);
 	return ret;
@@ -475,7 +474,6 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	wvif->disable_beacon_filter = false;
 	wfx_update_filtering(wvif);
 	memset(&wvif->bss_params, 0, sizeof(wvif->bss_params));
-	wvif->setbssparams_done = false;
 
 done:
 	mutex_unlock(&wvif->wdev->conf_mutex);
@@ -799,7 +797,6 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	if (!info->ibss_joined) {
 		hif_keep_alive_period(wvif, 30 /* sec */);
 		hif_set_bss_params(wvif, &wvif->bss_params);
-		wvif->setbssparams_done = true;
 		hif_set_beacon_wakeup_period(wvif, info->dtim_period,
 					     info->dtim_period);
 		wfx_update_pm(wvif);
@@ -1224,7 +1221,8 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	INIT_WORK(&wvif->mcast_stop_work, wfx_mcast_stop_work);
 	timer_setup(&wvif->mcast_timeout, wfx_mcast_timeout, 0);
 
-	wvif->setbssparams_done = false;
+	memset(&wvif->bss_params, 0, sizeof(wvif->bss_params));
+
 	mutex_init(&wvif->bss_loss_lock);
 	INIT_DELAYED_WORK(&wvif->bss_loss_work, wfx_bss_loss_work);
 
