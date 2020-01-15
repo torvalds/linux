@@ -130,7 +130,7 @@ static struct drm_sched_rq *
 drm_sched_entity_get_free_sched(struct drm_sched_entity *entity)
 {
 	struct drm_sched_rq *rq = NULL;
-	unsigned int min_jobs = UINT_MAX, num_jobs;
+	unsigned int min_score = UINT_MAX, num_score;
 	int i;
 
 	for (i = 0; i < entity->num_sched_list; ++i) {
@@ -141,9 +141,9 @@ drm_sched_entity_get_free_sched(struct drm_sched_entity *entity)
 			continue;
 		}
 
-		num_jobs = atomic_read(&sched->num_jobs);
-		if (num_jobs < min_jobs) {
-			min_jobs = num_jobs;
+		num_score = atomic_read(&sched->score);
+		if (num_score < min_score) {
+			min_score = num_score;
 			rq = &entity->sched_list[i]->sched_rq[entity->priority];
 		}
 	}
@@ -498,7 +498,7 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 	bool first;
 
 	trace_drm_sched_job(sched_job, entity);
-	atomic_inc(&entity->rq->sched->num_jobs);
+	atomic_inc(&entity->rq->sched->score);
 	WRITE_ONCE(entity->last_user, current->group_leader);
 	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
 
