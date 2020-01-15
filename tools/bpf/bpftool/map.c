@@ -933,7 +933,7 @@ static int maps_have_btf(int *fds, int nb_fds)
 
 static int
 map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
-	 bool enable_btf, bool show_header)
+	 bool show_header)
 {
 	void *key, *value, *prev_key;
 	unsigned int num_elems = 0;
@@ -950,18 +950,16 @@ map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
 
 	prev_key = NULL;
 
-	if (enable_btf) {
-		err = btf__get_from_id(info->btf_id, &btf);
-		if (err || !btf) {
-			/* enable_btf is true only if we've already checked
-			 * that all maps have BTF information.
-			 */
-			p_err("failed to get btf");
-			goto exit_free;
-		}
-	}
-
 	if (wtr) {
+		if (info->btf_id) {
+			err = btf__get_from_id(info->btf_id, &btf);
+			if (err || !btf) {
+				err = err ? : -ESRCH;
+				p_err("failed to get btf");
+				goto exit_free;
+			}
+		}
+
 		if (show_header) {
 			jsonw_start_object(wtr);	/* map object */
 			show_map_header_json(info, wtr);
@@ -1009,7 +1007,7 @@ static int do_dump(int argc, char **argv)
 {
 	json_writer_t *wtr = NULL, *btf_wtr = NULL;
 	struct bpf_map_info info = {};
-	int nb_fds, i = 0, btf = 0;
+	int nb_fds, i = 0;
 	__u32 len = sizeof(info);
 	int *fds = NULL;
 	int err = -1;
@@ -1029,17 +1027,17 @@ static int do_dump(int argc, char **argv)
 	if (json_output) {
 		wtr = json_wtr;
 	} else {
-		btf = maps_have_btf(fds, nb_fds);
-		if (btf < 0)
+		int do_plain_btf;
+
+		do_plain_btf = maps_have_btf(fds, nb_fds);
+		if (do_plain_btf < 0)
 			goto exit_close;
-		if (btf) {
+
+		if (do_plain_btf) {
 			btf_wtr = get_btf_writer();
-			if (btf_wtr) {
-				wtr = btf_wtr;
-			} else {
+			wtr = btf_wtr;
+			if (!btf_wtr)
 				p_info("failed to create json writer for btf. falling back to plain output");
-				btf = 0;
-			}
 		}
 	}
 
@@ -1050,7 +1048,7 @@ static int do_dump(int argc, char **argv)
 			p_err("can't get map info: %s", strerror(errno));
 			break;
 		}
-		err = map_dump(fds[i], &info, wtr, btf, nb_fds > 1);
+		err = map_dump(fds[i], &info, wtr, nb_fds > 1);
 		if (!wtr && i != nb_fds - 1)
 			printf("\n");
 
@@ -1061,7 +1059,7 @@ static int do_dump(int argc, char **argv)
 	if (wtr && nb_fds > 1)
 		jsonw_end_array(wtr);	/* root array */
 
-	if (btf)
+	if (btf_wtr)
 		jsonw_destroy(&btf_wtr);
 exit_close:
 	for (; i < nb_fds; i++)
