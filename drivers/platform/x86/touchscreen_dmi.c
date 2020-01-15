@@ -132,6 +132,18 @@ static const struct ts_dmi_data chuwi_vi8_data = {
 	.properties     = chuwi_vi8_props,
 };
 
+static const struct ts_dmi_data chuwi_vi8_plus_data = {
+	.embedded_fw = {
+		.name	= "chipone/icn8505-HAMP0002.fw",
+		.prefix = { 0xb0, 0x07, 0x00, 0x00, 0xe4, 0x07, 0x00, 0x00 },
+		.length	= 35012,
+		.sha256	= { 0x93, 0xe5, 0x49, 0xe0, 0xb6, 0xa2, 0xb4, 0xb3,
+			    0x88, 0x96, 0x34, 0x97, 0x5e, 0xa8, 0x13, 0x78,
+			    0x72, 0x98, 0xb8, 0x29, 0xeb, 0x5c, 0xa7, 0xf1,
+			    0x25, 0x13, 0x43, 0xf4, 0x30, 0x7c, 0xfc, 0x7c },
+	},
+};
+
 static const struct property_entry chuwi_vi10_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-x", 0),
 	PROPERTY_ENTRY_U32("touchscreen-min-y", 4),
@@ -743,6 +755,15 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
+		/* Chuwi Vi8 Plus (CWI519) */
+		.driver_data = (void *)&chuwi_vi8_plus_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hampoo"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "D2D3_Vi8A1"),
+			DMI_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
+		},
+	},
+	{
 		/* Chuwi Vi10 (CWI505) */
 		.driver_data = (void *)&chuwi_vi10_data,
 		.matches = {
@@ -1145,6 +1166,9 @@ static int __init ts_dmi_init(void)
 		return 0; /* Not an error */
 
 	ts_data = dmi_id->driver_data;
+	/* Some dmi table entries only provide an efi_embedded_fw_desc */
+	if (!ts_data->properties)
+		return 0;
 
 	error = bus_register_notifier(&i2c_bus_type, &ts_dmi_notifier);
 	if (error)
