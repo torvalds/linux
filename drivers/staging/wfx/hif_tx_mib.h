@@ -267,10 +267,15 @@ static inline int hif_set_config_data_filter(struct wfx_vif *wvif,
 }
 
 static inline int hif_set_data_filtering(struct wfx_vif *wvif,
-					 struct hif_mib_set_data_filtering *arg)
+					 bool enable, bool invert)
 {
+	struct hif_mib_set_data_filtering val = {
+		.enable = enable,
+		.invert_matching = invert,
+	};
+
 	return hif_write_mib(wvif->wdev, wvif->id,
-			     HIF_MIB_ID_SET_DATA_FILTERING, arg, sizeof(*arg));
+			     HIF_MIB_ID_SET_DATA_FILTERING, &val, sizeof(val));
 }
 
 static inline int hif_keep_alive_period(struct wfx_vif *wvif, int period)

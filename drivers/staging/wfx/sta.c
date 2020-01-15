@@ -118,16 +118,13 @@ static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 {
 	int i, ret;
 	struct hif_mib_config_data_filter config = { };
-	struct hif_mib_set_data_filtering filter_data = { };
 	struct hif_mib_mac_addr_data_frame_condition filter_addr_val = { };
 
 	// Temporary workaround for filters
-	return hif_set_data_filtering(wvif, &filter_data);
+	return hif_set_data_filtering(wvif, false, true);
 
-	if (!fp->enable) {
-		filter_data.enable = 0;
-		return hif_set_data_filtering(wvif, &filter_data);
-	}
+	if (!fp->enable)
+		return hif_set_data_filtering(wvif, false, true);
 
 	// A1 Address match on list
 	for (i = 0; i < fp->num_addresses; i++) {
@@ -154,9 +151,7 @@ static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 	if (ret)
 		return ret;
 
-	filter_data.enable = 1;
-	filter_data.invert_matching = 1; // discard all but matching frames
-	ret = hif_set_data_filtering(wvif, &filter_data);
+	ret = hif_set_data_filtering(wvif, true, true);
 
 	return ret;
 }
