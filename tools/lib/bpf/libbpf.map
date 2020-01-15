@@ -231,4 +231,5 @@ LIBBPF_0.0.7 {
 		bpf_program__is_struct_ops;
 		bpf_program__set_struct_ops;
 		btf__align_of;
+		libbpf_find_kernel_btf;
 } LIBBPF_0.0.6;

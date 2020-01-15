@@ -102,6 +102,8 @@ LIBBPF_API int btf_ext__reloc_line_info(const struct btf *btf,
 LIBBPF_API __u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
 LIBBPF_API __u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
 
+LIBBPF_API struct btf *libbpf_find_kernel_btf(void);
+
 struct btf_dedup_opts {
 	unsigned int dedup_table_size;
 	bool dont_resolve_fwds;
