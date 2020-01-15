@@ -817,14 +817,6 @@ static int wfx_is_ht(const struct wfx_ht_info *ht_info)
 	return ht_info->channel_type != NL80211_CHAN_NO_HT;
 }
 
-static int wfx_ht_greenfield(const struct wfx_ht_info *ht_info)
-{
-	return wfx_is_ht(ht_info) &&
-		(ht_info->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) &&
-		!(ht_info->operation_mode &
-		  IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
-}
-
 static void wfx_join_finalize(struct wfx_vif *wvif,
 			      struct ieee80211_bss_conf *info)
 {
@@ -849,9 +841,8 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	}
 	rcu_read_unlock();
 
-	/* Non Greenfield stations present */
-	if (wvif->ht_info.operation_mode &
-	    IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT)
+	if (sta &&
+	    info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT)
 		hif_dual_cts_protection(wvif, true);
 	else
 		hif_dual_cts_protection(wvif, false);
@@ -862,7 +853,10 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	association_mode.spacing = 1;
 	association_mode.short_preamble = info->use_short_preamble;
 	association_mode.basic_rate_set = cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, info->basic_rates));
-	association_mode.greenfield = wfx_ht_greenfield(&wvif->ht_info);
+	if (sta && sta->ht_cap.ht_supported &&
+	    !(info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT))
+		association_mode.greenfield =
+			!!(sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD);
 	if (sta && sta->ht_cap.ht_supported)
 		association_mode.mpdu_start_spacing = sta->ht_cap.ampdu_density;
 
