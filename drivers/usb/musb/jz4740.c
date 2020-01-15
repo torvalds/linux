@@ -17,7 +17,7 @@
 #include "musb_core.h"
 
 struct jz4740_glue {
-	struct platform_device  *musb;
+	struct platform_device	*pdev;
 	struct clk		*clk;
 };
 
@@ -142,7 +142,7 @@ static int jz4740_probe(struct platform_device *pdev)
 
 	musb->dev.parent		= dev;
 
-	glue->musb			= musb;
+	glue->pdev			= musb;
 	glue->clk			= clk;
 
 	platform_set_drvdata(pdev, glue);
@@ -179,7 +179,7 @@ static int jz4740_remove(struct platform_device *pdev)
 {
 	struct jz4740_glue	*glue = platform_get_drvdata(pdev);
 
-	platform_device_unregister(glue->musb);
+	platform_device_unregister(glue->pdev);
 	clk_disable_unprepare(glue->clk);
 
 	return 0;
