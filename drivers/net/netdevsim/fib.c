@@ -467,7 +467,7 @@ nsim_fib6_rt_create(struct nsim_fib_data *data,
 
 	fib6_rt = kzalloc(sizeof(*fib6_rt), GFP_ATOMIC);
 	if (!fib6_rt)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	nsim_fib_rt_init(data, &fib6_rt->common, &rt->fib6_dst.addr,
 			 sizeof(rt->fib6_dst.addr), rt->fib6_dst.plen, AF_INET6,
@@ -650,8 +650,8 @@ static int nsim_fib6_rt_insert(struct nsim_fib_data *data,
 	int err;
 
 	fib6_rt = nsim_fib6_rt_create(data, fen6_info);
-	if (!fib6_rt)
-		return -ENOMEM;
+	if (IS_ERR(fib6_rt))
+		return PTR_ERR(fib6_rt);
 
 	fib6_rt_old = nsim_fib6_rt_lookup(&data->fib_rt_ht, fen6_info->rt);
 	if (!fib6_rt_old)
