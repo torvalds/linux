@@ -276,33 +276,13 @@ static int omap2430_musb_init(struct musb *musb)
 
 static void omap2430_musb_enable(struct musb *musb)
 {
-	u8		devctl;
-	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	struct device *dev = musb->controller;
 	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
-	struct musb_hdrc_platform_data *pdata = dev_get_platdata(dev);
-	struct omap_musb_board_data *data = pdata->board_data;
-
 
 	switch (glue->status) {
 
 	case MUSB_ID_GROUND:
 		omap_control_usb_set_mode(glue->control_otghs, USB_MODE_HOST);
-		if (data->interface_type != MUSB_INTERFACE_UTMI)
-			break;
-		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
-		/* start the session */
-		devctl |= MUSB_DEVCTL_SESSION;
-		musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
-		while (musb_readb(musb->mregs, MUSB_DEVCTL) &
-				MUSB_DEVCTL_BDEVICE) {
-			cpu_relax();
-
-			if (time_after(jiffies, timeout)) {
-				dev_err(dev, "configured as A device timeout");
-				break;
-			}
-		}
 		break;
 
 	case MUSB_VBUS_VALID:
