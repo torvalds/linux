@@ -1363,6 +1363,11 @@ config ARM64_PAN
 	 instruction if the cpu does not implement the feature.
 
 config ARM64_LSE_ATOMICS
+	bool
+	default ARM64_USE_LSE_ATOMICS
+	depends on $(as-instr,.arch_extension lse)
+
+config ARM64_USE_LSE_ATOMICS
 	bool "Atomic instructions"
 	depends on JUMP_LABEL
 	default y
