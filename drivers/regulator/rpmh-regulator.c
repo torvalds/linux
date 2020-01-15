@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved. */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
@@ -1660,7 +1660,8 @@ static int rpmh_regulator_init_vreg_supply(struct rpmh_vreg *vreg)
 		return -ENOMEM;
 	scnprintf(buf, len, "%s-parent-supply", vreg->rdesc.name);
 
-	if (of_find_property(vreg->aggr_vreg->dev->of_node, buf, NULL)) {
+	if (of_find_property(vreg->aggr_vreg->dev->of_node, buf, NULL) ||
+	    of_find_property(vreg->of_node, buf, NULL)) {
 		kfree(buf);
 
 		len = strlen(vreg->rdesc.name) + 10;
@@ -1670,6 +1671,8 @@ static int rpmh_regulator_init_vreg_supply(struct rpmh_vreg *vreg)
 		scnprintf(buf, len, "%s-parent", vreg->rdesc.name);
 
 		vreg->rdesc.supply_name = buf;
+	} else if (of_find_property(vreg->of_node, "vin-supply", NULL)) {
+		vreg->rdesc.supply_name = "vin";
 	} else {
 		kfree(buf);
 	}
