@@ -190,6 +190,7 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 int mt76x2u_register_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
+	struct mt76_usb *usb = &dev->mt76.usb;
 	int err;
 
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2u_phy_calibrate);
@@ -198,6 +199,11 @@ int mt76x2u_register_device(struct mt76x02_dev *dev)
 	err = mt76x2u_init_eeprom(dev);
 	if (err < 0)
 		return err;
+
+	usb->mcu.data = devm_kmalloc(dev->mt76.dev, MCU_RESP_URB_SIZE,
+				     GFP_KERNEL);
+	if (!usb->mcu.data)
+		return -ENOMEM;
 
 	err = mt76u_alloc_queues(&dev->mt76);
 	if (err < 0)
