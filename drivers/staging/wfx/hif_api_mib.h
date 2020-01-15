@@ -206,9 +206,11 @@ struct hif_mib_config_data_filter {
 } __packed;
 
 struct hif_mib_set_data_filtering {
-	u8    default_filter;
-	u8    enable;
-	u8    reserved[2];
+	u8    invert_matching:1;
+	u8    reserved1:7;
+	u8    enable:1;
+	u8    reserved2:7;
+	u8    reserved3[2];
 } __packed;
 
 enum hif_arp_ns_frame_treatment {

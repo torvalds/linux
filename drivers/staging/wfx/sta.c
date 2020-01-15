@@ -154,9 +154,8 @@ static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 	if (ret)
 		return ret;
 
-	// discard all data frames except match filter
 	filter_data.enable = 1;
-	filter_data.default_filter = 1; // discard all
+	filter_data.invert_matching = 1; // discard all but matching frames
 	ret = hif_set_data_filtering(wvif, &filter_data);
 
 	return ret;
