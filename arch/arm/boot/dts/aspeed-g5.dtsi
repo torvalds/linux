@@ -224,6 +224,14 @@
 				#clock-cells = <1>;
 				#reset-cells = <1>;
 
+				scu_ic: interrupt-controller@18 {
+					#interrupt-cells = <1>;
+					compatible = "aspeed,ast2500-scu-ic";
+					reg = <0x18 0x4>;
+					interrupts = <21>;
+					interrupt-controller;
+				};
+
 				p2a: p2a-control@2c {
 					compatible = "aspeed,ast2500-p2a-ctrl";
 					reg = <0x2c 0x4>;
