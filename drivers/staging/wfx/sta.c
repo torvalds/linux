@@ -915,30 +915,19 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 	bool do_join = false;
 	int i;
-	int nb_arp_addr;
 
 	mutex_lock(&wdev->conf_mutex);
 
 	/* TODO: BSS_CHANGED_QOS */
 	if (changed & BSS_CHANGED_ARP_FILTER) {
-		struct hif_mib_arp_ip_addr_table filter = { };
-
-		nb_arp_addr = info->arp_addr_cnt;
-		if (nb_arp_addr <= 0 || nb_arp_addr > HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES)
-			nb_arp_addr = 0;
-
 		for (i = 0; i < HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES; i++) {
-			filter.condition_idx = i;
-			if (i < nb_arp_addr) {
-				// Caution: type of arp_addr_list[i] is __be32
-				memcpy(filter.ipv4_address,
-				       &info->arp_addr_list[i],
-				       sizeof(filter.ipv4_address));
-				filter.arp_enable = HIF_ARP_NS_FILTERING_ENABLE;
-			} else {
-				filter.arp_enable = HIF_ARP_NS_FILTERING_DISABLE;
-			}
-			hif_set_arp_ipv4_filter(wvif, &filter);
+			__be32 *arp_addr = &info->arp_addr_list[i];
+
+			if (info->arp_addr_cnt > HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES)
+				arp_addr = NULL;
+			if (i >= info->arp_addr_cnt)
+				arp_addr = NULL;
+			hif_set_arp_ipv4_filter(wvif, i, arp_addr);
 		}
 	}
 

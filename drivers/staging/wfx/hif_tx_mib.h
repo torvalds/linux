@@ -260,12 +260,22 @@ static inline int hif_keep_alive_period(struct wfx_vif *wvif, int period)
 			     &arg, sizeof(arg));
 };
 
-static inline int hif_set_arp_ipv4_filter(struct wfx_vif *wvif,
-					  struct hif_mib_arp_ip_addr_table *fp)
+static inline int hif_set_arp_ipv4_filter(struct wfx_vif *wvif, int idx,
+					  __be32 *addr)
 {
+	struct hif_mib_arp_ip_addr_table arg = {
+		.condition_idx = idx,
+		.arp_enable = HIF_ARP_NS_FILTERING_DISABLE,
+	};
+
+	if (addr) {
+		// Caution: type of addr is __be32
+		memcpy(arg.ipv4_address, addr, sizeof(arg.ipv4_address));
+		arg.arp_enable = HIF_ARP_NS_FILTERING_ENABLE;
+	}
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_ARP_IP_ADDRESSES_TABLE,
-			     fp, sizeof(*fp));
+			     &arg, sizeof(arg));
 }
 
 static inline int hif_use_multi_tx_conf(struct wfx_dev *wdev,
