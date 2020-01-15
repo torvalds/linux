@@ -127,8 +127,7 @@ void wfx_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	hif_stop_scan(wvif);
 }
 
-void wfx_scan_complete(struct wfx_vif *wvif,
-		       const struct hif_ind_scan_cmpl *arg)
+void wfx_scan_complete(struct wfx_vif *wvif)
 {
 	complete(&wvif->scan_complete);
 }

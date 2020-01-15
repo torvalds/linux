@@ -203,10 +203,9 @@ static int hif_scan_complete_indication(struct wfx_dev *wdev,
 					const void *buf)
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
-	const struct hif_ind_scan_cmpl *body = buf;
 
 	WARN_ON(!wvif);
-	wfx_scan_complete(wvif, body);
+	wfx_scan_complete(wvif);
 
 	return 0;
 }
