@@ -1237,15 +1237,15 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_dev *dev,
 	wqe = wqe_start;
 	qp = (res->res == MLX5_RES_QP) ? res_to_qp(res) : NULL;
 	if (qp && sq) {
-		ret = mlx5_ib_read_user_wqe_sq(qp, wqe_index, wqe, PAGE_SIZE,
-					       &bytes_copied);
+		ret = mlx5_ib_read_wqe_sq(qp, wqe_index, wqe, PAGE_SIZE,
+					  &bytes_copied);
 		if (ret)
 			goto read_user;
 		ret = mlx5_ib_mr_initiator_pfault_handler(
 			dev, pfault, qp, &wqe, &wqe_end, bytes_copied);
 	} else if (qp && !sq) {
-		ret = mlx5_ib_read_user_wqe_rq(qp, wqe_index, wqe, PAGE_SIZE,
-					       &bytes_copied);
+		ret = mlx5_ib_read_wqe_rq(qp, wqe_index, wqe, PAGE_SIZE,
+					  &bytes_copied);
 		if (ret)
 			goto read_user;
 		ret = mlx5_ib_mr_responder_pfault_handler_rq(
@@ -1253,8 +1253,8 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_dev *dev,
 	} else if (!qp) {
 		struct mlx5_ib_srq *srq = res_to_srq(res);
 
-		ret = mlx5_ib_read_user_wqe_srq(srq, wqe_index, wqe, PAGE_SIZE,
-						&bytes_copied);
+		ret = mlx5_ib_read_wqe_srq(srq, wqe_index, wqe, PAGE_SIZE,
+					   &bytes_copied);
 		if (ret)
 			goto read_user;
 		ret = mlx5_ib_mr_responder_pfault_handler_srq(
