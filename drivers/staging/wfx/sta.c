@@ -88,19 +88,25 @@ void wfx_cqm_bssloss_sm(struct wfx_vif *wvif, int init, int good, int bad)
 	// FIXME: call ieee80211_beacon_loss/ieee80211_connection_loss instead
 	if (tx) {
 		struct sk_buff *skb;
+		struct ieee80211_hdr *hdr;
+		struct ieee80211_tx_control control = { };
 
 		wvif->bss_loss_state++;
 
 		skb = ieee80211_nullfunc_get(wvif->wdev->hw, wvif->vif, false);
 		if (!skb)
 			goto end;
+		hdr = (struct ieee80211_hdr *)skb->data;
 		memset(IEEE80211_SKB_CB(skb), 0,
 		       sizeof(*IEEE80211_SKB_CB(skb)));
 		IEEE80211_SKB_CB(skb)->control.vif = wvif->vif;
 		IEEE80211_SKB_CB(skb)->driver_rates[0].idx = 0;
 		IEEE80211_SKB_CB(skb)->driver_rates[0].count = 1;
 		IEEE80211_SKB_CB(skb)->driver_rates[1].idx = -1;
-		wfx_tx(wvif->wdev->hw, NULL, skb);
+		rcu_read_lock(); // protect control.sta
+		control.sta = ieee80211_find_sta(wvif->vif, hdr->addr1);
+		wfx_tx(wvif->wdev->hw, &control, skb);
+		rcu_read_unlock();
 	}
 end:
 	mutex_unlock(&wvif->bss_loss_lock);
