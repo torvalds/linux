@@ -203,11 +203,11 @@ static long ak09912_raw_to_gauss(u16 data)
 
 /* Compatible Asahi Kasei Compass parts */
 enum asahi_compass_chipset {
+	AKXXXX		= 0,
 	AK8975,
 	AK8963,
 	AK09911,
 	AK09912,
-	AK_MAX_TYPE
 };
 
 enum ak_ctrl_reg_addr {
@@ -245,7 +245,7 @@ struct ak_def {
 	u8 data_regs[3];
 };
 
-static const struct ak_def ak_def_array[AK_MAX_TYPE] = {
+static const struct ak_def ak_def_array[] = {
 	{
 		.type = AK8975,
 		.raw_to_gauss = ak8975_raw_to_gauss,
@@ -781,19 +781,6 @@ static const struct acpi_device_id ak_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, ak_acpi_match);
 #endif
 
-static const char *ak8975_match_acpi_device(struct device *dev,
-					    enum asahi_compass_chipset *chipset)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return NULL;
-	*chipset = (int)id->driver_data;
-
-	return dev_name(dev);
-}
-
 static void ak8975_fill_buffer(struct iio_dev *indio_dev)
 {
 	struct ak8975_data *data = iio_priv(indio_dev);
@@ -852,9 +839,11 @@ static int ak8975_probe(struct i2c_client *client,
 	struct ak8975_data *data;
 	struct iio_dev *indio_dev;
 	struct gpio_desc *eoc_gpiod;
+	const void *match;
+	unsigned int i;
 	int err;
+	enum asahi_compass_chipset chipset;
 	const char *name = NULL;
-	enum asahi_compass_chipset chipset = AK_MAX_TYPE;
 
 	/*
 	 * Grab and set up the supplied GPIO.
@@ -884,23 +873,27 @@ static int ak8975_probe(struct i2c_client *client,
 		return err;
 
 	/* id will be NULL when enumerated via ACPI */
-	if (id) {
+	match = device_get_match_data(&client->dev);
+	if (match) {
+		chipset = (enum asahi_compass_chipset)(match);
+		name = dev_name(&client->dev);
+	} else if (id) {
 		chipset = (enum asahi_compass_chipset)(id->driver_data);
 		name = id->name;
-	} else if (ACPI_HANDLE(&client->dev)) {
-		name = ak8975_match_acpi_device(&client->dev, &chipset);
-		if (!name)
-			return -ENODEV;
 	} else
 		return -ENOSYS;
 
-	if (chipset >= AK_MAX_TYPE) {
+	for (i = 0; i < ARRAY_SIZE(ak_def_array); i++)
+		if (ak_def_array[i].type == chipset)
+			break;
+
+	if (i == ARRAY_SIZE(ak_def_array)) {
 		dev_err(&client->dev, "AKM device type unsupported: %d\n",
 			chipset);
 		return -ENODEV;
 	}
 
-	data->def = &ak_def_array[chipset];
+	data->def = &ak_def_array[i];
 
 	/* Fetch the regulators */
 	data->vdd = devm_regulator_get(&client->dev, "vdd");
