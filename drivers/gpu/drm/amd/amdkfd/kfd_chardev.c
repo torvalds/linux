@@ -1592,9 +1592,6 @@ static int kfd_ioctl_alloc_queue_gws(struct file *filep,
 	struct queue *q;
 	struct kfd_dev *dev;
 
-	if (!hws_gws_support)
-		return -ENODEV;
-
 	mutex_lock(&p->mutex);
 	q = pqm_get_user_queue(&p->pqm, args->queue_id);
 
@@ -1602,6 +1599,11 @@ static int kfd_ioctl_alloc_queue_gws(struct file *filep,
 		dev = q->device;
 	} else {
 		retval = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (!dev->gws) {
+		retval = -ENODEV;
 		goto out_unlock;
 	}
 

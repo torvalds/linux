@@ -1319,7 +1319,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 				gpu->device_info->num_xgmi_sdma_engines;
 	dev->node_props.num_sdma_queues_per_engine =
 				gpu->device_info->num_sdma_queues_per_engine;
-	dev->node_props.num_gws = (hws_gws_support &&
+	dev->node_props.num_gws = (dev->gpu->gws &&
 		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
 		amdgpu_amdkfd_get_num_gws(dev->gpu->kgd) : 0;
 	dev->node_props.num_cp_queues = get_cp_queues_num(dev->gpu->dqm);
