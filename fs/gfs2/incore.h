@@ -387,8 +387,6 @@ struct gfs2_glock {
 	struct rhash_head gl_node;
 };
 
-#define GFS2_MIN_LVB_SIZE 32	/* Min size of LVB that gfs2 supports */
-
 enum {
 	GIF_INVALID		= 0,
 	GIF_QD_LOCKED		= 1,
