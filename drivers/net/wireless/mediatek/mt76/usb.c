@@ -398,10 +398,9 @@ mt76u_fill_bulk_urb(struct mt76_dev *dev, int dir, int index,
 	urb->context = context;
 }
 
-static inline struct urb *
-mt76u_get_next_rx_entry(struct mt76_dev *dev)
+static struct urb *
+mt76u_get_next_rx_entry(struct mt76_queue *q)
 {
-	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
 	struct urb *urb = NULL;
 	unsigned long flags;
 
@@ -553,7 +552,7 @@ mt76u_process_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 	int err, count;
 
 	while (true) {
-		urb = mt76u_get_next_rx_entry(dev);
+		urb = mt76u_get_next_rx_entry(q);
 		if (!urb)
 			break;
 
