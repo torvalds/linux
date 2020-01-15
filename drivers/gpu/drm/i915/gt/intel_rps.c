@@ -1026,7 +1026,8 @@ static bool chv_rps_enable(struct intel_rps *rps)
 	vlv_punit_put(i915);
 
 	/* RPS code assumes GPLL is used */
-	WARN_ONCE((val & GPLLENABLE) == 0, "GPLL not enabled\n");
+	drm_WARN_ONCE(&i915->drm, (val & GPLLENABLE) == 0,
+		      "GPLL not enabled\n");
 
 	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", yesno(val & GPLLENABLE));
 	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
@@ -1123,7 +1124,8 @@ static bool vlv_rps_enable(struct intel_rps *rps)
 	vlv_punit_put(i915);
 
 	/* RPS code assumes GPLL is used */
-	WARN_ONCE((val & GPLLENABLE) == 0, "GPLL not enabled\n");
+	drm_WARN_ONCE(&i915->drm, (val & GPLLENABLE) == 0,
+		      "GPLL not enabled\n");
 
 	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", yesno(val & GPLLENABLE));
 	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
@@ -1191,11 +1193,11 @@ void intel_rps_enable(struct intel_rps *rps)
 	if (!rps->enabled)
 		return;
 
-	WARN_ON(rps->max_freq < rps->min_freq);
-	WARN_ON(rps->idle_freq > rps->max_freq);
+	drm_WARN_ON(&i915->drm, rps->max_freq < rps->min_freq);
+	drm_WARN_ON(&i915->drm, rps->idle_freq > rps->max_freq);
 
-	WARN_ON(rps->efficient_freq < rps->min_freq);
-	WARN_ON(rps->efficient_freq > rps->max_freq);
+	drm_WARN_ON(&i915->drm, rps->efficient_freq < rps->min_freq);
+	drm_WARN_ON(&i915->drm, rps->efficient_freq > rps->max_freq);
 }
 
 static void gen6_rps_disable(struct intel_rps *rps)
@@ -1390,9 +1392,9 @@ static void chv_rps_init(struct intel_rps *rps)
 			BIT(VLV_IOSF_SB_NC) |
 			BIT(VLV_IOSF_SB_CCK));
 
-	WARN_ONCE((rps->max_freq | rps->efficient_freq | rps->rp1_freq |
-		   rps->min_freq) & 1,
-		  "Odd GPU freq values\n");
+	drm_WARN_ONCE(&i915->drm, (rps->max_freq | rps->efficient_freq |
+				   rps->rp1_freq | rps->min_freq) & 1,
+		      "Odd GPU freq values\n");
 }
 
 static void vlv_c0_read(struct intel_uncore *uncore, struct intel_rps_ei *ei)

@@ -448,9 +448,9 @@ void gtt_write_workarounds(struct intel_gt *gt)
 		intel_uncore_write(uncore,
 				   HSW_GTT_CACHE_EN,
 				   can_use_gtt_cache ? GTT_CACHE_EN_ALL : 0);
-		WARN_ON_ONCE(can_use_gtt_cache &&
-			     intel_uncore_read(uncore,
-					       HSW_GTT_CACHE_EN) == 0);
+		drm_WARN_ON_ONCE(&i915->drm, can_use_gtt_cache &&
+				 intel_uncore_read(uncore,
+						   HSW_GTT_CACHE_EN) == 0);
 	}
 }
 

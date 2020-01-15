@@ -827,7 +827,7 @@ wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		DRM_WARN("No common index found between subslice mask %x and L3 bank mask %x!\n",
 			 intel_sseu_get_subslices(sseu, slice), l3_en);
 		subslice = fls(l3_en);
-		WARN_ON(!subslice);
+		drm_WARN_ON(&i915->drm, !subslice);
 	}
 	subslice--;
 

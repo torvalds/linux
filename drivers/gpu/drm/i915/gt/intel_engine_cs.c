@@ -448,9 +448,9 @@ int intel_engines_init_mmio(struct intel_gt *gt)
 	unsigned int i;
 	int err;
 
-	WARN_ON(engine_mask == 0);
-	WARN_ON(engine_mask &
-		GENMASK(BITS_PER_TYPE(mask) - 1, I915_NUM_ENGINES));
+	drm_WARN_ON(&i915->drm, engine_mask == 0);
+	drm_WARN_ON(&i915->drm, engine_mask &
+		    GENMASK(BITS_PER_TYPE(mask) - 1, I915_NUM_ENGINES));
 
 	if (i915_inject_probe_failure(i915))
 		return -ENODEV;
@@ -471,7 +471,7 @@ int intel_engines_init_mmio(struct intel_gt *gt)
 	 * are added to the driver by a warning and disabling the forgotten
 	 * engines.
 	 */
-	if (WARN_ON(mask != engine_mask))
+	if (drm_WARN_ON(&i915->drm, mask != engine_mask))
 		device_info->engine_mask = mask;
 
 	RUNTIME_INFO(i915)->num_engines = hweight32(mask);

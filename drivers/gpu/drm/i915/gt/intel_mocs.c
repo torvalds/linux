@@ -300,8 +300,8 @@ static bool get_mocs_settings(const struct drm_i915_private *i915,
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 		table->table = broxton_mocs_table;
 	} else {
-		WARN_ONCE(INTEL_GEN(i915) >= 9,
-			  "Platform that should have a MOCS table does not.\n");
+		drm_WARN_ONCE(&i915->drm, INTEL_GEN(i915) >= 9,
+			      "Platform that should have a MOCS table does not.\n");
 		return false;
 	}
 
