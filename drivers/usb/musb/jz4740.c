@@ -17,7 +17,6 @@
 #include "musb_core.h"
 
 struct jz4740_glue {
-	struct device           *dev;
 	struct platform_device  *musb;
 	struct clk		*clk;
 };
@@ -141,7 +140,6 @@ static int jz4740_probe(struct platform_device *pdev)
 
 	musb->dev.parent		= &pdev->dev;
 
-	glue->dev			= &pdev->dev;
 	glue->musb			= musb;
 	glue->clk			= clk;
 
