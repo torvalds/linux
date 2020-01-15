@@ -44,10 +44,25 @@ static inline int hif_set_beacon_wakeup_period(struct wfx_vif *wvif,
 }
 
 static inline int hif_set_rcpi_rssi_threshold(struct wfx_vif *wvif,
-					      struct hif_mib_rcpi_rssi_threshold *arg)
+					      int rssi_thold, int rssi_hyst)
 {
+	struct hif_mib_rcpi_rssi_threshold arg = {
+		.rolling_average_count = 8,
+		.detection = 1,
+	};
+
+	if (!rssi_thold && !rssi_hyst) {
+		arg.upperthresh = 1;
+		arg.lowerthresh = 1;
+	} else {
+		arg.upper_threshold = rssi_thold + rssi_hyst;
+		arg.upper_threshold = (arg.upper_threshold + 110) * 2;
+		arg.lower_threshold = rssi_thold;
+		arg.lower_threshold = (arg.lower_threshold + 110) * 2;
+	}
+
 	return hif_write_mib(wvif->wdev, wvif->id,
-			     HIF_MIB_ID_RCPI_RSSI_THRESHOLD, arg, sizeof(*arg));
+			     HIF_MIB_ID_RCPI_RSSI_THRESHOLD, &arg, sizeof(arg));
 }
 
 static inline int hif_get_counters_table(struct wfx_dev *wdev,

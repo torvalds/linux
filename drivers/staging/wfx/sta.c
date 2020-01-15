@@ -1033,31 +1033,9 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		hif_slot_time(wvif, info->use_short_slot ? 9 : 20);
 
 	if (changed & BSS_CHANGED_ASSOC || changed & BSS_CHANGED_CQM) {
-		struct hif_mib_rcpi_rssi_threshold th = {
-			.rolling_average_count = 8,
-			.detection = 1,
-		};
-
 		wvif->cqm_rssi_thold = info->cqm_rssi_thold;
-
-		if (!info->cqm_rssi_thold && !info->cqm_rssi_hyst) {
-			th.upperthresh = 1;
-			th.lowerthresh = 1;
-		} else {
-			/* FIXME It's not a correct way of setting threshold.
-			 * Upper and lower must be set equal here and adjusted
-			 * in callback. However current implementation is much
-			 * more reliable and stable.
-			 */
-			/* RSSI: signed Q8.0, RCPI: unsigned Q7.1
-			 * RSSI = RCPI / 2 - 110
-			 */
-			th.upper_threshold = info->cqm_rssi_thold + info->cqm_rssi_hyst;
-			th.upper_threshold = (th.upper_threshold + 110) * 2;
-			th.lower_threshold = info->cqm_rssi_thold;
-			th.lower_threshold = (th.lower_threshold + 110) * 2;
-		}
-		hif_set_rcpi_rssi_threshold(wvif, &th);
+		hif_set_rcpi_rssi_threshold(wvif, info->cqm_rssi_thold,
+					    info->cqm_rssi_hyst);
 	}
 
 	if (changed & BSS_CHANGED_TXPOWER &&
