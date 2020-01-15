@@ -181,19 +181,13 @@ struct hif_mib_ipv6_addr_data_frame_condition {
 	u8    i_pv6_address[HIF_API_IPV6_ADDRESS_SIZE];
 } __packed;
 
-union hif_addr_type {
-	u8 value;
-	struct {
-		u8    type_unicast:1;
-		u8    type_multicast:1;
-		u8    type_broadcast:1;
-		u8    reserved:5;
-	} bits;
-};
+#define HIF_FILTER_UNICAST   0x1
+#define HIF_FILTER_MULTICAST 0x2
+#define HIF_FILTER_BROADCAST 0x4
 
 struct hif_mib_uc_mc_bc_data_frame_condition {
 	u8    condition_idx;
-	union hif_addr_type param;
+	u8    allowed_frames;
 	u8    reserved[2];
 } __packed;
 

@@ -142,8 +142,8 @@ static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 		config.mac_cond |= 1 << i;
 	}
 
-	// Accept unicast and broadcast
-	ret = hif_set_uc_mc_bc_condition(wvif, 0, true, false, true);
+	ret = hif_set_uc_mc_bc_condition(wvif, 0, HIF_FILTER_UNICAST |
+						  HIF_FILTER_BROADCAST);
 	if (ret)
 		return ret;
 
