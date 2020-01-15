@@ -38,42 +38,6 @@ struct omap2430_glue {
 
 static struct omap2430_glue	*_glue;
 
-/*
- * HDRC controls CPEN, but beware current surges during device connect.
- * They can trigger transient overcurrent conditions that must be ignored.
- *
- * Note that we're skipping A_WAIT_VFALL -> A_IDLE and jumping right to B_IDLE
- * as set by musb_set_peripheral().
- */
-static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
-{
-	struct usb_otg *otg = musb->xceiv->otg;
-	int error;
-
-	if (is_on) {
-		switch (musb->xceiv->otg->state) {
-		case OTG_STATE_A_IDLE:
-			error = musb_set_host(musb);
-			if (!error) {
-				musb->xceiv->otg->state =
-						OTG_STATE_A_WAIT_VRISE;
-				otg_set_vbus(otg, 1);
-			}
-			break;
-		default:
-			otg_set_vbus(otg, 1);
-			break;
-		}
-	} else {
-		error = musb_set_peripheral(musb);
-		otg_set_vbus(otg, 0);
-	}
-
-	dev_dbg(musb->controller, "VBUS %s, devctl %02x\n",
-		usb_otg_state_string(musb->xceiv->otg->state),
-		musb_readb(musb->mregs, MUSB_DEVCTL));
-}
-
 static inline void omap2430_low_level_exit(struct musb *musb)
 {
 	u32 l;
@@ -113,27 +77,42 @@ static int omap2430_musb_mailbox(enum musb_vbus_id_status status)
 	return 0;
 }
 
+/*
+ * HDRC controls CPEN, but beware current surges during device connect.
+ * They can trigger transient overcurrent conditions that must be ignored.
+ *
+ * Note that we're skipping A_WAIT_VFALL -> A_IDLE and jumping right to B_IDLE
+ * as set by musb_set_peripheral().
+ */
 static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 {
 	struct musb *musb = glue_to_musb(glue);
-	struct musb_hdrc_platform_data *pdata =
-		dev_get_platdata(musb->controller);
-	struct omap_musb_board_data *data = pdata->board_data;
+	int error;
 
 	pm_runtime_get_sync(musb->controller);
+
+	dev_dbg(musb->controller, "VBUS %s, devctl %02x\n",
+		usb_otg_state_string(musb->xceiv->otg->state),
+		musb_readb(musb->mregs, MUSB_DEVCTL));
+
 	switch (glue->status) {
 	case MUSB_ID_GROUND:
 		dev_dbg(musb->controller, "ID GND\n");
 		switch (musb->xceiv->otg->state) {
+		case OTG_STATE_A_IDLE:
+			error = musb_set_host(musb);
+			if (error)
+				break;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
+			/* Fall through */
 		case OTG_STATE_A_WAIT_VRISE:
 		case OTG_STATE_A_WAIT_BCON:
 		case OTG_STATE_A_HOST:
-		case OTG_STATE_A_IDLE:
 			/*
 			 * On multiple ID ground interrupts just keep enabling
 			 * VBUS. At least cpcap VBUS shuts down otherwise.
 			 */
-			omap2430_musb_set_vbus(musb, 1);
+			otg_set_vbus(musb->xceiv->otg, 1);
 			break;
 		default:
 			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
@@ -141,7 +120,7 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 			if (musb->gadget_driver) {
 				omap_control_usb_set_mode(glue->control_otghs,
 							  USB_MODE_HOST);
-				omap2430_musb_set_vbus(musb, 1);
+				otg_set_vbus(musb->xceiv->otg, 1);
 			}
 			break;
 		}
@@ -160,12 +139,8 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 		dev_dbg(musb->controller, "VBUS Disconnect\n");
 
 		musb->xceiv->last_event = USB_EVENT_NONE;
-		if (musb->gadget_driver)
-			omap2430_musb_set_vbus(musb, 0);
-
-		if (data->interface_type == MUSB_INTERFACE_UTMI)
-			otg_set_vbus(musb->xceiv->otg, 0);
-
+		musb_set_peripheral(musb);
+		otg_set_vbus(musb->xceiv->otg, 0);
 		omap_control_usb_set_mode(glue->control_otghs,
 			USB_MODE_DISCONNECT);
 		break;
