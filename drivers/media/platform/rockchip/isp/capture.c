@@ -3106,6 +3106,7 @@ void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 {
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct rkisp_stream *stream;
+	int i;
 
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
 		 "csi state:0x%x\n", state);
@@ -3120,19 +3121,24 @@ void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 	if (state & MIPI_DROP_FRM)
 		v4l2_warn(v4l2_dev, "MIPI drop frame\n");
 
-	if (state & RAW0_WR_FRAME) {
-		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX0];
-		atomic_inc_return(&stream->sequence);
+	/* first Y_STATE irq as csi sof event */
+	if (state & (RAW0_Y_STATE | RAW1_Y_STATE | RAW2_Y_STATE)) {
+		for (i = 0; i < HDR_DMA_MAX; i++) {
+			if (!((RAW0_Y_STATE << i) & state) ||
+			    dev->csi_dev.tx_first[i])
+				continue;
+			dev->csi_dev.tx_first[i] = true;
+			rkisp_csi_sof(dev, i);
+			stream = &dev->cap_dev.stream[i + RKISP_STREAM_DMATX0];
+			atomic_inc(&stream->sequence);
+		}
 	}
-
-	if (state & RAW1_WR_FRAME) {
-		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX1];
-		atomic_inc_return(&stream->sequence);
-	}
-
-	if (state & RAW2_WR_FRAME) {
-		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX2];
-		atomic_inc_return(&stream->sequence);
+	if (state & (RAW0_WR_FRAME | RAW1_WR_FRAME | RAW2_WR_FRAME)) {
+		for (i = 0; i < HDR_DMA_MAX; i++) {
+			if (!((RAW0_WR_FRAME << i) & state))
+				continue;
+			dev->csi_dev.tx_first[i] = false;
+		}
 	}
 
 	if (state & (RAW0_RD_FRAME | RAW1_RD_FRAME | RAW2_RD_FRAME))

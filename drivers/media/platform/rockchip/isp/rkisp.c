@@ -1552,7 +1552,7 @@ static int rkisp_subdev_fmt_link_validate(struct v4l2_subdev *sd,
 }
 #endif
 
-static void
+void
 rkisp_isp_queue_event_sof(struct rkisp_isp_subdev *isp)
 {
 	struct v4l2_event event = {

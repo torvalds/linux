@@ -124,6 +124,15 @@ static int rkisp_csi_get_set_fmt(struct v4l2_subdev *sd,
 
 static int rkisp_csi_s_stream(struct v4l2_subdev *sd, int on)
 {
+	struct rkisp_csi_device *csi = v4l2_get_subdevdata(sd);
+	struct rkisp_device *dev = csi->ispdev;
+	void __iomem *base = dev->base_addr;
+
+	memset(csi->tx_first, 0, sizeof(csi->tx_first));
+	if (on)
+		writel(SW_Y_STAT_EN, base + CSI2RX_Y_STAT_CTRL);
+	else
+		writel(0, base + CSI2RX_Y_STAT_CTRL);
 	return 0;
 }
 
@@ -436,8 +445,36 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
 	default://other no support readback
 		return;
 	}
-	csi->filt_state[CSI_F_VS] = dma2frm;
+	/* not using isp V_START irq to generate sof event */
+	csi->filt_state[CSI_F_VS] = dma2frm + 1;
 	writel(SW_CSI2RX_EN | SW_DMA_2FRM_MODE(dma2frm) | readl(addr), addr);
+}
+
+void rkisp_csi_sof(struct rkisp_device *dev, u8 id)
+{
+	/* to get long frame vc_start */
+	switch (dev->hdr.op_mode) {
+	case HDR_DBG_FRAME1:
+		if (id != HDR_DMA2)
+			return;
+		break;
+	case HDR_DBG_FRAME2:
+	case HDR_FRAMEX2_DDR:
+	case HDR_LINEX2_DDR:
+		if (id != HDR_DMA0)
+			return;
+		break;
+	case HDR_DBG_FRAME3:
+	case HDR_FRAMEX3_DDR:
+	case HDR_LINEX3_DDR:
+		if (id != HDR_DMA1)
+			return;
+		break;
+	default:
+		return;
+	}
+	dev->csi_dev.filt_state[CSI_F_VS] = 1;
+	rkisp_isp_queue_event_sof(&dev->isp_sdev);
 }
 
 int rkisp_register_csi_subdev(struct rkisp_device *dev,

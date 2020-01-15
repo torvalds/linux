@@ -149,6 +149,8 @@ int rkisp_update_sensor_info(struct rkisp_device *dev);
 
 u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode);
 
+void rkisp_isp_queue_event_sof(struct rkisp_isp_subdev *isp);
+
 static inline
 struct ispsd_out_fmt *rkisp_get_ispsd_out_fmt(struct rkisp_isp_subdev *isp_sdev)
 {
