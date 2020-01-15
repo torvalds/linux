@@ -14607,14 +14607,12 @@ static int intel_atomic_check(struct drm_device *dev,
 			continue;
 		}
 
-		if (!new_crtc_state->uapi.enable) {
-			intel_crtc_copy_uapi_to_hw_state(new_crtc_state);
-			continue;
-		}
-
 		ret = intel_crtc_prepare_cleared_state(new_crtc_state);
 		if (ret)
 			goto fail;
+
+		if (!new_crtc_state->hw.enable)
+			continue;
 
 		ret = intel_modeset_pipe_config(new_crtc_state);
 		if (ret)
