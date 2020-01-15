@@ -341,8 +341,8 @@ a = TMP_
 .endm
 
 ########################################################################
-## void sha256_transform_avx(void *input_data, UINT32 digest[8], UINT64 num_blks)
-## arg 1 : pointer to digest
+## void sha256_transform_avx(state sha256_state *state, const u8 *data, int blocks)
+## arg 1 : pointer to state
 ## arg 2 : pointer to input data
 ## arg 3 : Num blocks
 ########################################################################

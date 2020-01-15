@@ -461,9 +461,13 @@ W_PRECALC_SSSE3
 	movdqu	\a,\b
 .endm
 
-/* SSSE3 optimized implementation:
- *  extern "C" void sha1_transform_ssse3(u32 *digest, const char *data, u32 *ws,
- *                                       unsigned int rounds);
+/*
+ * SSSE3 optimized implementation:
+ *
+ * extern "C" void sha1_transform_ssse3(struct sha1_state *state,
+ *					const u8 *data, int blocks);
+ *
+ * Note that struct sha1_state is assumed to begin with u32 state[5].
  */
 SHA1_VECTOR_ASM     sha1_transform_ssse3
 
@@ -549,8 +553,8 @@ W_PRECALC_AVX
 
 
 /* AVX optimized implementation:
- *  extern "C" void sha1_transform_avx(u32 *digest, const char *data, u32 *ws,
- *                                     unsigned int rounds);
+ *  extern "C" void sha1_transform_avx(struct sha1_state *state,
+ *				       const u8 *data, int blocks);
  */
 SHA1_VECTOR_ASM     sha1_transform_avx
 
