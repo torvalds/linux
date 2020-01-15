@@ -29,6 +29,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/mem_encrypt.h>
 
 #include <drm/drm_drv.h>
 #include <drm/drm_ioctl.h>
@@ -574,6 +575,10 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 		[vmw_dma_alloc_coherent] = "Using coherent TTM pages.",
 		[vmw_dma_map_populate] = "Caching DMA mappings.",
 		[vmw_dma_map_bind] = "Giving up DMA mappings early."};
+
+	/* TTM currently doesn't fully support SEV encryption. */
+	if (mem_encrypt_active())
+		return -EINVAL;
 
 	if (vmw_force_coherent)
 		dev_priv->map_mode = vmw_dma_alloc_coherent;
