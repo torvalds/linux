@@ -118,7 +118,6 @@ static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 {
 	int i, ret;
 	struct hif_mib_config_data_filter config = { };
-	struct hif_mib_mac_addr_data_frame_condition filter_addr_val = { };
 
 	// Temporary workaround for filters
 	return hif_set_data_filtering(wvif, false, true);
@@ -126,14 +125,8 @@ static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 	if (!fp->enable)
 		return hif_set_data_filtering(wvif, false, true);
 
-	// A1 Address match on list
 	for (i = 0; i < fp->num_addresses; i++) {
-		filter_addr_val.condition_idx = i;
-		filter_addr_val.address_type = HIF_MAC_ADDR_A1;
-		ether_addr_copy(filter_addr_val.mac_address,
-				fp->address_list[i]);
-		ret = hif_set_mac_addr_condition(wvif,
-						 &filter_addr_val);
+		ret = hif_set_mac_addr_condition(wvif, i, fp->address_list[i]);
 		if (ret)
 			return ret;
 		config.mac_cond |= 1 << i;

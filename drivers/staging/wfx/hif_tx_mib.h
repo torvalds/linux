@@ -239,11 +239,17 @@ static inline int hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
 }
 
 static inline int hif_set_mac_addr_condition(struct wfx_vif *wvif,
-					     struct hif_mib_mac_addr_data_frame_condition *arg)
+					     int idx, const u8 *mac_addr)
 {
+	struct hif_mib_mac_addr_data_frame_condition val = {
+		.condition_idx = idx,
+		.address_type = HIF_MAC_ADDR_A1,
+	};
+
+	ether_addr_copy(val.mac_address, mac_addr);
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_MAC_ADDR_DATAFRAME_CONDITION,
-			     arg, sizeof(*arg));
+			     &val, sizeof(val));
 }
 
 static inline int hif_set_uc_mc_bc_condition(struct wfx_vif *wvif,
