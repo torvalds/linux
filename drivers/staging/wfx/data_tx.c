@@ -270,8 +270,7 @@ void wfx_tx_policy_init(struct wfx_vif *wvif)
 static int wfx_alloc_link_id(struct wfx_vif *wvif, const u8 *mac)
 {
 	int i, ret = 0;
-	unsigned long max_inactivity = 0;
-	unsigned long now = jiffies;
+	unsigned long oldest;
 
 	spin_lock_bh(&wvif->ps_state_lock);
 	for (i = 0; i < WFX_MAX_STA_IN_AP_MODE; ++i) {
@@ -280,13 +279,10 @@ static int wfx_alloc_link_id(struct wfx_vif *wvif, const u8 *mac)
 			break;
 		} else if (wvif->link_id_db[i].status != WFX_LINK_HARD &&
 			   !wvif->wdev->tx_queue_stats.link_map_cache[i + 1]) {
-			unsigned long inactivity =
-				now - wvif->link_id_db[i].timestamp;
-
-			if (inactivity < max_inactivity)
-				continue;
-			max_inactivity = inactivity;
-			ret = i + 1;
+			if (!ret || time_after(oldest, wvif->link_id_db[i].timestamp)) {
+				oldest = wvif->link_id_db[i].timestamp;
+				ret = i + 1;
+			}
 		}
 	}
 
