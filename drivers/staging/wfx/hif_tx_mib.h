@@ -391,7 +391,7 @@ static inline int hif_wep_default_key_id(struct wfx_vif *wvif, int val)
 static inline int hif_rts_threshold(struct wfx_vif *wvif, int val)
 {
 	struct hif_mib_dot11_rts_threshold arg = {
-		.threshold = cpu_to_le32(val > 0 ? val : 0xFFFF),
+		.threshold = cpu_to_le32(val >= 0 ? val : 0xFFFF),
 	};
 
 	return hif_write_mib(wvif->wdev, wvif->id,
