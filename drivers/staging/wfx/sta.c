@@ -286,6 +286,7 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
+	int old_uapsd = wvif->uapsd_mask;
 	int ret = 0;
 
 	WARN_ON(queue >= hw->queues);
@@ -294,7 +295,8 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	assign_bit(queue, &wvif->uapsd_mask, params->uapsd);
 	memcpy(&wvif->edca_params[queue], params, sizeof(*params));
 	hif_set_edca_queue_params(wvif, queue, params);
-	if (wvif->vif->type == NL80211_IFTYPE_STATION) {
+	if (wvif->vif->type == NL80211_IFTYPE_STATION &&
+	    old_uapsd != wvif->uapsd_mask) {
 		hif_set_uapsd_info(wvif, wvif->uapsd_mask);
 		wfx_update_pm(wvif);
 	}
