@@ -98,7 +98,6 @@ struct wfx_vif {
 	spinlock_t		ps_state_lock;
 	struct work_struct	set_tim_work;
 
-	int			dtim_period;
 	int			beacon_int;
 	bool			enable_beacon;
 	bool			filter_bssid;

@@ -464,7 +464,6 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	hif_keep_alive_period(wvif, 0);
 	hif_reset(wvif, false);
 	wfx_tx_policy_init(wvif);
-	wvif->dtim_period = 0;
 	hif_set_macaddr(wvif, wvif->vif->addr);
 	wfx_free_event_queue(wvif);
 	cancel_work_sync(&wvif->event_handler_work);
@@ -557,10 +556,6 @@ static void wfx_do_join(struct wfx_vif *wvif)
 		wvif->beacon_int = 1;
 
 	join.beacon_interval = wvif->beacon_int;
-
-	// DTIM period will be set on first Beacon
-	wvif->dtim_period = 0;
-
 	join.channel_number = wvif->channel->hw_value;
 	memcpy(join.bssid, bssid, sizeof(join.bssid));
 
@@ -701,8 +696,6 @@ static int wfx_start_ap(struct wfx_vif *wvif)
 	int ret;
 
 	wvif->beacon_int = wvif->vif->bss_conf.beacon_int;
-	wvif->dtim_period = wvif->vif->bss_conf.dtim_period;
-
 	memset(&wvif->link_id_db, 0, sizeof(wvif->link_id_db));
 
 	wvif->wdev->tx_burst_idx = -1;
@@ -766,10 +759,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	struct ieee80211_sta *sta = NULL;
 	struct hif_mib_set_association_mode association_mode = { };
 
-	if (info->dtim_period)
-		wvif->dtim_period = info->dtim_period;
 	wvif->beacon_int = info->beacon_int;
-
 	rcu_read_lock();
 	if (info->bssid && !info->ibss_joined)
 		sta = ieee80211_find_sta(wvif->vif, info->bssid);
@@ -803,9 +793,6 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 
 	wvif->bss_params.beacon_lost_count = 20;
 	wvif->bss_params.aid = info->aid;
-
-	if (wvif->dtim_period < 1)
-		wvif->dtim_period = 1;
 
 	hif_set_association_mode(wvif, &association_mode);
 
@@ -1055,9 +1042,10 @@ int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 
 static void wfx_mcast_start_work(struct work_struct *work)
 {
-	struct wfx_vif *wvif = container_of(work, struct wfx_vif,
-					    mcast_start_work);
-	long tmo = wvif->dtim_period * TU_TO_JIFFIES(wvif->beacon_int + 20);
+	struct wfx_vif *wvif =
+		container_of(work, struct wfx_vif, mcast_start_work);
+	struct ieee80211_bss_conf *conf = &wvif->vif->bss_conf;
+	long tmo = conf->dtim_period * TU_TO_JIFFIES(wvif->beacon_int + 20);
 
 	cancel_work_sync(&wvif->mcast_stop_work);
 	if (!wvif->aid0_bit_set) {
