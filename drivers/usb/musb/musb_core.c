@@ -73,6 +73,7 @@
 #include <linux/prefetch.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb.h>
 #include <linux/usb/of.h>
@@ -413,6 +414,108 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 {
 	return hw_ep->musb->io.write_fifo(hw_ep, len, src);
 }
+
+static u8 musb_read_devctl(struct musb *musb)
+{
+	return musb_readb(musb->mregs, MUSB_DEVCTL);
+}
+
+/**
+ * musb_set_host - set and initialize host mode
+ * @musb: musb controller driver data
+ *
+ * At least some musb revisions need to enable devctl session bit in
+ * peripheral mode to switch to host mode. Initializes things to host
+ * mode and sets A_IDLE. SoC glue needs to advance state further
+ * based on phy provided VBUS state.
+ *
+ * Note that the SoC glue code may need to wait for musb to settle
+ * on enable before calling this to avoid babble.
+ */
+int musb_set_host(struct musb *musb)
+{
+	int error = 0;
+	u8 devctl;
+
+	if (!musb)
+		return -EINVAL;
+
+	devctl = musb_read_devctl(musb);
+	if (!(devctl & MUSB_DEVCTL_BDEVICE)) {
+		dev_info(musb->controller,
+			 "%s: already in host mode: %02x\n",
+			 __func__, devctl);
+		goto init_data;
+	}
+
+	devctl |= MUSB_DEVCTL_SESSION;
+	musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
+
+	error = readx_poll_timeout(musb_read_devctl, musb, devctl,
+				   !(devctl & MUSB_DEVCTL_BDEVICE), 5000,
+				   1000000);
+	if (error) {
+		dev_err(musb->controller, "%s: could not set host: %02x\n",
+			__func__, devctl);
+
+		return error;
+	}
+
+init_data:
+	musb->is_active = 1;
+	musb->xceiv->otg->state = OTG_STATE_A_IDLE;
+	MUSB_HST_MODE(musb);
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(musb_set_host);
+
+/**
+ * musb_set_peripheral - set and initialize peripheral mode
+ * @musb: musb controller driver data
+ *
+ * Clears devctl session bit and initializes things for peripheral
+ * mode and sets B_IDLE. SoC glue needs to advance state further
+ * based on phy provided VBUS state.
+ */
+int musb_set_peripheral(struct musb *musb)
+{
+	int error = 0;
+	u8 devctl;
+
+	if (!musb)
+		return -EINVAL;
+
+	devctl = musb_read_devctl(musb);
+	if (devctl & MUSB_DEVCTL_BDEVICE) {
+		dev_info(musb->controller,
+			 "%s: already in peripheral mode: %02x\n",
+			 __func__, devctl);
+
+		goto init_data;
+	}
+
+	devctl &= ~MUSB_DEVCTL_SESSION;
+	musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
+
+	error = readx_poll_timeout(musb_read_devctl, musb, devctl,
+				   devctl & MUSB_DEVCTL_BDEVICE, 5000,
+				   1000000);
+	if (error) {
+		dev_err(musb->controller, "%s: could not set periperal: %02x\n",
+			__func__, devctl);
+
+		return error;
+	}
+
+init_data:
+	musb->is_active = 0;
+	musb->xceiv->otg->state = OTG_STATE_B_IDLE;
+	MUSB_DEV_MODE(musb);
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(musb_set_peripheral);
 
 /*-------------------------------------------------------------------------*/
 

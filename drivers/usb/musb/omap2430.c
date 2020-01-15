@@ -38,65 +38,38 @@ struct omap2430_glue {
 
 static struct omap2430_glue	*_glue;
 
+/*
+ * HDRC controls CPEN, but beware current surges during device connect.
+ * They can trigger transient overcurrent conditions that must be ignored.
+ *
+ * Note that we're skipping A_WAIT_VFALL -> A_IDLE and jumping right to B_IDLE
+ * as set by musb_set_peripheral().
+ */
 static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 {
-	struct usb_otg	*otg = musb->xceiv->otg;
-	u8		devctl;
-	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
-	/* HDRC controls CPEN, but beware current surges during device
-	 * connect.  They can trigger transient overcurrent conditions
-	 * that must be ignored.
-	 */
-
-	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
+	struct usb_otg *otg = musb->xceiv->otg;
+	int error;
 
 	if (is_on) {
-		if (musb->xceiv->otg->state == OTG_STATE_A_IDLE) {
-			int loops = 100;
-			/* start the session */
-			devctl |= MUSB_DEVCTL_SESSION;
-			musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
-			/*
-			 * Wait for the musb to set as A device to enable the
-			 * VBUS
-			 */
-			while (musb_readb(musb->mregs, MUSB_DEVCTL) &
-			       MUSB_DEVCTL_BDEVICE) {
-
-				mdelay(5);
-				cpu_relax();
-
-				if (time_after(jiffies, timeout)
-				    || loops-- <= 0) {
-					dev_err(musb->controller,
-					"configured as A device timeout");
-					break;
-				}
+		switch (musb->xceiv->otg->state) {
+		case OTG_STATE_A_IDLE:
+			error = musb_set_host(musb);
+			if (!error) {
+				musb->xceiv->otg->state =
+						OTG_STATE_A_WAIT_VRISE;
+				otg_set_vbus(otg, 1);
 			}
-
+			break;
+		default:
 			otg_set_vbus(otg, 1);
-		} else {
-			musb->is_active = 1;
-			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
-			devctl |= MUSB_DEVCTL_SESSION;
-			MUSB_HST_MODE(musb);
+			break;
 		}
 	} else {
-		musb->is_active = 0;
-
-		/* NOTE:  we're skipping A_WAIT_VFALL -> A_IDLE and
-		 * jumping right to B_IDLE...
-		 */
-
-		musb->xceiv->otg->state = OTG_STATE_B_IDLE;
-		devctl &= ~MUSB_DEVCTL_SESSION;
-
-		MUSB_DEV_MODE(musb);
+		error = musb_set_peripheral(musb);
+		otg_set_vbus(otg, 0);
 	}
-	musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
 
-	dev_dbg(musb->controller, "VBUS %s, devctl %02x "
-		/* otg %3x conf %08x prcm %08x */ "\n",
+	dev_dbg(musb->controller, "VBUS %s, devctl %02x\n",
 		usb_otg_state_string(musb->xceiv->otg->state),
 		musb_readb(musb->mregs, MUSB_DEVCTL));
 }
