@@ -73,7 +73,6 @@
 
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
-static struct btf *bpf_find_kernel_btf(void);
 static struct bpf_map *bpf_object__add_map(struct bpf_object *obj);
 static struct bpf_program *bpf_object__find_prog_by_idx(struct bpf_object *obj,
 							int idx);
@@ -848,7 +847,7 @@ static int bpf_object__init_kern_struct_ops_maps(struct bpf_object *obj)
 			continue;
 
 		if (!kern_btf) {
-			kern_btf = bpf_find_kernel_btf();
+			kern_btf = libbpf_find_kernel_btf();
 			if (IS_ERR(kern_btf))
 				return PTR_ERR(kern_btf);
 		}
@@ -4300,92 +4299,6 @@ static int bpf_core_reloc_insn(struct bpf_program *prog,
 	return 0;
 }
 
-static struct btf *btf_load_raw(const char *path)
-{
-	struct btf *btf;
-	size_t read_cnt;
-	struct stat st;
-	void *data;
-	FILE *f;
-
-	if (stat(path, &st))
-		return ERR_PTR(-errno);
-
-	data = malloc(st.st_size);
-	if (!data)
-		return ERR_PTR(-ENOMEM);
-
-	f = fopen(path, "rb");
-	if (!f) {
-		btf = ERR_PTR(-errno);
-		goto cleanup;
-	}
-
-	read_cnt = fread(data, 1, st.st_size, f);
-	fclose(f);
-	if (read_cnt < st.st_size) {
-		btf = ERR_PTR(-EBADF);
-		goto cleanup;
-	}
-
-	btf = btf__new(data, read_cnt);
-
-cleanup:
-	free(data);
-	return btf;
-}
-
-/*
- * Probe few well-known locations for vmlinux kernel image and try to load BTF
- * data out of it to use for target BTF.
- */
-static struct btf *bpf_find_kernel_btf(void)
-{
-	struct {
-		const char *path_fmt;
-		bool raw_btf;
-	} locations[] = {
-		/* try canonical vmlinux BTF through sysfs first */
-		{ "/sys/kernel/btf/vmlinux", true /* raw BTF */ },
-		/* fall back to trying to find vmlinux ELF on disk otherwise */
-		{ "/boot/vmlinux-%1$s" },
-		{ "/lib/modules/%1$s/vmlinux-%1$s" },
-		{ "/lib/modules/%1$s/build/vmlinux" },
-		{ "/usr/lib/modules/%1$s/kernel/vmlinux" },
-		{ "/usr/lib/debug/boot/vmlinux-%1$s" },
-		{ "/usr/lib/debug/boot/vmlinux-%1$s.debug" },
-		{ "/usr/lib/debug/lib/modules/%1$s/vmlinux" },
-	};
-	char path[PATH_MAX + 1];
-	struct utsname buf;
-	struct btf *btf;
-	int i;
-
-	uname(&buf);
-
-	for (i = 0; i < ARRAY_SIZE(locations); i++) {
-		snprintf(path, PATH_MAX, locations[i].path_fmt, buf.release);
-
-		if (access(path, R_OK))
-			continue;
-
-		if (locations[i].raw_btf)
-			btf = btf_load_raw(path);
-		else
-			btf = btf__parse_elf(path, NULL);
-
-		pr_debug("loading kernel BTF '%s': %ld\n",
-			 path, IS_ERR(btf) ? PTR_ERR(btf) : 0);
-		if (IS_ERR(btf))
-			continue;
-
-		return btf;
-	}
-
-	pr_warn("failed to find valid kernel BTF\n");
-	return ERR_PTR(-ESRCH);
-}
-
 /* Output spec definition in the format:
  * [<type-id>] (<type-name>) + <raw-spec> => <offset>@<spec>,
  * where <spec> is a C-syntax view of recorded field access, e.g.: x.a[3].b
@@ -4620,7 +4533,7 @@ bpf_core_reloc_fields(struct bpf_object *obj, const char *targ_btf_path)
 	if (targ_btf_path)
 		targ_btf = btf__parse_elf(targ_btf_path, NULL);
 	else
-		targ_btf = bpf_find_kernel_btf();
+		targ_btf = libbpf_find_kernel_btf();
 	if (IS_ERR(targ_btf)) {
 		pr_warn("failed to get target BTF: %ld\n", PTR_ERR(targ_btf));
 		return PTR_ERR(targ_btf);
@@ -6595,7 +6508,7 @@ invalid_prog:
 int libbpf_find_vmlinux_btf_id(const char *name,
 			       enum bpf_attach_type attach_type)
 {
-	struct btf *btf = bpf_find_kernel_btf();
+	struct btf *btf = libbpf_find_kernel_btf();
 	char raw_tp_btf[128] = BTF_PREFIX;
 	char *dst = raw_tp_btf + sizeof(BTF_PREFIX) - 1;
 	const char *btf_name;
