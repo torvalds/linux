@@ -89,6 +89,23 @@ static inline int is_blockdev(struct device *dev)
 static inline int is_blockdev(struct device *dev) { return 0; }
 #endif
 
+static int devtmpfs_submit_req(struct req *req, const char *tmp)
+{
+	init_completion(&req->done);
+
+	spin_lock(&req_lock);
+	req->next = requests;
+	requests = req;
+	spin_unlock(&req_lock);
+
+	wake_up_process(thread);
+	wait_for_completion(&req->done);
+
+	kfree(tmp);
+
+	return req->err;
+}
+
 int devtmpfs_create_node(struct device *dev)
 {
 	const char *tmp = NULL;
@@ -113,19 +130,7 @@ int devtmpfs_create_node(struct device *dev)
 
 	req.dev = dev;
 
-	init_completion(&req.done);
-
-	spin_lock(&req_lock);
-	req.next = requests;
-	requests = &req;
-	spin_unlock(&req_lock);
-
-	wake_up_process(thread);
-	wait_for_completion(&req.done);
-
-	kfree(tmp);
-
-	return req.err;
+	return devtmpfs_submit_req(&req, tmp);
 }
 
 int devtmpfs_delete_node(struct device *dev)
@@ -143,18 +148,7 @@ int devtmpfs_delete_node(struct device *dev)
 	req.mode = 0;
 	req.dev = dev;
 
-	init_completion(&req.done);
-
-	spin_lock(&req_lock);
-	req.next = requests;
-	requests = &req;
-	spin_unlock(&req_lock);
-
-	wake_up_process(thread);
-	wait_for_completion(&req.done);
-
-	kfree(tmp);
-	return req.err;
+	return devtmpfs_submit_req(&req, tmp);
 }
 
 static int dev_mkdir(const char *name, umode_t mode)
