@@ -633,6 +633,8 @@ const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_HE_OBSS_PD] = NLA_POLICY_NESTED(he_obss_pd_policy),
 	[NL80211_ATTR_VLAN_ID] = NLA_POLICY_RANGE(NLA_U16, 1, VLAN_N_VID - 2),
 	[NL80211_ATTR_HE_BSS_COLOR] = NLA_POLICY_NESTED(he_bss_color_policy),
+	[NL80211_ATTR_SRC_MAC] = NLA_POLICY_ETH_ADDR,
+	[NL80211_ATTR_DST_MAC] = NLA_POLICY_ETH_ADDR,
 };
 
 /* policy for the key attributes */
@@ -13694,6 +13696,7 @@ static int nl80211_tx_control_port(struct sk_buff *skb, struct genl_info *info)
 	const u8 *buf;
 	size_t len;
 	u8 *dest;
+	u8 src[ETH_ALEN];
 	u16 proto;
 	bool noencrypt;
 	int err;
@@ -13731,6 +13734,13 @@ static int nl80211_tx_control_port(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	/* copy src address under wdev_lock, as we may copy wdev_address */
+	if (info->attrs[NL80211_ATTR_SRC_MAC])
+		ether_addr_copy(src,
+				nla_data(info->attrs[NL80211_ATTR_SRC_MAC]));
+	else
+		ether_addr_copy(src, wdev_address(wdev));
+
 	wdev_unlock(wdev);
 
 	buf = nla_data(info->attrs[NL80211_ATTR_FRAME]);
@@ -13741,7 +13751,7 @@ static int nl80211_tx_control_port(struct sk_buff *skb, struct genl_info *info)
 		nla_get_flag(info->attrs[NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT]);
 
 	return rdev_tx_control_port(rdev, dev, buf, len,
-				    dest, cpu_to_be16(proto), noencrypt);
+				    dest, src, cpu_to_be16(proto), noencrypt);
 
  out:
 	wdev_unlock(wdev);
@@ -15996,7 +16006,8 @@ static int __nl80211_rx_control_port(struct net_device *dev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct ethhdr *ehdr = eth_hdr(skb);
-	const u8 *addr = ehdr->h_source;
+	const u8 *daddr = ehdr->h_dest;
+	const u8 *saddr = ehdr->h_source;
 	u16 proto = be16_to_cpu(skb->protocol);
 	struct sk_buff *msg;
 	void *hdr;
@@ -16021,7 +16032,8 @@ static int __nl80211_rx_control_port(struct net_device *dev,
 	    nla_put_u32(msg, NL80211_ATTR_IFINDEX, dev->ifindex) ||
 	    nla_put_u64_64bit(msg, NL80211_ATTR_WDEV, wdev_id(wdev),
 			      NL80211_ATTR_PAD) ||
-	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, addr) ||
+	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, saddr) ||
+	    nla_put(msg, NL80211_ATTR_DST_MAC, ETH_ALEN, daddr) ||
 	    nla_put_u16(msg, NL80211_ATTR_CONTROL_PORT_ETHERTYPE, proto) ||
 	    (unencrypted && nla_put_flag(msg,
 					 NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT)))
