@@ -189,7 +189,7 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int min_vblank_lines;
 	unsigned int dppclk_delay_subtotal;
 	unsigned int dispclk_delay_subtotal;
-	unsigned int dcfclk_cstate_latency;
+	double dcfclk_cstate_latency;
 	unsigned int dppclk_delay_scl;
 	unsigned int dppclk_delay_scl_lb_only;
 	unsigned int dppclk_delay_cnvc_formatter;
