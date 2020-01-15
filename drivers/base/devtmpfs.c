@@ -388,7 +388,7 @@ static int handle(const char *name, umode_t mode, kuid_t uid, kgid_t gid,
 		return handle_remove(name, dev);
 }
 
-static int devtmpfsd(void *p)
+static int devtmpfs_setup(void *p)
 {
 	int err;
 
@@ -400,7 +400,18 @@ static int devtmpfsd(void *p)
 		goto out;
 	ksys_chdir("/.."); /* will traverse into overmounted root */
 	ksys_chroot(".");
+out:
+	*(int *)p = err;
 	complete(&setup_done);
+	return err;
+}
+
+static int devtmpfsd(void *p)
+{
+	int err = devtmpfs_setup(p);
+
+	if (err)
+		return err;
 	while (1) {
 		spin_lock(&req_lock);
 		while (requests) {
@@ -421,10 +432,6 @@ static int devtmpfsd(void *p)
 		schedule();
 	}
 	return 0;
-out:
-	*(int *)p = err;
-	complete(&setup_done);
-	return err;
 }
 
 /*
