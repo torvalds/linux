@@ -28,8 +28,6 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
-#include <linux/iio/magnetometer/ak8975.h>
-
 /*
  * Register definitions, as well as various shifts and masks to get at the
  * individual fields of the registers.
@@ -857,8 +855,6 @@ static int ak8975_probe(struct i2c_client *client,
 	int err;
 	const char *name = NULL;
 	enum asahi_compass_chipset chipset = AK_MAX_TYPE;
-	const struct ak8975_platform_data *pdata =
-		dev_get_platdata(&client->dev);
 
 	/*
 	 * Grab and set up the supplied GPIO.
@@ -883,13 +879,9 @@ static int ak8975_probe(struct i2c_client *client,
 	data->eoc_gpiod = eoc_gpiod;
 	data->eoc_irq = 0;
 
-	if (!pdata) {
-		err = iio_read_mount_matrix(&client->dev, "mount-matrix",
-					    &data->orientation);
-		if (err)
-			return err;
-	} else
-		data->orientation = pdata->orientation;
+	err = iio_read_mount_matrix(&client->dev, "mount-matrix", &data->orientation);
+	if (err)
+		return err;
 
 	/* id will be NULL when enumerated via ACPI */
 	if (id) {
