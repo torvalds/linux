@@ -173,20 +173,6 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	    !arg->status && wvif->vif &&
 	    ether_addr_equal(ieee80211_get_SA(frame),
 			     wvif->vif->bss_conf.bssid)) {
-		const u8 *tim_ie;
-		u8 *ies = mgmt->u.beacon.variable;
-		size_t ies_len = skb->len - (ies - skb->data);
-
-		tim_ie = cfg80211_find_ie(WLAN_EID_TIM, ies, ies_len);
-		if (tim_ie) {
-			struct ieee80211_tim_ie *tim = (struct ieee80211_tim_ie *)&tim_ie[2];
-
-			if (wvif->dtim_period != tim->dtim_period) {
-				wvif->dtim_period = tim->dtim_period;
-				schedule_work(&wvif->set_beacon_wakeup_period_work);
-			}
-		}
-
 		/* Disable beacon filter once we're associated... */
 		if (wvif->disable_beacon_filter &&
 		    (wvif->vif->bss_conf.assoc ||

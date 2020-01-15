@@ -446,15 +446,6 @@ static void wfx_bss_params_work(struct work_struct *work)
 	mutex_unlock(&wvif->wdev->conf_mutex);
 }
 
-static void wfx_set_beacon_wakeup_period_work(struct work_struct *work)
-{
-	struct wfx_vif *wvif = container_of(work, struct wfx_vif,
-					    set_beacon_wakeup_period_work);
-
-	hif_set_beacon_wakeup_period(wvif, wvif->dtim_period,
-				     wvif->dtim_period);
-}
-
 static void wfx_do_unjoin(struct wfx_vif *wvif)
 {
 	mutex_lock(&wvif->wdev->conf_mutex);
@@ -466,7 +457,6 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 		goto done;
 
 	cancel_work_sync(&wvif->update_filtering_work);
-	cancel_work_sync(&wvif->set_beacon_wakeup_period_work);
 	wvif->state = WFX_STATE_PASSIVE;
 
 	/* Unjoin is a reset. */
@@ -823,7 +813,8 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 		hif_keep_alive_period(wvif, 30 /* sec */);
 		hif_set_bss_params(wvif, &wvif->bss_params);
 		wvif->setbssparams_done = true;
-		wfx_set_beacon_wakeup_period_work(&wvif->set_beacon_wakeup_period_work);
+		hif_set_beacon_wakeup_period(wvif, info->dtim_period,
+					     info->dtim_period);
 		wfx_update_pm(wvif);
 	}
 }
@@ -871,6 +862,10 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 			wvif->enable_beacon = info->enable_beacon;
 		}
 	}
+
+	if (changed & BSS_CHANGED_BEACON_INFO)
+		hif_set_beacon_wakeup_period(wvif, info->dtim_period,
+					     info->dtim_period);
 
 	/* assoc/disassoc, or maybe AID changed */
 	if (changed & BSS_CHANGED_ASSOC) {
@@ -1260,8 +1255,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	init_completion(&wvif->set_pm_mode_complete);
 	complete(&wvif->set_pm_mode_complete);
-	INIT_WORK(&wvif->set_beacon_wakeup_period_work,
-		  wfx_set_beacon_wakeup_period_work);
 	INIT_WORK(&wvif->update_filtering_work, wfx_update_filtering_work);
 	INIT_WORK(&wvif->bss_params_work, wfx_bss_params_work);
 	INIT_WORK(&wvif->set_cts_work, wfx_set_cts_work);

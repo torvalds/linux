@@ -101,8 +101,6 @@ struct wfx_vif {
 	int			dtim_period;
 	int			beacon_int;
 	bool			enable_beacon;
-	struct work_struct	set_beacon_wakeup_period_work;
-
 	bool			filter_bssid;
 	bool			fwd_probe_req;
 	bool			disable_beacon_filter;
