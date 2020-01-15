@@ -1756,6 +1756,9 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	int ret;
 	int pg_shift;
 
+	if (!udata)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (iwdev->closing)
 		return ERR_PTR(-ENODEV);
 

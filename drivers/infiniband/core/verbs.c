@@ -1990,6 +1990,36 @@ EXPORT_SYMBOL(ib_resize_cq);
 
 /* Memory regions */
 
+struct ib_mr *ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
+			     u64 virt_addr, int access_flags)
+{
+	struct ib_mr *mr;
+
+	if (access_flags & IB_ACCESS_ON_DEMAND) {
+		if (!(pd->device->attrs.device_cap_flags &
+		      IB_DEVICE_ON_DEMAND_PAGING)) {
+			pr_debug("ODP support not available\n");
+			return ERR_PTR(-EINVAL);
+		}
+	}
+
+	mr = pd->device->ops.reg_user_mr(pd, start, length, virt_addr,
+					 access_flags, NULL);
+
+	if (IS_ERR(mr))
+		return mr;
+
+	mr->device = pd->device;
+	mr->pd = pd;
+	mr->dm = NULL;
+	atomic_inc(&pd->usecnt);
+	mr->res.type = RDMA_RESTRACK_MR;
+	rdma_restrack_kadd(&mr->res);
+
+	return mr;
+}
+EXPORT_SYMBOL(ib_reg_user_mr);
+
 int ib_dereg_mr_user(struct ib_mr *mr, struct ib_udata *udata)
 {
 	struct ib_pd *pd = mr->pd;
