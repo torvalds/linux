@@ -55,7 +55,8 @@ static int mt76x02u_mcu_wait_resp(struct mt76_dev *dev, u8 seq)
 	u32 rxfce;
 
 	for (i = 0; i < 5; i++) {
-		ret = mt76u_bulk_msg(dev, data, MCU_RESP_URB_SIZE, &len, 300);
+		ret = mt76u_bulk_msg(dev, data, MCU_RESP_URB_SIZE, &len,
+				     300, MT_EP_IN_CMD_RESP);
 		if (ret == -ETIMEDOUT)
 			continue;
 		if (ret)
@@ -103,7 +104,8 @@ __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	if (ret)
 		return ret;
 
-	ret = mt76u_bulk_msg(dev, skb->data, skb->len, NULL, 500);
+	ret = mt76u_bulk_msg(dev, skb->data, skb->len, NULL, 500,
+			     MT_EP_OUT_INBAND_CMD);
 	if (ret)
 		return ret;
 
@@ -248,7 +250,8 @@ __mt76x02u_mcu_fw_send_data(struct mt76x02_dev *dev, u8 *data,
 
 	data_len = MT_CMD_HDR_LEN + len + sizeof(info);
 
-	err = mt76u_bulk_msg(&dev->mt76, data, data_len, NULL, 1000);
+	err = mt76u_bulk_msg(&dev->mt76, data, data_len, NULL, 1000,
+			     MT_EP_OUT_INBAND_CMD);
 	if (err) {
 		dev_err(dev->mt76.dev, "firmware upload failed: %d\n", err);
 		return err;
