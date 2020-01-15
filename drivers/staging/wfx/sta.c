@@ -783,7 +783,6 @@ static int wfx_update_beaconing(struct wfx_vif *wvif)
 static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 {
 	struct sk_buff *skb;
-	struct ieee80211_mgmt *mgmt;
 
 	if (wvif->vif->type == NL80211_IFTYPE_STATION ||
 	    wvif->vif->type == NL80211_IFTYPE_MONITOR ||
@@ -795,14 +794,11 @@ static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 		return -ENOMEM;
 	hif_set_template_frame(wvif, skb, HIF_TMPLT_BCN,
 			       API_RATE_INDEX_B_1MBPS);
+	dev_kfree_skb(skb);
 
-	/* TODO: Distill probe resp; remove TIM and any other beacon-specific
-	 * IEs
-	 */
-	mgmt = (void *)skb->data;
-	mgmt->frame_control =
-		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP);
-
+	skb = ieee80211_proberesp_get(wvif->wdev->hw, wvif->vif);
+	if (!skb)
+		return -ENOMEM;
 	hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBRES,
 			       API_RATE_INDEX_B_1MBPS);
 	dev_kfree_skb(skb);
