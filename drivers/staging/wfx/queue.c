@@ -365,52 +365,26 @@ static bool hif_handle_tx_data(struct wfx_vif *wvif, struct sk_buff *skb,
 	struct ieee80211_hdr *frame = (struct ieee80211_hdr *) (req->frame + req->data_flags.fc_offset);
 
 	enum {
-		do_drop,
 		do_wep,
 		do_tx,
 	} action = do_tx;
 
-	switch (wvif->vif->type) {
-	case NL80211_IFTYPE_STATION:
-		if (wvif->state < WFX_STATE_PRE_STA)
-			action = do_drop;
-		break;
-	case NL80211_IFTYPE_AP:
-		if (!wvif->state)
-			action = do_drop;
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		if (wvif->state != WFX_STATE_IBSS)
-			action = do_drop;
-		break;
-	case NL80211_IFTYPE_MONITOR:
-	default:
-		action = do_drop;
-		break;
-	}
-
-	if (action == do_tx) {
-		if (ieee80211_is_nullfunc(frame->frame_control)) {
-			mutex_lock(&wvif->bss_loss_lock);
-			if (wvif->bss_loss_state) {
-				wvif->bss_loss_confirm_id = req->packet_id;
-				req->queue_id.queue_id = HIF_QUEUE_ID_VOICE;
-			}
-			mutex_unlock(&wvif->bss_loss_lock);
-		} else if (ieee80211_has_protected(frame->frame_control) &&
-			   tx_priv->hw_key &&
-			   tx_priv->hw_key->keyidx != wvif->wep_default_key_id &&
-			   (tx_priv->hw_key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
-			    tx_priv->hw_key->cipher == WLAN_CIPHER_SUITE_WEP104)) {
-			action = do_wep;
+	if (ieee80211_is_nullfunc(frame->frame_control)) {
+		mutex_lock(&wvif->bss_loss_lock);
+		if (wvif->bss_loss_state) {
+			wvif->bss_loss_confirm_id = req->packet_id;
+			req->queue_id.queue_id = HIF_QUEUE_ID_VOICE;
 		}
+		mutex_unlock(&wvif->bss_loss_lock);
+	} else if (ieee80211_has_protected(frame->frame_control) &&
+		   tx_priv->hw_key &&
+		   tx_priv->hw_key->keyidx != wvif->wep_default_key_id &&
+		   (tx_priv->hw_key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+		    tx_priv->hw_key->cipher == WLAN_CIPHER_SUITE_WEP104)) {
+		action = do_wep;
 	}
 
 	switch (action) {
-	case do_drop:
-		wfx_pending_remove(wvif->wdev, skb);
-		handled = true;
-		break;
 	case do_wep:
 		wfx_tx_lock(wvif->wdev);
 		WARN_ON(wvif->wep_pending_skb);
