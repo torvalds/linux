@@ -181,14 +181,16 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *i915,
 	 * Whether ILK really reuses the ELK register for this is unclear.
 	 * Let's see if we catch anyone with this supposedly enabled on ILK.
 	 */
-	WARN(IS_GEN(i915, 5), "ILK stolen reserved found? 0x%08x\n",
-	     reg_val);
+	drm_WARN(&i915->drm, IS_GEN(i915, 5),
+		 "ILK stolen reserved found? 0x%08x\n",
+		 reg_val);
 
 	if (!(reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK))
 		return;
 
 	*base = (reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK) << 16;
-	WARN_ON((reg_val & G4X_STOLEN_RESERVED_ADDR1_MASK) < *base);
+	drm_WARN_ON(&i915->drm,
+		    (reg_val & G4X_STOLEN_RESERVED_ADDR1_MASK) < *base);
 
 	*size = stolen_top - *base;
 }
@@ -694,9 +696,10 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *i915,
 			 &stolen_offset, &gtt_offset, &size);
 
 	/* KISS and expect everything to be page-aligned */
-	if (WARN_ON(size == 0) ||
-	    WARN_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE)) ||
-	    WARN_ON(!IS_ALIGNED(stolen_offset, I915_GTT_MIN_ALIGNMENT)))
+	if (drm_WARN_ON(&i915->drm, size == 0) ||
+	    drm_WARN_ON(&i915->drm, !IS_ALIGNED(size, I915_GTT_PAGE_SIZE)) ||
+	    drm_WARN_ON(&i915->drm,
+			!IS_ALIGNED(stolen_offset, I915_GTT_MIN_ALIGNMENT)))
 		return ERR_PTR(-EINVAL);
 
 	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);
