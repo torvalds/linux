@@ -117,7 +117,6 @@ static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 				    struct wfx_grp_addr_table *fp)
 {
 	int i, ret;
-	struct hif_mib_config_data_filter config = { };
 
 	// Temporary workaround for filters
 	return hif_set_data_filtering(wvif, false, true);
@@ -129,7 +128,6 @@ static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 		ret = hif_set_mac_addr_condition(wvif, i, fp->address_list[i]);
 		if (ret)
 			return ret;
-		config.mac_cond |= 1 << i;
 	}
 
 	ret = hif_set_uc_mc_bc_condition(wvif, 0, HIF_FILTER_UNICAST |
@@ -137,10 +135,8 @@ static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 	if (ret)
 		return ret;
 
-	config.uc_mc_bc_cond = 1;
-	config.filter_idx = 0; // TODO #define MULTICAST_FILTERING 0
-	config.enable = 1;
-	ret = hif_set_config_data_filter(wvif, &config);
+	ret = hif_set_config_data_filter(wvif, true, 0, BIT(1),
+					 BIT(fp->num_addresses) - 1);
 	if (ret)
 		return ret;
 

@@ -265,11 +265,19 @@ static inline int hif_set_uc_mc_bc_condition(struct wfx_vif *wvif,
 			     &val, sizeof(val));
 }
 
-static inline int hif_set_config_data_filter(struct wfx_vif *wvif,
-					     struct hif_mib_config_data_filter *arg)
+static inline int hif_set_config_data_filter(struct wfx_vif *wvif, bool enable,
+					     int idx, int mac_filters,
+					     int frames_types_filters)
 {
+	struct hif_mib_config_data_filter val = {
+		.enable = enable,
+		.filter_idx = idx,
+		.mac_cond = mac_filters,
+		.uc_mc_bc_cond = frames_types_filters,
+	};
+
 	return hif_write_mib(wvif->wdev, wvif->id,
-			     HIF_MIB_ID_CONFIG_DATA_FILTER, arg, sizeof(*arg));
+			     HIF_MIB_ID_CONFIG_DATA_FILTER, &val, sizeof(val));
 }
 
 static inline int hif_set_data_filtering(struct wfx_vif *wvif,
