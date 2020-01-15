@@ -11,6 +11,18 @@
  *   convert raw register values is from https://github.com/ocerman/zenpower.
  *   The information is not confirmed from chip datasheets, but experiments
  *   suggest that it provides reasonable temperature values.
+ * - Register addresses to read chip voltage and current are also from
+ *   https://github.com/ocerman/zenpower, and not confirmed from chip
+ *   datasheets. Current calibration is board specific and not typically
+ *   shared by board vendors. For this reason, current values are
+ *   normalized to report 1A/LSB for core current and and 0.25A/LSB for SoC
+ *   current. Reported values can be adjusted using the sensors configuration
+ *   file.
+ * - It is unknown if the mechanism to read CCD1/CCD2 temperature as well as
+ *   current and voltage information works on higher-end Ryzen CPUs.
+ *   Information reported by Windows tools suggests that additional sensors
+ *   (both temperature and voltage/current) are supported, but their register
+ *   location is currently unknown.
  */
 
 #include <linux/bitops.h>
@@ -70,8 +82,15 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 #define F17H_M70H_CCD1_TEMP			0x00059954
 #define F17H_M70H_CCD2_TEMP			0x00059958
 
+#define F17H_M01H_SVI				0x0005A000
+#define F17H_M01H_SVI_TEL_PLANE0		(F17H_M01H_SVI + 0xc)
+#define F17H_M01H_SVI_TEL_PLANE1		(F17H_M01H_SVI + 0x10)
+
 #define CUR_TEMP_SHIFT				21
 #define CUR_TEMP_RANGE_SEL_MASK			BIT(19)
+
+#define CFACTOR_ICORE				1000000	/* 1A / LSB	*/
+#define CFACTOR_ISOC				250000	/* 0.25A / LSB	*/
 
 struct k10temp_data {
 	struct pci_dev *pdev;
@@ -82,6 +101,9 @@ struct k10temp_data {
 	bool show_tdie;
 	bool show_tccd1;
 	bool show_tccd2;
+	u32 svi_addr[2];
+	bool show_current;
+	int cfactor[2];
 };
 
 struct tctl_offset {
@@ -98,6 +120,16 @@ static const struct tctl_offset tctl_offset_table[] = {
 	{ 0x17, "AMD Ryzen Threadripper 19", 27000 }, /* 19{00,20,50}X */
 	{ 0x17, "AMD Ryzen Threadripper 29", 27000 }, /* 29{20,50,70,90}[W]X */
 };
+
+static bool is_threadripper(void)
+{
+	return strstr(boot_cpu_data.x86_model_id, "Threadripper");
+}
+
+static bool is_epyc(void)
+{
+	return strstr(boot_cpu_data.x86_model_id, "EPYC");
+}
 
 static void read_htcreg_pci(struct pci_dev *pdev, u32 *regval)
 {
@@ -157,16 +189,76 @@ const char *k10temp_temp_label[] = {
 	"Tccd2",
 };
 
+const char *k10temp_in_label[] = {
+	"Vcore",
+	"Vsoc",
+};
+
+const char *k10temp_curr_label[] = {
+	"Icore",
+	"Isoc",
+};
+
 static int k10temp_read_labels(struct device *dev,
 			       enum hwmon_sensor_types type,
 			       u32 attr, int channel, const char **str)
 {
-	*str = k10temp_temp_label[channel];
+	switch (type) {
+	case hwmon_temp:
+		*str = k10temp_temp_label[channel];
+		break;
+	case hwmon_in:
+		*str = k10temp_in_label[channel];
+		break;
+	case hwmon_curr:
+		*str = k10temp_curr_label[channel];
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 	return 0;
 }
 
-static int k10temp_read(struct device *dev, enum hwmon_sensor_types type,
-			u32 attr, int channel, long *val)
+static int k10temp_read_curr(struct device *dev, u32 attr, int channel,
+			     long *val)
+{
+	struct k10temp_data *data = dev_get_drvdata(dev);
+	u32 regval;
+
+	switch (attr) {
+	case hwmon_curr_input:
+		amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
+			     data->svi_addr[channel], &regval);
+		*val = DIV_ROUND_CLOSEST(data->cfactor[channel] *
+					 (regval & 0xff),
+					 1000);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int k10temp_read_in(struct device *dev, u32 attr, int channel, long *val)
+{
+	struct k10temp_data *data = dev_get_drvdata(dev);
+	u32 regval;
+
+	switch (attr) {
+	case hwmon_in_input:
+		amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
+			     data->svi_addr[channel], &regval);
+		regval = (regval >> 16) & 0xff;
+		*val = DIV_ROUND_CLOSEST(155000 - regval * 625, 100);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int k10temp_read_temp(struct device *dev, u32 attr, int channel,
+			     long *val)
 {
 	struct k10temp_data *data = dev_get_drvdata(dev);
 	u32 regval;
@@ -214,6 +306,21 @@ static int k10temp_read(struct device *dev, enum hwmon_sensor_types type,
 		return -EOPNOTSUPP;
 	}
 	return 0;
+}
+
+static int k10temp_read(struct device *dev, enum hwmon_sensor_types type,
+			u32 attr, int channel, long *val)
+{
+	switch (type) {
+	case hwmon_temp:
+		return k10temp_read_temp(dev, attr, channel, val);
+	case hwmon_in:
+		return k10temp_read_in(dev, attr, channel, val);
+	case hwmon_curr:
+		return k10temp_read_curr(dev, attr, channel, val);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static umode_t k10temp_is_visible(const void *_data,
@@ -290,6 +397,11 @@ static umode_t k10temp_is_visible(const void *_data,
 			return 0;
 		}
 		break;
+	case hwmon_in:
+	case hwmon_curr:
+		if (!data->show_current)
+			return 0;
+		break;
 	default:
 		return 0;
 	}
@@ -338,6 +450,12 @@ static const struct hwmon_channel_info *k10temp_info[] = {
 			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL),
+	HWMON_CHANNEL_INFO(in,
+			   HWMON_I_INPUT | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_LABEL),
+	HWMON_CHANNEL_INFO(curr,
+			   HWMON_C_INPUT | HWMON_C_LABEL,
+			   HWMON_C_INPUT | HWMON_C_LABEL),
 	NULL
 };
 
@@ -393,9 +511,19 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		case 0x8:	/* Zen+ */
 		case 0x11:	/* Zen APU */
 		case 0x18:	/* Zen+ APU */
+			data->show_current = !is_threadripper() && !is_epyc();
+			data->svi_addr[0] = F17H_M01H_SVI_TEL_PLANE0;
+			data->svi_addr[1] = F17H_M01H_SVI_TEL_PLANE1;
+			data->cfactor[0] = CFACTOR_ICORE;
+			data->cfactor[1] = CFACTOR_ISOC;
 			break;
 		case 0x31:	/* Zen2 Threadripper */
 		case 0x71:	/* Zen2 */
+			data->show_current = !is_threadripper() && !is_epyc();
+			data->cfactor[0] = CFACTOR_ICORE;
+			data->cfactor[1] = CFACTOR_ISOC;
+			data->svi_addr[0] = F17H_M01H_SVI_TEL_PLANE1;
+			data->svi_addr[1] = F17H_M01H_SVI_TEL_PLANE0;
 			amd_smn_read(amd_pci_dev_to_node_id(pdev),
 				     F17H_M70H_CCD1_TEMP, &regval);
 			if (regval & 0xfff)
