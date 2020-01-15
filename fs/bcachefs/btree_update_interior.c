@@ -1385,7 +1385,7 @@ static void btree_split(struct btree_update *as, struct btree *b,
 	if (keys)
 		btree_split_insert_keys(as, n1, iter, keys);
 
-	if (vstruct_blocks(n1->data, c->block_bits) > BTREE_SPLIT_THRESHOLD(c)) {
+	if (bset_u64s(&n1->set[0]) > BTREE_SPLIT_THRESHOLD(c)) {
 		trace_btree_split(c, b);
 
 		n2 = __btree_split_node(as, n1, iter);
