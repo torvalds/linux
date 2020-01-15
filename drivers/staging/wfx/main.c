@@ -298,6 +298,11 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				     BIT(NL80211_IFTYPE_ADHOC) |
 				     BIT(NL80211_IFTYPE_AP);
+	hw->wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
+					NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |
+					NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P |
+					NL80211_PROBE_RESP_OFFLOAD_SUPPORT_80211U;
+	hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 	hw->wiphy->max_ap_assoc_sta = WFX_MAX_STA_IN_AP_MODE;
