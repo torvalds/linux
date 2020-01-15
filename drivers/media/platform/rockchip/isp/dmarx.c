@@ -436,13 +436,11 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 }
 
-static void dmarx_stop_streaming(struct vb2_queue *queue)
+static void destroy_buf_queue(struct rkisp_stream *stream,
+			      enum vb2_buffer_state state)
 {
-	struct rkisp_stream *stream = queue->drv_priv;
 	struct rkisp_buffer *buf;
 	unsigned long lock_flags = 0;
-
-	dmarx_stop(stream);
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->curr_buf) {
@@ -453,9 +451,17 @@ static void dmarx_stop_streaming(struct vb2_queue *queue)
 		buf = list_first_entry(&stream->buf_queue,
 			struct rkisp_buffer, queue);
 		list_del(&buf->queue);
-		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, state);
 	}
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+}
+
+static void dmarx_stop_streaming(struct vb2_queue *queue)
+{
+	struct rkisp_stream *stream = queue->drv_priv;
+
+	dmarx_stop(stream);
+	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
 }
 
 static int dmarx_start_streaming(struct vb2_queue *queue,
@@ -464,23 +470,27 @@ static int dmarx_start_streaming(struct vb2_queue *queue,
 	struct rkisp_stream *stream = queue->drv_priv;
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
-	int ret = 0;
-
-	if (atomic_read(&dev->open_cnt) < 2) {
-		v4l2_err(v4l2_dev,
-			 "other stream should enable first\n");
-		return -EINVAL;
-	}
+	int ret = -1;
 
 	if (WARN_ON(stream->streaming))
 		return -EBUSY;
 
+	if (atomic_read(&dev->open_cnt) < 2) {
+		v4l2_err(v4l2_dev,
+			 "other stream should enable first\n");
+		goto free_buf_queue;
+	}
+
 	ret = dmarx_start(stream);
-	if (ret < 0)
+	if (ret < 0) {
 		v4l2_err(v4l2_dev,
 			 "start dmarx stream:%d failed\n",
 			 stream->id);
-
+		goto free_buf_queue;
+	}
+	return 0;
+free_buf_queue:
+	destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
 	return ret;
 }
 

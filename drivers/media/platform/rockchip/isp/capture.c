@@ -2032,14 +2032,38 @@ static void rkisp_destroy_dummy_buf(struct rkisp_stream *stream)
 	hdr_destroy_buf(dev);
 }
 
+static void destroy_buf_queue(struct rkisp_stream *stream,
+			      enum vb2_buffer_state state)
+{
+	unsigned long lock_flags = 0;
+	struct rkisp_buffer *buf;
+
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+	if (stream->curr_buf) {
+		list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
+		if (stream->curr_buf == stream->next_buf)
+			stream->next_buf = NULL;
+		stream->curr_buf = NULL;
+	}
+	if (stream->next_buf) {
+		list_add_tail(&stream->next_buf->queue, &stream->buf_queue);
+		stream->next_buf = NULL;
+	}
+	while (!list_empty(&stream->buf_queue)) {
+		buf = list_first_entry(&stream->buf_queue,
+			struct rkisp_buffer, queue);
+		list_del(&buf->queue);
+		vb2_buffer_done(&buf->vb.vb2_buf, state);
+	}
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+}
+
 static void rkisp_stop_streaming(struct vb2_queue *queue)
 {
 	struct rkisp_stream *stream = queue->drv_priv;
 	struct rkisp_vdev_node *node = &stream->vnode;
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
-	struct rkisp_buffer *buf;
-	unsigned long lock_flags = 0;
 	int ret;
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
@@ -2054,24 +2078,7 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 			 ret);
 
 	/* release buffers */
-	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
-	if (stream->curr_buf) {
-		list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
-		if (stream->curr_buf == stream->next_buf)
-			stream->next_buf = NULL;
-		stream->curr_buf = NULL;
-	}
-	if (stream->next_buf) {
-		list_add_tail(&stream->next_buf->queue, &stream->buf_queue);
-		stream->next_buf = NULL;
-	}
-	while (!list_empty(&stream->buf_queue)) {
-		buf = list_first_entry(&stream->buf_queue,
-				       struct rkisp_buffer, queue);
-		list_del(&buf->queue);
-		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-	}
-	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
 
 	ret = dev->pipe.close(&dev->pipe);
 	if (ret < 0)
@@ -2124,7 +2131,6 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct rkisp_vdev_node *node = &stream->vnode;
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
-	unsigned int i;
 	int ret = -1;
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
@@ -2201,14 +2207,7 @@ close_pipe:
 destroy_dummy_buf:
 	rkisp_destroy_dummy_buf(stream);
 buffer_done:
-	for (i = 0; i < queue->num_buffers; ++i) {
-		struct vb2_buffer *vb;
-
-		vb = queue->bufs[i];
-		if (vb->state == VB2_BUF_STATE_ACTIVE)
-			vb2_buffer_done(vb, VB2_BUF_STATE_QUEUED);
-	}
-
+	destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
 	return ret;
 }
 
