@@ -522,7 +522,7 @@ static int sdw_assign_device_num(struct sdw_slave *slave)
 	dev_num = slave->dev_num;
 	slave->dev_num = 0;
 
-	ret = sdw_write(slave, SDW_SCP_DEVNUMBER, dev_num);
+	ret = sdw_write_no_pm(slave, SDW_SCP_DEVNUMBER, dev_num);
 	if (ret < 0) {
 		dev_err(&slave->dev, "Program device_num %d failed: %d\n",
 			dev_num, ret);
