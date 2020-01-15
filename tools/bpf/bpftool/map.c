@@ -252,6 +252,7 @@ static int do_dump_btf(const struct btf_dumper *d,
 		       struct bpf_map_info *map_info, void *key,
 		       void *value)
 {
+	__u32 value_id;
 	int ret;
 
 	/* start of key-value pair */
@@ -265,9 +266,12 @@ static int do_dump_btf(const struct btf_dumper *d,
 			goto err_end_obj;
 	}
 
+	value_id = map_info->btf_vmlinux_value_type_id ?
+		: map_info->btf_value_type_id;
+
 	if (!map_is_per_cpu(map_info->type)) {
 		jsonw_name(d->jw, "value");
-		ret = btf_dumper_type(d, map_info->btf_value_type_id, value);
+		ret = btf_dumper_type(d, value_id, value);
 	} else {
 		unsigned int i, n, step;
 
@@ -279,8 +283,7 @@ static int do_dump_btf(const struct btf_dumper *d,
 			jsonw_start_object(d->jw);
 			jsonw_int_field(d->jw, "cpu", i);
 			jsonw_name(d->jw, "value");
-			ret = btf_dumper_type(d, map_info->btf_value_type_id,
-					      value + i * step);
+			ret = btf_dumper_type(d, value_id, value + i * step);
 			jsonw_end_object(d->jw);
 			if (ret)
 				break;
@@ -932,6 +935,44 @@ static int maps_have_btf(int *fds, int nb_fds)
 	return 1;
 }
 
+static struct btf *btf_vmlinux;
+
+static struct btf *get_map_kv_btf(const struct bpf_map_info *info)
+{
+	struct btf *btf = NULL;
+
+	if (info->btf_vmlinux_value_type_id) {
+		if (!btf_vmlinux) {
+			btf_vmlinux = libbpf_find_kernel_btf();
+			if (IS_ERR(btf_vmlinux))
+				p_err("failed to get kernel btf");
+		}
+		return btf_vmlinux;
+	} else if (info->btf_value_type_id) {
+		int err;
+
+		err = btf__get_from_id(info->btf_id, &btf);
+		if (err || !btf) {
+			p_err("failed to get btf");
+			btf = err ? ERR_PTR(err) : ERR_PTR(-ESRCH);
+		}
+	}
+
+	return btf;
+}
+
+static void free_map_kv_btf(struct btf *btf)
+{
+	if (!IS_ERR(btf) && btf != btf_vmlinux)
+		btf__free(btf);
+}
+
+static void free_btf_vmlinux(void)
+{
+	if (!IS_ERR(btf_vmlinux))
+		btf__free(btf_vmlinux);
+}
+
 static int
 map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
 	 bool show_header)
@@ -952,13 +993,10 @@ map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
 	prev_key = NULL;
 
 	if (wtr) {
-		if (info->btf_id) {
-			err = btf__get_from_id(info->btf_id, &btf);
-			if (err || !btf) {
-				err = err ? : -ESRCH;
-				p_err("failed to get btf");
-				goto exit_free;
-			}
+		btf = get_map_kv_btf(info);
+		if (IS_ERR(btf)) {
+			err = PTR_ERR(btf);
+			goto exit_free;
 		}
 
 		if (show_header) {
@@ -999,7 +1037,7 @@ exit_free:
 	free(key);
 	free(value);
 	close(fd);
-	btf__free(btf);
+	free_map_kv_btf(btf);
 
 	return err;
 }
@@ -1067,6 +1105,7 @@ exit_close:
 		close(fds[i]);
 exit_free:
 	free(fds);
+	free_btf_vmlinux();
 	return err;
 }
 
