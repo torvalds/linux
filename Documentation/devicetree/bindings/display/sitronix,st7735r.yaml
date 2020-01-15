@@ -10,8 +10,8 @@ maintainers:
   - David Lechner <david@lechnology.com>
 
 description:
-  This binding is for display panels using a Sitronix ST7735R controller in
-  SPI mode.
+  This binding is for display panels using a Sitronix ST7715R or ST7735R
+  controller in SPI mode.
 
 allOf:
   - $ref: panel/panel-common.yaml#
@@ -25,6 +25,12 @@ properties:
           - enum:
               - jianda,jd-t18003-t01
           - const: sitronix,st7735r
+      - description:
+          Okaya 1.44" 128x128 Color TFT LCD (E.g. Renesas YRSK-LCD-PMOD)
+        items:
+          - enum:
+              - okaya,rh128128t
+          - const: sitronix,st7715r
 
   spi-max-frequency:
     maximum: 32000000
