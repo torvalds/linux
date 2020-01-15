@@ -506,14 +506,17 @@ mt76u_get_next_rx_entry(struct mt76_queue *q)
 	return urb;
 }
 
-static int mt76u_get_rx_entry_len(u8 *data, u32 data_len)
+static int
+mt76u_get_rx_entry_len(struct mt76_dev *dev, u8 *data,
+		       u32 data_len)
 {
 	u16 dma_len, min_len;
 
 	dma_len = get_unaligned_le16(data);
-	min_len = MT_DMA_HDR_LEN + MT_RX_RXWI_LEN +
-		  MT_FCE_INFO_LEN;
+	if (dev->drv->drv_flags & MT_DRV_RX_DMA_HDR)
+		return dma_len;
 
+	min_len = MT_DMA_HDR_LEN + MT_RX_RXWI_LEN + MT_FCE_INFO_LEN;
 	if (data_len < min_len || !dma_len ||
 	    dma_len + MT_DMA_HDR_LEN > data_len ||
 	    (dma_len & 0x3))
@@ -522,11 +525,14 @@ static int mt76u_get_rx_entry_len(u8 *data, u32 data_len)
 }
 
 static struct sk_buff *
-mt76u_build_rx_skb(void *data, int len, int buf_size)
+mt76u_build_rx_skb(struct mt76_dev *dev, void *data,
+		   int len, int buf_size)
 {
+	int head_room, drv_flags = dev->drv->drv_flags;
 	struct sk_buff *skb;
 
-	if (SKB_WITH_OVERHEAD(buf_size) < MT_DMA_HDR_LEN + len) {
+	head_room = drv_flags & MT_DRV_RX_DMA_HDR ? 0 : MT_DMA_HDR_LEN;
+	if (SKB_WITH_OVERHEAD(buf_size) < head_room + len) {
 		struct page *page;
 
 		/* slow path, not enough space for data and
@@ -536,8 +542,8 @@ mt76u_build_rx_skb(void *data, int len, int buf_size)
 		if (!skb)
 			return NULL;
 
-		skb_put_data(skb, data + MT_DMA_HDR_LEN, MT_SKB_HEAD_LEN);
-		data += (MT_DMA_HDR_LEN + MT_SKB_HEAD_LEN);
+		skb_put_data(skb, data + head_room, MT_SKB_HEAD_LEN);
+		data += head_room + MT_SKB_HEAD_LEN;
 		page = virt_to_head_page(data);
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 				page, data - page_address(page),
@@ -551,7 +557,7 @@ mt76u_build_rx_skb(void *data, int len, int buf_size)
 	if (!skb)
 		return NULL;
 
-	skb_reserve(skb, MT_DMA_HDR_LEN);
+	skb_reserve(skb, head_room);
 	__skb_put(skb, len);
 
 	return skb;
@@ -563,18 +569,19 @@ mt76u_process_rx_entry(struct mt76_dev *dev, struct urb *urb,
 {
 	u8 *data = urb->num_sgs ? sg_virt(&urb->sg[0]) : urb->transfer_buffer;
 	int data_len = urb->num_sgs ? urb->sg[0].length : urb->actual_length;
-	int len, nsgs = 1;
+	int len, nsgs = 1, head_room, drv_flags = dev->drv->drv_flags;
 	struct sk_buff *skb;
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->phy.state))
 		return 0;
 
-	len = mt76u_get_rx_entry_len(data, urb->actual_length);
+	len = mt76u_get_rx_entry_len(dev, data, urb->actual_length);
 	if (len < 0)
 		return 0;
 
-	data_len = min_t(int, len, data_len - MT_DMA_HDR_LEN);
-	skb = mt76u_build_rx_skb(data, data_len, buf_size);
+	head_room = drv_flags & MT_DRV_RX_DMA_HDR ? 0 : MT_DMA_HDR_LEN;
+	data_len = min_t(int, len, data_len - head_room);
+	skb = mt76u_build_rx_skb(dev, data, data_len, buf_size);
 	if (!skb)
 		return 0;
 
