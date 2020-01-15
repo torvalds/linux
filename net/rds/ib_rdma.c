@@ -575,6 +575,7 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 			(IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_READ |
 			 IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_ATOMIC |
 			 IB_ACCESS_ON_DEMAND);
+		struct ib_sge sge = {};
 		struct ib_mr *ib_mr;
 
 		if (!rds_ibdev->odp_capable) {
@@ -602,6 +603,14 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		}
 		ibmr->u.mr = ib_mr;
 		ibmr->odp = 1;
+
+		sge.addr = virt_addr;
+		sge.length = length;
+		sge.lkey = ib_mr->lkey;
+
+		ib_advise_mr(rds_ibdev->pd,
+			     IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_WRITE,
+			     IB_UVERBS_ADVISE_MR_FLAG_FLUSH, &sge, 1);
 		return ibmr;
 	}
 
