@@ -2893,19 +2893,14 @@ static int __init si_domain_init(int hw)
 	}
 
 	/*
-	 * Normally we use DMA domains for devices which have RMRRs. But we
-	 * loose this requirement for graphic and usb devices. Identity map
-	 * the RMRRs for graphic and USB devices so that they could use the
-	 * si_domain.
+	 * Identity map the RMRRs so that devices with RMRRs could also use
+	 * the si_domain.
 	 */
 	for_each_rmrr_units(rmrr) {
 		for_each_active_dev_scope(rmrr->devices, rmrr->devices_cnt,
 					  i, dev) {
 			unsigned long long start = rmrr->base_address;
 			unsigned long long end = rmrr->end_address;
-
-			if (device_is_rmrr_locked(dev))
-				continue;
 
 			if (WARN_ON(end < start ||
 				    end >> agaw_to_width(si_domain->agaw)))
@@ -3045,9 +3040,6 @@ static int device_def_domain_type(struct device *dev)
 	if (dev_is_pci(dev)) {
 		struct pci_dev *pdev = to_pci_dev(dev);
 
-		if (device_is_rmrr_locked(dev))
-			return IOMMU_DOMAIN_DMA;
-
 		/*
 		 * Prevent any device marked as untrusted from getting
 		 * placed into the statically identity mapping domain.
@@ -3084,9 +3076,6 @@ static int device_def_domain_type(struct device *dev)
 			if (pdev->class >> 8 == PCI_CLASS_BRIDGE_PCI)
 				return IOMMU_DOMAIN_DMA;
 		} else if (pci_pcie_type(pdev) == PCI_EXP_TYPE_PCI_BRIDGE)
-			return IOMMU_DOMAIN_DMA;
-	} else {
-		if (device_has_rmrr(dev))
 			return IOMMU_DOMAIN_DMA;
 	}
 
