@@ -1554,6 +1554,12 @@ static inline void
 efi_enable_reset_attack_mitigation(void) { }
 #endif
 
+#ifdef CONFIG_EFI_EMBEDDED_FIRMWARE
+void efi_check_for_embedded_firmwares(void);
+#else
+static inline void efi_check_for_embedded_firmwares(void) { }
+#endif
+
 efi_status_t efi_random_get_seed(void);
 
 void efi_retrieve_tpm2_eventlog(void);
