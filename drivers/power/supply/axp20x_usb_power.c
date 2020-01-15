@@ -29,6 +29,9 @@
 
 #define AXP20X_USB_STATUS_VBUS_VALID	BIT(2)
 
+#define AXP20X_VBUS_PATH_SEL		BIT(7)
+#define AXP20X_VBUS_PATH_SEL_OFFSET	7
+
 #define AXP20X_VBUS_VHOLD_uV(b)		(4000000 + (((b) >> 3) & 7) * 100000)
 #define AXP20X_VBUS_VHOLD_MASK		GENMASK(5, 3)
 #define AXP20X_VBUS_VHOLD_OFFSET	3
@@ -263,6 +266,16 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static int axp813_usb_power_set_online(struct axp20x_usb_power *power,
+				       int intval)
+{
+	int val = !intval << AXP20X_VBUS_PATH_SEL_OFFSET;
+
+	return regmap_update_bits(power->regmap,
+				  AXP20X_VBUS_IPSOUT_MGMT,
+				  AXP20X_VBUS_PATH_SEL, val);
+}
+
 static int axp20x_usb_power_set_voltage_min(struct axp20x_usb_power *power,
 					    int intval)
 {
@@ -344,6 +357,11 @@ static int axp20x_usb_power_set_property(struct power_supply *psy,
 	struct axp20x_usb_power *power = power_supply_get_drvdata(psy);
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		if (power->axp20x_id != AXP813_ID)
+			return -EINVAL;
+		return axp813_usb_power_set_online(power, val->intval);
+
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
 		return axp20x_usb_power_set_voltage_min(power, val->intval);
 
@@ -363,6 +381,18 @@ static int axp20x_usb_power_set_property(struct power_supply *psy,
 static int axp20x_usb_power_prop_writeable(struct power_supply *psy,
 					   enum power_supply_property psp)
 {
+	struct axp20x_usb_power *power = power_supply_get_drvdata(psy);
+
+	/*
+	 * The VBUS path select flag works differently on on AXP288 and newer:
+	 *  - On AXP20x and AXP22x, the flag enables VBUS (ignoring N_VBUSEN).
+	 *  - On AXP288 and AXP8xx, the flag disables VBUS (ignoring N_VBUSEN).
+	 * We only expose the control on variants where it can be used to force
+	 * the VBUS input offline.
+	 */
+	if (psp == POWER_SUPPLY_PROP_ONLINE)
+		return power->axp20x_id == AXP813_ID;
+
 	return psp == POWER_SUPPLY_PROP_VOLTAGE_MIN ||
 	       psp == POWER_SUPPLY_PROP_CURRENT_MAX;
 }
