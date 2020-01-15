@@ -161,21 +161,13 @@ static inline u64 get_canonical(u64 la, u8 vaddr_bits)
 
 static inline bool is_noncanonical_address(u64 la, struct kvm_vcpu *vcpu)
 {
-#ifdef CONFIG_X86_64
 	return get_canonical(la, vcpu_virt_addr_bits(vcpu)) != la;
-#else
-	return false;
-#endif
 }
 
 static inline bool emul_is_noncanonical_address(u64 la,
 						struct x86_emulate_ctxt *ctxt)
 {
-#ifdef CONFIG_X86_64
 	return get_canonical(la, ctxt_virt_addr_bits(ctxt)) != la;
-#else
-	return false;
-#endif
 }
 
 static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
