@@ -682,8 +682,10 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	ret = vmw_dma_select_mode(dev_priv);
 	if (unlikely(ret != 0)) {
-		DRM_INFO("Restricting capabilities due to IOMMU setup.\n");
+		DRM_INFO("Restricting capabilities since DMA not available.\n");
 		refuse_dma = true;
+		if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS)
+			DRM_INFO("Disabling 3D acceleration.\n");
 	}
 
 	dev_priv->vram_size = vmw_read(dev_priv, SVGA_REG_VRAM_SIZE);
@@ -866,7 +868,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		dev_priv->has_gmr = false;
 	}
 
-	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS) {
+	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS && !refuse_dma) {
 		dev_priv->has_mob = true;
 		if (ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_MOB,
 				   VMW_PL_MOB) != 0) {
