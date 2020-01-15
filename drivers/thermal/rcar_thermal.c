@@ -219,7 +219,7 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 		 * to get stable temperature.
 		 * see "Usage Notes" on datasheet
 		 */
-		udelay(300);
+		usleep_range(300, 400);
 
 		new = rcar_thermal_read(priv, THSSR) & CTEMP;
 		if (new == old) {
