@@ -52,8 +52,13 @@ gp10b_pmu_acr_bootstrap_multiple_falcons(struct nvkm_falcon *falcon, u32 mask)
 	ret = nvkm_falcon_cmdq_send(pmu->hpq, &cmd.cmd.hdr,
 				    gp10b_pmu_acr_bootstrap_multiple_falcons_cb,
 				    &pmu->subdev, msecs_to_jiffies(1000));
-	if (ret >= 0 && ret != cmd.falcon_mask)
-		ret = -EIO;
+	if (ret >= 0) {
+		if (ret != cmd.falcon_mask)
+			ret = -EIO;
+		else
+			ret = 0;
+	}
+
 	return ret;
 }
 
