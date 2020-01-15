@@ -7,11 +7,15 @@
 #include <linux/interconnect-provider.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
 
 #include "bcm-voter.h"
 #include "icc-rpmh.h"
+
+static LIST_HEAD(qnoc_probe_list);
+static DEFINE_MUTEX(probe_list_lock);
 
 /**
  * qcom_icc_pre_aggregate - cleans up stale values from prior icc_set
@@ -258,6 +262,10 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	data->num_nodes = num_nodes;
 	platform_set_drvdata(pdev, qp);
 
+	mutex_lock(&probe_list_lock);
+	list_add_tail(&qp->probe_list, &qnoc_probe_list);
+	mutex_unlock(&probe_list_lock);
+
 	return 0;
 err:
 	icc_nodes_remove(provider);
@@ -274,5 +282,47 @@ int qcom_icc_rpmh_remove(struct platform_device *pdev)
 	return icc_provider_del(&qp->provider);
 }
 EXPORT_SYMBOL_GPL(qcom_icc_rpmh_remove);
+
+void qcom_icc_rpmh_sync_state(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	const struct of_device_id *oft = dev->driver->of_match_table;
+	struct qcom_icc_provider *qp = platform_get_drvdata(pdev);
+	struct qcom_icc_bcm *bcm;
+	struct bcm_voter *voter;
+	static int probe_count;
+	int num_providers;
+
+	for (num_providers = 0; oft[num_providers].data; num_providers++)
+		;
+
+	mutex_lock(&probe_list_lock);
+	probe_count++;
+
+	if (probe_count < num_providers) {
+		mutex_unlock(&probe_list_lock);
+		return;
+	}
+
+	list_for_each_entry(qp, &qnoc_probe_list, probe_list) {
+		int i;
+
+		for (i = 0; i < qp->num_voters; i++)
+			qcom_icc_bcm_voter_clear_init(qp->voters[i]);
+
+		for (i = 0; i < qp->num_bcms; i++) {
+			bcm = qp->bcms[i];
+			if (!bcm->keepalive)
+				continue;
+
+			voter = qp->voters[bcm->voter_idx];
+			qcom_icc_bcm_voter_add(voter, bcm);
+			qcom_icc_bcm_voter_commit(voter);
+		}
+	}
+
+	mutex_unlock(&probe_list_lock);
+}
+EXPORT_SYMBOL(qcom_icc_rpmh_sync_state);
 
 MODULE_LICENSE("GPL v2");

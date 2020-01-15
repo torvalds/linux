@@ -25,6 +25,7 @@ struct qcom_icc_provider {
 	struct qcom_icc_bcm **bcms;
 	size_t num_bcms;
 	struct bcm_voter *voter;
+	struct list_head probe_list;
 };
 
 /**
@@ -136,5 +137,5 @@ int qcom_icc_bcm_init(struct qcom_icc_bcm *bcm, struct device *dev);
 void qcom_icc_pre_aggregate(struct icc_node *node);
 int qcom_icc_rpmh_probe(struct platform_device *pdev);
 int qcom_icc_rpmh_remove(struct platform_device *pdev);
-
+void qcom_icc_rpmh_sync_state(struct device *dev);
 #endif
