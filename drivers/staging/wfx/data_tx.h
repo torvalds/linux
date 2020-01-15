@@ -38,7 +38,6 @@ struct wfx_tx_priv {
 	struct ieee80211_key_conf *hw_key;
 	u8 link_id;
 	u8 raw_link_id;
-	u8 tid;
 } __packed;
 
 void wfx_tx_policy_init(struct wfx_vif *wvif);

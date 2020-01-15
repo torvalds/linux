@@ -12,9 +12,6 @@
 
 #include "hif_api_cmd.h"
 
-// FIXME: use IEEE80211_NUM_TIDS
-#define WFX_MAX_TID               8
-
 struct wfx_dev;
 struct wfx_vif;
 
@@ -40,7 +37,7 @@ struct wfx_grp_addr_table {
 struct wfx_sta_priv {
 	int link_id;
 	int vif_id;
-	u8 buffered[WFX_MAX_TID];
+	u8 buffered[IEEE80211_NUM_TIDS];
 	// Ensure atomicity of "buffered" and calls to ieee80211_sta_set_buffered()
 	spinlock_t lock;
 };

@@ -283,6 +283,7 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 {
 	u32 mask = ~BIT(tx_priv->raw_link_id);
 	struct wfx_sta_priv *sta_priv;
+	int tid = ieee80211_get_tid(hdr);
 
 	spin_lock_bh(&wvif->ps_state_lock);
 	if (ieee80211_is_auth(hdr->frame_control)) {
@@ -298,11 +299,11 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 	}
 	spin_unlock_bh(&wvif->ps_state_lock);
 
-	if (sta && tx_priv->tid < WFX_MAX_TID) {
+	if (sta) {
 		sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
 		spin_lock_bh(&sta_priv->lock);
-		sta_priv->buffered[tx_priv->tid]++;
-		ieee80211_sta_set_buffered(sta, tx_priv->tid, true);
+		sta_priv->buffered[tid]++;
+		ieee80211_sta_set_buffered(sta, tid, true);
 		spin_unlock_bh(&sta_priv->lock);
 	}
 }
@@ -418,17 +419,6 @@ static struct hif_ht_tx_parameters wfx_tx_get_tx_parms(struct wfx_dev *wdev, str
 	return ret;
 }
 
-static u8 wfx_tx_get_tid(struct ieee80211_hdr *hdr)
-{
-	// FIXME: ieee80211_get_tid(hdr) should be sufficient for all cases.
-	if (!ieee80211_is_data(hdr->frame_control))
-		return WFX_MAX_TID;
-	if (ieee80211_is_data_qos(hdr->frame_control))
-		return ieee80211_get_tid(hdr);
-	else
-		return 0;
-}
-
 static int wfx_tx_get_icv_len(struct ieee80211_key_conf *hw_key)
 {
 	int mic_space;
@@ -460,7 +450,6 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	memset(tx_info->rate_driver_data, 0, sizeof(struct wfx_tx_priv));
 	// Fill tx_priv
 	tx_priv = (struct wfx_tx_priv *)tx_info->rate_driver_data;
-	tx_priv->tid = wfx_tx_get_tid(hdr);
 	tx_priv->raw_link_id = wfx_tx_get_raw_link_id(wvif, sta, hdr);
 	tx_priv->link_id = tx_priv->raw_link_id;
 	if (ieee80211_has_protected(hdr->frame_control))
@@ -634,11 +623,11 @@ static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_sta *sta;
 	struct wfx_sta_priv *sta_priv;
-	int tid = wfx_tx_get_tid(hdr);
+	int tid = ieee80211_get_tid(hdr);
 
 	rcu_read_lock(); // protect sta
 	sta = ieee80211_find_sta(wvif->vif, hdr->addr1);
-	if (sta && tid < WFX_MAX_TID) {
+	if (sta) {
 		sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
 		spin_lock_bh(&sta_priv->lock);
 		WARN(!sta_priv->buffered[tid], "inconsistent notification");
