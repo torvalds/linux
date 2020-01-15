@@ -34,6 +34,32 @@ static void nft_bitwise_eval_bool(u32 *dst, const u32 *src,
 		dst[i] = (src[i] & priv->mask.data[i]) ^ priv->xor.data[i];
 }
 
+static void nft_bitwise_eval_lshift(u32 *dst, const u32 *src,
+				    const struct nft_bitwise *priv)
+{
+	u32 shift = priv->data.data[0];
+	unsigned int i;
+	u32 carry = 0;
+
+	for (i = DIV_ROUND_UP(priv->len, sizeof(u32)); i > 0; i--) {
+		dst[i - 1] = (src[i - 1] << shift) | carry;
+		carry = src[i - 1] >> (BITS_PER_TYPE(u32) - shift);
+	}
+}
+
+static void nft_bitwise_eval_rshift(u32 *dst, const u32 *src,
+				    const struct nft_bitwise *priv)
+{
+	u32 shift = priv->data.data[0];
+	unsigned int i;
+	u32 carry = 0;
+
+	for (i = 0; i < DIV_ROUND_UP(priv->len, sizeof(u32)); i++) {
+		dst[i] = carry | (src[i] >> shift);
+		carry = src[i] << (BITS_PER_TYPE(u32) - shift);
+	}
+}
+
 void nft_bitwise_eval(const struct nft_expr *expr,
 		      struct nft_regs *regs, const struct nft_pktinfo *pkt)
 {
@@ -44,6 +70,12 @@ void nft_bitwise_eval(const struct nft_expr *expr,
 	switch (priv->op) {
 	case NFT_BITWISE_BOOL:
 		nft_bitwise_eval_bool(dst, src, priv);
+		break;
+	case NFT_BITWISE_LSHIFT:
+		nft_bitwise_eval_lshift(dst, src, priv);
+		break;
+	case NFT_BITWISE_RSHIFT:
+		nft_bitwise_eval_rshift(dst, src, priv);
 		break;
 	}
 }
@@ -97,6 +129,32 @@ err1:
 	return err;
 }
 
+static int nft_bitwise_init_shift(struct nft_bitwise *priv,
+				  const struct nlattr *const tb[])
+{
+	struct nft_data_desc d;
+	int err;
+
+	if (tb[NFTA_BITWISE_MASK] ||
+	    tb[NFTA_BITWISE_XOR])
+		return -EINVAL;
+
+	if (!tb[NFTA_BITWISE_DATA])
+		return -EINVAL;
+
+	err = nft_data_init(NULL, &priv->data, sizeof(priv->data), &d,
+			    tb[NFTA_BITWISE_DATA]);
+	if (err < 0)
+		return err;
+	if (d.type != NFT_DATA_VALUE || d.len != sizeof(u32) ||
+	    priv->data.data[0] >= BITS_PER_TYPE(u32)) {
+		nft_data_release(&priv->data, d.type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int nft_bitwise_init(const struct nft_ctx *ctx,
 			    const struct nft_expr *expr,
 			    const struct nlattr * const tb[])
@@ -131,6 +189,8 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 		priv->op = ntohl(nla_get_be32(tb[NFTA_BITWISE_OP]));
 		switch (priv->op) {
 		case NFT_BITWISE_BOOL:
+		case NFT_BITWISE_LSHIFT:
+		case NFT_BITWISE_RSHIFT:
 			break;
 		default:
 			return -EOPNOTSUPP;
@@ -142,6 +202,10 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 	switch(priv->op) {
 	case NFT_BITWISE_BOOL:
 		err = nft_bitwise_init_bool(priv, tb);
+		break;
+	case NFT_BITWISE_LSHIFT:
+	case NFT_BITWISE_RSHIFT:
+		err = nft_bitwise_init_shift(priv, tb);
 		break;
 	}
 
@@ -162,6 +226,15 @@ static int nft_bitwise_dump_bool(struct sk_buff *skb,
 	return 0;
 }
 
+static int nft_bitwise_dump_shift(struct sk_buff *skb,
+				  const struct nft_bitwise *priv)
+{
+	if (nft_data_dump(skb, NFTA_BITWISE_DATA, &priv->data,
+			  NFT_DATA_VALUE, sizeof(u32)) < 0)
+		return -1;
+	return 0;
+}
+
 static int nft_bitwise_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_bitwise *priv = nft_expr_priv(expr);
@@ -179,6 +252,10 @@ static int nft_bitwise_dump(struct sk_buff *skb, const struct nft_expr *expr)
 	switch (priv->op) {
 	case NFT_BITWISE_BOOL:
 		err = nft_bitwise_dump_bool(skb, priv);
+		break;
+	case NFT_BITWISE_LSHIFT:
+	case NFT_BITWISE_RSHIFT:
+		err = nft_bitwise_dump_shift(skb, priv);
 		break;
 	}
 
