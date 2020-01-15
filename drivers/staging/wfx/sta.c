@@ -251,6 +251,7 @@ static int wfx_update_pm(struct wfx_vif *wvif)
 	struct ieee80211_conf *conf = &wvif->wdev->hw->conf;
 	bool ps = conf->flags & IEEE80211_CONF_PS;
 	int ps_timeout = conf->dynamic_ps_timeout;
+	struct ieee80211_channel *chan0 = NULL, *chan1 = NULL;
 
 	WARN_ON(conf->dynamic_ps_timeout < 0);
 	if (wvif->state != WFX_STATE_STA || !wvif->bss_params.aid)
@@ -260,10 +261,15 @@ static int wfx_update_pm(struct wfx_vif *wvif)
 	if (wvif->uapsd_mask)
 		ps_timeout = 0;
 
-	// Kernel disable PowerSave when multiple vifs are in use. In contrary,
-	// it is absolutly necessary to enable PowerSave for WF200
-	// FIXME: only if channel vif0 != channel vif1
-	if (wvif_count(wvif->wdev) > 1) {
+	// Kernel disable powersave when an AP is in use. In contrary, it is
+	// absolutely necessary to enable legacy powersave for WF200 if channels
+	// are differents.
+	if (wdev_to_wvif(wvif->wdev, 0))
+		chan0 = wdev_to_wvif(wvif->wdev, 0)->vif->bss_conf.chandef.chan;
+	if (wdev_to_wvif(wvif->wdev, 1))
+		chan1 = wdev_to_wvif(wvif->wdev, 1)->vif->bss_conf.chandef.chan;
+	if (chan0 && chan1 && chan0->hw_value != chan1->hw_value &&
+	    wvif->vif->type != NL80211_IFTYPE_AP) {
 		ps = true;
 		ps_timeout = 0;
 	}
