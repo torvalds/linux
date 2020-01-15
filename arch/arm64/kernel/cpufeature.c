@@ -980,9 +980,7 @@ has_useable_cnp(const struct arm64_cpu_capabilities *entry, int scope)
  */
 bool kaslr_requires_kpti(void)
 {
-	bool tx1_bug;
 	u64 ftr;
-
 	if (!IS_ENABLED(CONFIG_RANDOMIZE_BASE))
 		return false;
 
@@ -1000,18 +998,13 @@ bool kaslr_requires_kpti(void)
 	 * Systems affected by Cavium erratum 24756 are incompatible
 	 * with KPTI.
 	 */
-	if (!IS_ENABLED(CONFIG_CAVIUM_ERRATUM_27456)) {
-		tx1_bug = false;
-	} else if (!static_branch_likely(&arm64_const_caps_ready)) {
+	if (IS_ENABLED(CONFIG_CAVIUM_ERRATUM_27456)) {
 		extern const struct midr_range cavium_erratum_27456_cpus[];
 
-		tx1_bug = is_midr_in_range_list(read_cpuid_id(),
-						cavium_erratum_27456_cpus);
-	} else {
-		tx1_bug = __cpus_have_const_cap(ARM64_WORKAROUND_CAVIUM_27456);
+		if (is_midr_in_range_list(read_cpuid_id(),
+					  cavium_erratum_27456_cpus))
+			return false;
 	}
-	if (tx1_bug)
-		return false;
 
 	return kaslr_offset() > 0;
 }
