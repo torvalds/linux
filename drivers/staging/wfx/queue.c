@@ -359,16 +359,13 @@ bool wfx_tx_queues_is_empty(struct wfx_dev *wdev)
 static bool hif_handle_tx_data(struct wfx_vif *wvif, struct sk_buff *skb,
 			       struct wfx_queue *queue)
 {
-	bool handled = false;
-	struct wfx_tx_priv *tx_priv = wfx_skb_tx_priv(skb);
 	struct hif_req_tx *req = wfx_skb_txreq(skb);
-	struct ieee80211_hdr *frame = (struct ieee80211_hdr *) (req->frame + req->data_flags.fc_offset);
+	struct ieee80211_key_conf *hw_key = wfx_skb_tx_priv(skb)->hw_key;
+	struct ieee80211_hdr *frame =
+		(struct ieee80211_hdr *)(req->frame + req->data_flags.fc_offset);
 
-	enum {
-		do_wep,
-		do_tx,
-	} action = do_tx;
-
+	// FIXME: mac80211 is smart enough to handle BSS loss. Driver should not
+	// try to do anything about that.
 	if (ieee80211_is_nullfunc(frame->frame_control)) {
 		mutex_lock(&wvif->bss_loss_lock);
 		if (wvif->bss_loss_state) {
@@ -376,31 +373,24 @@ static bool hif_handle_tx_data(struct wfx_vif *wvif, struct sk_buff *skb,
 			req->queue_id.queue_id = HIF_QUEUE_ID_VOICE;
 		}
 		mutex_unlock(&wvif->bss_loss_lock);
-	} else if (ieee80211_has_protected(frame->frame_control) &&
-		   tx_priv->hw_key &&
-		   tx_priv->hw_key->keyidx != wvif->wep_default_key_id &&
-		   (tx_priv->hw_key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
-		    tx_priv->hw_key->cipher == WLAN_CIPHER_SUITE_WEP104)) {
-		action = do_wep;
 	}
 
-	switch (action) {
-	case do_wep:
+	// FIXME: identify the exact scenario matched by this condition. Does it
+	// happen yet?
+	if (ieee80211_has_protected(frame->frame_control) &&
+	    hw_key && hw_key->keyidx != wvif->wep_default_key_id &&
+	    (hw_key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	     hw_key->cipher == WLAN_CIPHER_SUITE_WEP104)) {
 		wfx_tx_lock(wvif->wdev);
 		WARN_ON(wvif->wep_pending_skb);
-		wvif->wep_default_key_id = tx_priv->hw_key->keyidx;
+		wvif->wep_default_key_id = hw_key->keyidx;
 		wvif->wep_pending_skb = skb;
 		if (!schedule_work(&wvif->wep_key_work))
 			wfx_tx_unlock(wvif->wdev);
-		handled = true;
-		break;
-	case do_tx:
-		break;
-	default:
-		/* Do nothing */
-		break;
+		return true;
+	} else {
+		return false;
 	}
-	return handled;
 }
 
 static int wfx_get_prio_queue(struct wfx_vif *wvif,
