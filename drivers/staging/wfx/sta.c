@@ -895,7 +895,7 @@ void wfx_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	wfx_ps_notify(wvif, notify_cmd, sta_priv->link_id);
 }
 
-static int wfx_set_tim_impl(struct wfx_vif *wvif, bool aid0_bit_set)
+static int wfx_update_tim(struct wfx_vif *wvif)
 {
 	struct sk_buff *skb;
 	u16 tim_offset, tim_length;
@@ -916,7 +916,7 @@ static int wfx_set_tim_impl(struct wfx_vif *wvif, bool aid0_bit_set)
 		tim_ptr[2] = 0;
 
 		/* Set/reset aid0 bit */
-		if (aid0_bit_set)
+		if (wvif->aid0_bit_set)
 			tim_ptr[4] |= 1;
 		else
 			tim_ptr[4] &= ~1;
@@ -928,11 +928,11 @@ static int wfx_set_tim_impl(struct wfx_vif *wvif, bool aid0_bit_set)
 	return 0;
 }
 
-static void wfx_set_tim_work(struct work_struct *work)
+static void wfx_update_tim_work(struct work_struct *work)
 {
-	struct wfx_vif *wvif = container_of(work, struct wfx_vif, set_tim_work);
+	struct wfx_vif *wvif = container_of(work, struct wfx_vif, update_tim_work);
 
-	wfx_set_tim_impl(wvif, wvif->aid0_bit_set);
+	wfx_update_tim(wvif);
 }
 
 int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
@@ -941,7 +941,7 @@ int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 	struct wfx_sta_priv *sta_dev = (struct wfx_sta_priv *) &sta->drv_priv;
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, sta_dev->vif_id);
 
-	schedule_work(&wvif->set_tim_work);
+	schedule_work(&wvif->update_tim_work);
 	return 0;
 }
 
@@ -955,8 +955,8 @@ static void wfx_mcast_start_work(struct work_struct *work)
 	cancel_work_sync(&wvif->mcast_stop_work);
 	if (!wvif->aid0_bit_set) {
 		wfx_tx_lock_flush(wvif->wdev);
-		wfx_set_tim_impl(wvif, true);
 		wvif->aid0_bit_set = true;
+		wfx_update_tim(wvif);
 		mod_timer(&wvif->mcast_timeout, jiffies + tmo);
 		wfx_tx_unlock(wvif->wdev);
 	}
@@ -971,7 +971,7 @@ static void wfx_mcast_stop_work(struct work_struct *work)
 		del_timer_sync(&wvif->mcast_timeout);
 		wfx_tx_lock_flush(wvif->wdev);
 		wvif->aid0_bit_set = false;
-		wfx_set_tim_impl(wvif, false);
+		wfx_update_tim(wvif);
 		wfx_tx_unlock(wvif->wdev);
 	}
 }
@@ -1118,7 +1118,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	INIT_DELAYED_WORK(&wvif->link_id_gc_work, wfx_link_id_gc_work);
 
 	spin_lock_init(&wvif->ps_state_lock);
-	INIT_WORK(&wvif->set_tim_work, wfx_set_tim_work);
+	INIT_WORK(&wvif->update_tim_work, wfx_update_tim_work);
 
 	INIT_WORK(&wvif->mcast_start_work, wfx_mcast_start_work);
 	INIT_WORK(&wvif->mcast_stop_work, wfx_mcast_stop_work);

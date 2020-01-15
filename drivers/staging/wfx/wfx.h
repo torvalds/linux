@@ -96,7 +96,7 @@ struct wfx_vif {
 	u32			sta_asleep_mask;
 	u32			pspoll_mask;
 	spinlock_t		ps_state_lock;
-	struct work_struct	set_tim_work;
+	struct work_struct	update_tim_work;
 
 	int			beacon_int;
 	bool			filter_bssid;
