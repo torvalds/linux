@@ -301,6 +301,9 @@ config ARCH_SUPPORTS_UPROBES
 config ARCH_PROC_KCORE_TEXT
 	def_bool y
 
+config BROKEN_GAS_INST
+	def_bool !$(as-instr,1:\n.inst 0\n.rept . - 1b\n\nnop\n.endr\n)
+
 config KASAN_SHADOW_OFFSET
 	hex
 	depends on KASAN
