@@ -377,7 +377,7 @@ static void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi)
 	int cqm_evt;
 
 	rcpi_rssi = raw_rcpi_rssi / 2 - 110;
-	if (rcpi_rssi <= wvif->cqm_rssi_thold)
+	if (rcpi_rssi <= wvif->vif->bss_conf.cqm_rssi_thold)
 		cqm_evt = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
 	else
 		cqm_evt = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
@@ -922,11 +922,9 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC || changed & BSS_CHANGED_ERP_SLOT)
 		hif_slot_time(wvif, info->use_short_slot ? 9 : 20);
 
-	if (changed & BSS_CHANGED_ASSOC || changed & BSS_CHANGED_CQM) {
-		wvif->cqm_rssi_thold = info->cqm_rssi_thold;
+	if (changed & BSS_CHANGED_ASSOC || changed & BSS_CHANGED_CQM)
 		hif_set_rcpi_rssi_threshold(wvif, info->cqm_rssi_thold,
 					    info->cqm_rssi_hyst);
-	}
 
 	if (changed & BSS_CHANGED_TXPOWER)
 		hif_set_output_power(wvif, info->txpower);

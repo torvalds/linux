@@ -105,7 +105,6 @@ struct wfx_vif {
 	struct work_struct	update_filtering_work;
 
 	u32			erp_info;
-	int			cqm_rssi_thold;
 	bool			setbssparams_done;
 	unsigned long		uapsd_mask;
 	struct ieee80211_tx_queue_params edca_params[IEEE80211_NUM_ACS];
