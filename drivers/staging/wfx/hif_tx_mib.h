@@ -15,13 +15,15 @@
 #include "hif_tx.h"
 #include "hif_api_mib.h"
 
-static inline int hif_set_output_power(struct wfx_vif *wvif, int power_level)
+static inline int hif_set_output_power(struct wfx_vif *wvif, int val)
 {
-	__le32 val = cpu_to_le32(power_level);
+	struct hif_mib_current_tx_power_level arg = {
+		.power_level = cpu_to_le32(val * 10),
+	};
 
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_CURRENT_TX_POWER_LEVEL,
-			     &val, sizeof(val));
+			     &arg, sizeof(arg));
 }
 
 static inline int hif_set_beacon_wakeup_period(struct wfx_vif *wvif,

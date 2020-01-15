@@ -503,7 +503,7 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	hif_keep_alive_period(wvif, 0);
 	hif_reset(wvif, false);
 	wfx_tx_policy_init(wvif);
-	hif_set_output_power(wvif, wvif->wdev->output_power * 10);
+	hif_set_output_power(wvif, wvif->wdev->output_power);
 	wvif->dtim_period = 0;
 	hif_set_macaddr(wvif, wvif->vif->addr);
 	wfx_free_event_queue(wvif);
@@ -1063,7 +1063,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_TXPOWER &&
 	    info->txpower != wdev->output_power) {
 		wdev->output_power = info->txpower;
-		hif_set_output_power(wvif, wdev->output_power * 10);
+		hif_set_output_power(wvif, wdev->output_power);
 	}
 	mutex_unlock(&wdev->conf_mutex);
 
@@ -1317,7 +1317,7 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_lock(&wdev->conf_mutex);
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		wdev->output_power = conf->power_level;
-		hif_set_output_power(wvif, wdev->output_power * 10);
+		hif_set_output_power(wvif, wdev->output_power);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
