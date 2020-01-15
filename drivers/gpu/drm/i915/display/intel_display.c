@@ -13070,7 +13070,6 @@ intel_modeset_pipe_config(struct intel_crtc_state *pipe_config)
 {
 	struct drm_crtc *crtc = pipe_config->uapi.crtc;
 	struct drm_atomic_state *state = pipe_config->uapi.state;
-	struct intel_encoder *encoder;
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	int base_bpp, ret;
@@ -13113,10 +13112,11 @@ intel_modeset_pipe_config(struct intel_crtc_state *pipe_config)
 			       &pipe_config->pipe_src_h);
 
 	for_each_new_connector_in_state(state, connector, connector_state, i) {
+		struct intel_encoder *encoder =
+			to_intel_encoder(connector_state->best_encoder);
+
 		if (connector_state->crtc != crtc)
 			continue;
-
-		encoder = to_intel_encoder(connector_state->best_encoder);
 
 		if (!check_single_encoder_cloning(state, to_intel_crtc(crtc), encoder)) {
 			DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
@@ -13167,6 +13167,9 @@ encoder_retry:
 	 * a chance to reject the mode entirely.
 	 */
 	for_each_new_connector_in_state(state, connector, connector_state, i) {
+		struct intel_encoder *encoder =
+			to_intel_encoder(connector_state->best_encoder);
+
 		if (connector_state->crtc != crtc)
 			continue;
 
@@ -13178,7 +13181,6 @@ encoder_retry:
 			return ret;
 		}
 
-		encoder = to_intel_encoder(connector_state->best_encoder);
 		ret = encoder->compute_config(encoder, pipe_config,
 					      connector_state);
 		if (ret < 0) {
