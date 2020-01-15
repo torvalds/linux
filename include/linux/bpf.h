@@ -461,6 +461,7 @@ struct bpf_trampoline {
 	struct {
 		struct btf_func_model model;
 		void *addr;
+		bool ftrace_managed;
 	} func;
 	/* list of BPF programs using this trampoline */
 	struct hlist_head progs_hlist[BPF_TRAMP_MAX];
@@ -817,6 +818,8 @@ struct bpf_prog * __must_check bpf_prog_inc_not_zero(struct bpf_prog *prog);
 void bpf_prog_put(struct bpf_prog *prog);
 int __bpf_prog_charge(struct user_struct *user, u32 pages);
 void __bpf_prog_uncharge(struct user_struct *user, u32 pages);
+void __bpf_free_used_maps(struct bpf_prog_aux *aux,
+			  struct bpf_map **used_maps, u32 len);
 
 void bpf_prog_free_id(struct bpf_prog *prog, bool do_idr_lock);
 void bpf_map_free_id(struct bpf_map *map, bool do_idr_lock);

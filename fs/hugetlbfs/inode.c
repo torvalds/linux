@@ -1498,8 +1498,10 @@ static int __init init_hugetlbfs_fs(void)
 	/* other hstates are optional */
 	i = 0;
 	for_each_hstate(h) {
-		if (i == default_hstate_idx)
+		if (i == default_hstate_idx) {
+			i++;
 			continue;
+		}
 
 		mnt = mount_one_hugetlbfs(h);
 		if (IS_ERR(mnt))

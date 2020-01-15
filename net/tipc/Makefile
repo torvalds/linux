@@ -9,7 +9,7 @@ tipc-y	+= addr.o bcast.o bearer.o \
 	   core.o link.o discover.o msg.o  \
 	   name_distr.o  subscr.o monitor.o name_table.o net.o  \
 	   netlink.o netlink_compat.o node.o socket.o eth_media.o \
-	   topsrv.o socket.o group.o trace.o
+	   topsrv.o group.o trace.o
 
 CFLAGS_trace.o += -I$(src)
 
@@ -20,5 +20,3 @@ tipc-$(CONFIG_TIPC_CRYPTO)	+= crypto.o
 
 
 obj-$(CONFIG_TIPC_DIAG)	+= diag.o
-
-tipc_diag-y	:= diag.o

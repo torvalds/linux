@@ -434,7 +434,7 @@ static int ve_spc_cpufreq_init(struct cpufreq_policy *policy)
 	if (cur_cluster < MAX_CLUSTERS) {
 		int cpu;
 
-		cpumask_copy(policy->cpus, topology_core_cpumask(policy->cpu));
+		dev_pm_opp_get_sharing_cpus(cpu_dev, policy->cpus);
 
 		for_each_cpu(cpu, policy->cpus)
 			per_cpu(physical_cluster, cpu) = cur_cluster;

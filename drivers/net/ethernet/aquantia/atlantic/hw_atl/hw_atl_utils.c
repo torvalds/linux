@@ -667,9 +667,7 @@ int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self)
 	u32 speed;
 
 	mpi_state = hw_atl_utils_mpi_get_state(self);
-	speed = mpi_state & (FW2X_RATE_100M | FW2X_RATE_1G |
-			     FW2X_RATE_2G5 | FW2X_RATE_5G |
-			     FW2X_RATE_10G);
+	speed = mpi_state >> HW_ATL_MPI_SPEED_SHIFT;
 
 	if (!speed) {
 		link_status->mbps = 0U;

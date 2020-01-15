@@ -45,6 +45,10 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 	case NETDEV_CHANGE:	/* Link (carrier) state changes */
 		hsr_check_carrier_and_operstate(hsr);
 		break;
+	case NETDEV_CHANGENAME:
+		if (is_hsr_master(dev))
+			hsr_debugfs_rename(dev);
+		break;
 	case NETDEV_CHANGEADDR:
 		if (port->type == HSR_PT_MASTER) {
 			/* This should not happen since there's no
@@ -64,7 +68,7 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 
 		/* Make sure we recognize frames from ourselves in hsr_rcv() */
 		port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
-		res = hsr_create_self_node(&hsr->self_node_db,
+		res = hsr_create_self_node(hsr,
 					   master->dev->dev_addr,
 					   port ?
 						port->dev->dev_addr :
@@ -123,6 +127,7 @@ static void __exit hsr_exit(void)
 {
 	unregister_netdevice_notifier(&hsr_nb);
 	hsr_netlink_exit();
+	hsr_debugfs_remove_root();
 }
 
 module_init(hsr_init);

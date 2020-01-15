@@ -1913,16 +1913,16 @@ static const char *t4vf_link_down_rc_str(unsigned char link_down_rc)
 static void t4vf_handle_get_port_info(struct port_info *pi,
 				      const struct fw_port_cmd *cmd)
 {
-	int action = FW_PORT_CMD_ACTION_G(be32_to_cpu(cmd->action_to_len16));
-	struct adapter *adapter = pi->adapter;
-	struct link_config *lc = &pi->link_cfg;
-	int link_ok, linkdnrc;
-	enum fw_port_type port_type;
-	enum fw_port_module_type mod_type;
-	unsigned int speed, fc, fec;
 	fw_port_cap32_t pcaps, acaps, lpacaps, linkattr;
+	struct link_config *lc = &pi->link_cfg;
+	struct adapter *adapter = pi->adapter;
+	unsigned int speed, fc, fec, adv_fc;
+	enum fw_port_module_type mod_type;
+	int action, link_ok, linkdnrc;
+	enum fw_port_type port_type;
 
 	/* Extract the various fields from the Port Information message. */
+	action = FW_PORT_CMD_ACTION_G(be32_to_cpu(cmd->action_to_len16));
 	switch (action) {
 	case FW_PORT_ACTION_GET_PORT_INFO: {
 		u32 lstatus = be32_to_cpu(cmd->u.info.lstatus_to_modtype);
@@ -1982,6 +1982,7 @@ static void t4vf_handle_get_port_info(struct port_info *pi,
 	}
 
 	fec = fwcap_to_cc_fec(acaps);
+	adv_fc = fwcap_to_cc_pause(acaps);
 	fc = fwcap_to_cc_pause(linkattr);
 	speed = fwcap_to_speed(linkattr);
 
@@ -2012,7 +2013,9 @@ static void t4vf_handle_get_port_info(struct port_info *pi,
 	}
 
 	if (link_ok != lc->link_ok || speed != lc->speed ||
-	    fc != lc->fc || fec != lc->fec) {	/* something changed */
+	    fc != lc->fc || adv_fc != lc->advertised_fc ||
+	    fec != lc->fec) {
+		/* something changed */
 		if (!link_ok && lc->link_ok) {
 			lc->link_down_rc = linkdnrc;
 			dev_warn_ratelimited(adapter->pdev_dev,
@@ -2022,6 +2025,7 @@ static void t4vf_handle_get_port_info(struct port_info *pi,
 		}
 		lc->link_ok = link_ok;
 		lc->speed = speed;
+		lc->advertised_fc = adv_fc;
 		lc->fc = fc;
 		lc->fec = fec;
 

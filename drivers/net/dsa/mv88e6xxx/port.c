@@ -393,7 +393,7 @@ phy_interface_t mv88e6390x_port_max_speed_mode(int port)
 }
 
 static int mv88e6xxx_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
-				    phy_interface_t mode)
+				    phy_interface_t mode, bool force)
 {
 	u8 lane;
 	u16 cmode;
@@ -427,8 +427,8 @@ static int mv88e6xxx_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		cmode = 0;
 	}
 
-	/* cmode doesn't change, nothing to do for us */
-	if (cmode == chip->ports[port].cmode)
+	/* cmode doesn't change, nothing to do for us unless forced */
+	if (cmode == chip->ports[port].cmode && !force)
 		return 0;
 
 	lane = mv88e6xxx_serdes_get_lane(chip, port);
@@ -484,7 +484,7 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 	if (port != 9 && port != 10)
 		return -EOPNOTSUPP;
 
-	return mv88e6xxx_port_set_cmode(chip, port, mode);
+	return mv88e6xxx_port_set_cmode(chip, port, mode, false);
 }
 
 int mv88e6390_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
@@ -504,7 +504,7 @@ int mv88e6390_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		break;
 	}
 
-	return mv88e6xxx_port_set_cmode(chip, port, mode);
+	return mv88e6xxx_port_set_cmode(chip, port, mode, false);
 }
 
 static int mv88e6341_port_set_cmode_writable(struct mv88e6xxx_chip *chip,
@@ -555,7 +555,7 @@ int mv88e6341_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		return err;
 
-	return mv88e6xxx_port_set_cmode(chip, port, mode);
+	return mv88e6xxx_port_set_cmode(chip, port, mode, true);
 }
 
 int mv88e6185_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)

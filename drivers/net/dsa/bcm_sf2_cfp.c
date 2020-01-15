@@ -358,7 +358,7 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 		return -EINVAL;
 	}
 
-	ip_frag = be32_to_cpu(fs->m_ext.data[0]);
+	ip_frag = !!(be32_to_cpu(fs->h_ext.data[0]) & 1);
 
 	/* Locate the first rule available */
 	if (fs->location == RX_CLS_LOC_ANY)
@@ -569,7 +569,7 @@ static int bcm_sf2_cfp_rule_cmp(struct bcm_sf2_priv *priv, int port,
 
 		if (rule->fs.flow_type != fs->flow_type ||
 		    rule->fs.ring_cookie != fs->ring_cookie ||
-		    rule->fs.m_ext.data[0] != fs->m_ext.data[0])
+		    rule->fs.h_ext.data[0] != fs->h_ext.data[0])
 			continue;
 
 		switch (fs->flow_type & ~FLOW_EXT) {
@@ -621,7 +621,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 		return -EINVAL;
 	}
 
-	ip_frag = be32_to_cpu(fs->m_ext.data[0]);
+	ip_frag = !!(be32_to_cpu(fs->h_ext.data[0]) & 1);
 
 	layout = &udf_tcpip6_layout;
 	slice_num = bcm_sf2_get_slice_number(layout, 0);

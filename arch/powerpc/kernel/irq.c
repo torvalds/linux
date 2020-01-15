@@ -619,8 +619,6 @@ void __do_irq(struct pt_regs *regs)
 
 	trace_irq_entry(regs);
 
-	check_stack_overflow();
-
 	/*
 	 * Query the platform PIC for the interrupt & ack it.
 	 *
@@ -651,6 +649,8 @@ void do_IRQ(struct pt_regs *regs)
 	cursp = (void *)(current_stack_pointer() & ~(THREAD_SIZE - 1));
 	irqsp = hardirq_ctx[raw_smp_processor_id()];
 	sirqsp = softirq_ctx[raw_smp_processor_id()];
+
+	check_stack_overflow();
 
 	/* Already there ? */
 	if (unlikely(cursp == irqsp || cursp == sirqsp)) {

@@ -408,10 +408,10 @@ static void update_map(int fd, int index)
 	assert(!bpf_map_update_elem(fd, &index, &value, 0));
 }
 
-static int create_prog_dummy1(enum bpf_prog_type prog_type)
+static int create_prog_dummy_simple(enum bpf_prog_type prog_type, int ret)
 {
 	struct bpf_insn prog[] = {
-		BPF_MOV64_IMM(BPF_REG_0, 42),
+		BPF_MOV64_IMM(BPF_REG_0, ret),
 		BPF_EXIT_INSN(),
 	};
 
@@ -419,14 +419,15 @@ static int create_prog_dummy1(enum bpf_prog_type prog_type)
 				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
 }
 
-static int create_prog_dummy2(enum bpf_prog_type prog_type, int mfd, int idx)
+static int create_prog_dummy_loop(enum bpf_prog_type prog_type, int mfd,
+				  int idx, int ret)
 {
 	struct bpf_insn prog[] = {
 		BPF_MOV64_IMM(BPF_REG_3, idx),
 		BPF_LD_MAP_FD(BPF_REG_2, mfd),
 		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
 			     BPF_FUNC_tail_call),
-		BPF_MOV64_IMM(BPF_REG_0, 41),
+		BPF_MOV64_IMM(BPF_REG_0, ret),
 		BPF_EXIT_INSN(),
 	};
 
@@ -435,10 +436,9 @@ static int create_prog_dummy2(enum bpf_prog_type prog_type, int mfd, int idx)
 }
 
 static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
-			     int p1key)
+			     int p1key, int p2key, int p3key)
 {
-	int p2key = 1;
-	int mfd, p1fd, p2fd;
+	int mfd, p1fd, p2fd, p3fd;
 
 	mfd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
 			     sizeof(int), max_elem, 0);
@@ -449,23 +449,24 @@ static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
 		return -1;
 	}
 
-	p1fd = create_prog_dummy1(prog_type);
-	p2fd = create_prog_dummy2(prog_type, mfd, p2key);
-	if (p1fd < 0 || p2fd < 0)
-		goto out;
+	p1fd = create_prog_dummy_simple(prog_type, 42);
+	p2fd = create_prog_dummy_loop(prog_type, mfd, p2key, 41);
+	p3fd = create_prog_dummy_simple(prog_type, 24);
+	if (p1fd < 0 || p2fd < 0 || p3fd < 0)
+		goto err;
 	if (bpf_map_update_elem(mfd, &p1key, &p1fd, BPF_ANY) < 0)
-		goto out;
+		goto err;
 	if (bpf_map_update_elem(mfd, &p2key, &p2fd, BPF_ANY) < 0)
-		goto out;
+		goto err;
+	if (bpf_map_update_elem(mfd, &p3key, &p3fd, BPF_ANY) < 0) {
+err:
+		close(mfd);
+		mfd = -1;
+	}
+	close(p3fd);
 	close(p2fd);
 	close(p1fd);
-
 	return mfd;
-out:
-	close(p2fd);
-	close(p1fd);
-	close(mfd);
-	return -1;
 }
 
 static int create_map_in_map(void)
@@ -684,7 +685,7 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	}
 
 	if (*fixup_prog1) {
-		map_fds[4] = create_prog_array(prog_type, 4, 0);
+		map_fds[4] = create_prog_array(prog_type, 4, 0, 1, 2);
 		do {
 			prog[*fixup_prog1].imm = map_fds[4];
 			fixup_prog1++;
@@ -692,7 +693,7 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	}
 
 	if (*fixup_prog2) {
-		map_fds[5] = create_prog_array(prog_type, 8, 7);
+		map_fds[5] = create_prog_array(prog_type, 8, 7, 1, 2);
 		do {
 			prog[*fixup_prog2].imm = map_fds[5];
 			fixup_prog2++;

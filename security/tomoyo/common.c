@@ -951,7 +951,8 @@ static bool tomoyo_manager(void)
 	exe = tomoyo_get_exe();
 	if (!exe)
 		return false;
-	list_for_each_entry_rcu(ptr, &tomoyo_kernel_namespace.policy_list[TOMOYO_ID_MANAGER], head.list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_kernel_namespace.policy_list[TOMOYO_ID_MANAGER], head.list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (!ptr->head.is_deleted &&
 		    (!tomoyo_pathcmp(domainname, ptr->manager) ||
 		     !strcmp(exe, ptr->manager->name))) {
@@ -1095,7 +1096,8 @@ static int tomoyo_delete_domain(char *domainname)
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return -EINTR;
 	/* Is there an active domain? */
-	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
+	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		/* Never delete tomoyo_kernel_domain */
 		if (domain == &tomoyo_kernel_domain)
 			continue;
@@ -2778,7 +2780,8 @@ void tomoyo_check_profile(void)
 
 	tomoyo_policy_loaded = true;
 	pr_info("TOMOYO: 2.6.0\n");
-	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
+	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		const u8 profile = domain->profile;
 		struct tomoyo_policy_namespace *ns = domain->ns;
 

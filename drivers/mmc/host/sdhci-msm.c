@@ -99,7 +99,7 @@
 
 #define CORE_PWRSAVE_DLL	BIT(3)
 
-#define DDR_CONFIG_POR_VAL	0x80040853
+#define DDR_CONFIG_POR_VAL	0x80040873
 
 
 #define INVALID_TUNING_PHASE	-1
@@ -148,8 +148,9 @@ struct sdhci_msm_offset {
 	u32 core_ddr_200_cfg;
 	u32 core_vendor_spec3;
 	u32 core_dll_config_2;
+	u32 core_dll_config_3;
+	u32 core_ddr_config_old; /* Applicable to sdcc minor ver < 0x49 */
 	u32 core_ddr_config;
-	u32 core_ddr_config_2;
 };
 
 static const struct sdhci_msm_offset sdhci_msm_v5_offset = {
@@ -177,8 +178,8 @@ static const struct sdhci_msm_offset sdhci_msm_v5_offset = {
 	.core_ddr_200_cfg = 0x224,
 	.core_vendor_spec3 = 0x250,
 	.core_dll_config_2 = 0x254,
-	.core_ddr_config = 0x258,
-	.core_ddr_config_2 = 0x25c,
+	.core_dll_config_3 = 0x258,
+	.core_ddr_config = 0x25c,
 };
 
 static const struct sdhci_msm_offset sdhci_msm_mci_offset = {
@@ -207,8 +208,8 @@ static const struct sdhci_msm_offset sdhci_msm_mci_offset = {
 	.core_ddr_200_cfg = 0x184,
 	.core_vendor_spec3 = 0x1b0,
 	.core_dll_config_2 = 0x1b4,
-	.core_ddr_config = 0x1b8,
-	.core_ddr_config_2 = 0x1bc,
+	.core_ddr_config_old = 0x1b8,
+	.core_ddr_config = 0x1bc,
 };
 
 struct sdhci_msm_variant_ops {
@@ -253,6 +254,7 @@ struct sdhci_msm_host {
 	const struct sdhci_msm_offset *offset;
 	bool use_cdr;
 	u32 transfer_mode;
+	bool updated_ddr_cfg;
 };
 
 static const struct sdhci_msm_offset *sdhci_priv_msm_offset(struct sdhci_host *host)
@@ -924,8 +926,10 @@ out:
 static int sdhci_msm_cm_dll_sdc4_calibration(struct sdhci_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
-	u32 dll_status, config;
+	u32 dll_status, config, ddr_cfg_offset;
 	int ret;
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
 	const struct sdhci_msm_offset *msm_offset =
 					sdhci_priv_msm_offset(host);
 
@@ -938,8 +942,11 @@ static int sdhci_msm_cm_dll_sdc4_calibration(struct sdhci_host *host)
 	 * bootloaders. In the future, if this changes, then the desired
 	 * values will need to be programmed appropriately.
 	 */
-	writel_relaxed(DDR_CONFIG_POR_VAL, host->ioaddr +
-			msm_offset->core_ddr_config);
+	if (msm_host->updated_ddr_cfg)
+		ddr_cfg_offset = msm_offset->core_ddr_config;
+	else
+		ddr_cfg_offset = msm_offset->core_ddr_config_old;
+	writel_relaxed(DDR_CONFIG_POR_VAL, host->ioaddr + ddr_cfg_offset);
 
 	if (mmc->ios.enhanced_strobe) {
 		config = readl_relaxed(host->ioaddr +
@@ -1898,6 +1905,9 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		writel_relaxed(config, host->ioaddr +
 				msm_offset->core_vendor_spec_capabilities0);
 	}
+
+	if (core_major == 1 && core_minor >= 0x49)
+		msm_host->updated_ddr_cfg = true;
 
 	/*
 	 * Power on reset state may trigger power irq if previous status of
