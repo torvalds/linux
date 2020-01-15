@@ -842,26 +842,14 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 static void wfx_ps_notify_sta(struct wfx_vif *wvif,
 			      enum sta_notify_cmd notify_cmd, int link_id)
 {
-	u32 bit, prev;
-
 	spin_lock_bh(&wvif->ps_state_lock);
-	bit = BIT(link_id);
-	prev = wvif->sta_asleep_mask & bit;
-
-	switch (notify_cmd) {
-	case STA_NOTIFY_SLEEP:
-		if (!prev) {
-			wvif->sta_asleep_mask |= bit;
-		}
-		break;
-	case STA_NOTIFY_AWAKE:
-		if (prev) {
-			wvif->sta_asleep_mask &= ~bit;
-			wfx_bh_request_tx(wvif->wdev);
-		}
-		break;
-	}
+	if (notify_cmd == STA_NOTIFY_SLEEP)
+		wvif->sta_asleep_mask |= BIT(link_id);
+	else // notify_cmd == STA_NOTIFY_AWAKE
+		wvif->sta_asleep_mask &= ~BIT(link_id);
 	spin_unlock_bh(&wvif->ps_state_lock);
+	if (notify_cmd == STA_NOTIFY_AWAKE)
+		wfx_bh_request_tx(wvif->wdev);
 }
 
 void wfx_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
