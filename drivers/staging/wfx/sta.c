@@ -760,23 +760,17 @@ static int wfx_start_ap(struct wfx_vif *wvif)
 
 static int wfx_update_beaconing(struct wfx_vif *wvif)
 {
-	struct ieee80211_bss_conf *conf = &wvif->vif->bss_conf;
-
-	if (wvif->vif->type == NL80211_IFTYPE_AP) {
-		/* TODO: check if changed channel, band */
-		if (wvif->state != WFX_STATE_AP ||
-		    wvif->beacon_int != conf->beacon_int) {
-			wfx_tx_lock_flush(wvif->wdev);
-			if (wvif->state != WFX_STATE_PASSIVE) {
-				hif_reset(wvif, false);
-				wfx_tx_policy_init(wvif);
-			}
-			wvif->state = WFX_STATE_PASSIVE;
-			wfx_start_ap(wvif);
-			wfx_tx_unlock(wvif->wdev);
-		} else {
-		}
-	}
+	if (wvif->vif->type != NL80211_IFTYPE_AP)
+		return 0;
+	if (wvif->state == WFX_STATE_AP &&
+	    wvif->beacon_int == wvif->vif->bss_conf.beacon_int)
+		return 0;
+	wfx_tx_lock_flush(wvif->wdev);
+	hif_reset(wvif, false);
+	wfx_tx_policy_init(wvif);
+	wvif->state = WFX_STATE_PASSIVE;
+	wfx_start_ap(wvif);
+	wfx_tx_unlock(wvif->wdev);
 	return 0;
 }
 
