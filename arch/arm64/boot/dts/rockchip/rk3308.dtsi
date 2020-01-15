@@ -48,10 +48,18 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLK>;
 			#cooling-cells = <2>;
-			dynamic-power-coefficient = <90>;
+			dynamic-power-coefficient = <83>;
 			operating-points-v2 = <&cpu0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 			next-level-cache = <&l2>;
+			power-model {
+				compatible = "simple-power-model";
+				leakage-range= <5 50>;
+				ls = <6086 6346 (-63)>;
+				static-coefficient = <100000>;
+				ts = <(-109130) 101460 (-1620) 30>;
+				thermal-zone = "soc-thermal";
+			};
 		};
 
 		cpu1: cpu@1 {
@@ -786,7 +794,7 @@
 		soc_thermal: soc-thermal {
 			polling-delay-passive = <20>;
 			polling-delay = <1000>;
-			sustainable-power = <300>;
+			sustainable-power = <360>;
 
 			thermal-sensors = <&tsadc 0>;
 
