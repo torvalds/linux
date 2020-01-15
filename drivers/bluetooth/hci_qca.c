@@ -663,7 +663,6 @@ static int qca_flush(struct hci_uart *hu)
 /* Close protocol */
 static int qca_close(struct hci_uart *hu)
 {
-	struct qca_serdev *qcadev;
 	struct qca_data *qca = hu->priv;
 
 	BT_DBG("hu %p qca close", hu);
@@ -679,14 +678,7 @@ static int qca_close(struct hci_uart *hu)
 	destroy_workqueue(qca->workqueue);
 	qca->hu = NULL;
 
-	if (hu->serdev) {
-		qcadev = serdev_device_get_drvdata(hu->serdev);
-		if (qca_is_wcn399x(qcadev->btsoc_type))
-			qca_power_shutdown(hu);
-		else
-			gpiod_set_value_cansleep(qcadev->bt_en, 0);
-
-	}
+	qca_power_shutdown(hu);
 
 	kfree_skb(qca->rx_skb);
 
@@ -1685,6 +1677,7 @@ static void qca_power_shutdown(struct hci_uart *hu)
 	struct qca_serdev *qcadev;
 	struct qca_data *qca = hu->priv;
 	unsigned long flags;
+	enum qca_btsoc_type soc_type = qca_soc_type(hu);
 
 	qcadev = serdev_device_get_drvdata(hu->serdev);
 
@@ -1697,11 +1690,22 @@ static void qca_power_shutdown(struct hci_uart *hu)
 	qca_flush(hu);
 	spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
 
-	host_set_baudrate(hu, 2400);
-	qca_send_power_pulse(hu, false);
-	qca_regulator_disable(qcadev);
 	hu->hdev->hw_error = NULL;
 	hu->hdev->cmd_timeout = NULL;
+
+	/* Non-serdev device usually is powered by external power
+	 * and don't need additional action in driver for power down
+	 */
+	if (!hu->serdev)
+		return;
+
+	if (qca_is_wcn399x(soc_type)) {
+		host_set_baudrate(hu, 2400);
+		qca_send_power_pulse(hu, false);
+		qca_regulator_disable(qcadev);
+	} else {
+		gpiod_set_value_cansleep(qcadev->bt_en, 0);
+	}
 }
 
 static int qca_power_off(struct hci_dev *hdev)
