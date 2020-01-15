@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <linux/mfd/da9062/registers.h>
@@ -147,12 +148,13 @@ static int da9062_wdt_restart(struct watchdog_device *wdd, unsigned long action,
 			      void *data)
 {
 	struct da9062_watchdog *wdt = watchdog_get_drvdata(wdd);
+	struct i2c_client *client = to_i2c_client(wdt->hw->dev);
 	int ret;
 
-	ret = regmap_write(wdt->hw->regmap,
-			   DA9062AA_CONTROL_F,
-			   DA9062AA_SHUTDOWN_MASK);
-	if (ret)
+	/* Don't use regmap because it is not atomic safe */
+	ret = i2c_smbus_write_byte_data(client, DA9062AA_CONTROL_F,
+					DA9062AA_SHUTDOWN_MASK);
+	if (ret < 0)
 		dev_alert(wdt->hw->dev, "Failed to shutdown (err = %d)\n",
 			  ret);
 
