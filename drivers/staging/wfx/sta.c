@@ -517,7 +517,6 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	wfx_update_filtering(wvif);
 	memset(&wvif->bss_params, 0, sizeof(wvif->bss_params));
 	wvif->setbssparams_done = false;
-	memset(&wvif->ht_info, 0, sizeof(wvif->ht_info));
 
 done:
 	mutex_unlock(&wvif->wdev->conf_mutex);
@@ -812,11 +811,6 @@ static int wfx_upload_beacon(struct wfx_vif *wvif)
 	return 0;
 }
 
-static int wfx_is_ht(const struct wfx_ht_info *ht_info)
-{
-	return ht_info->channel_type != NL80211_CHAN_NO_HT;
-}
-
 static void wfx_join_finalize(struct wfx_vif *wvif,
 			      struct ieee80211_bss_conf *info)
 {
@@ -830,17 +824,12 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	rcu_read_lock();
 	if (info->bssid && !info->ibss_joined)
 		sta = ieee80211_find_sta(wvif->vif, info->bssid);
-	if (sta) {
-		wvif->ht_info.ht_cap = sta->ht_cap;
+	rcu_read_unlock();
+	if (sta)
 		wvif->bss_params.operational_rate_set =
 			wfx_rate_mask_to_hw(wvif->wdev, sta->supp_rates[wvif->channel->band]);
-		wvif->ht_info.operation_mode = info->ht_operation_mode;
-	} else {
-		memset(&wvif->ht_info, 0, sizeof(wvif->ht_info));
+	else
 		wvif->bss_params.operational_rate_set = -1;
-	}
-	rcu_read_unlock();
-
 	if (sta &&
 	    info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT)
 		hif_dual_cts_protection(wvif, true);
@@ -1224,7 +1213,6 @@ int wfx_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	WARN(wvif->channel, "channel overwrite");
 	wvif->channel = ch;
-	wvif->ht_info.channel_type = cfg80211_get_chandef_type(&conf->def);
 
 	return 0;
 }

@@ -113,7 +113,6 @@ struct wfx_vif {
 	u32			erp_info;
 	int			cqm_rssi_thold;
 	bool			setbssparams_done;
-	struct wfx_ht_info	ht_info;
 	unsigned long		uapsd_mask;
 	struct ieee80211_tx_queue_params edca_params[IEEE80211_NUM_ACS];
 	struct hif_req_set_bss_params bss_params;

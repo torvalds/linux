@@ -23,12 +23,6 @@ enum wfx_state {
 	WFX_STATE_AP,
 };
 
-struct wfx_ht_info {
-	struct ieee80211_sta_ht_cap ht_cap;
-	enum nl80211_channel_type channel_type;
-	u16 operation_mode;
-};
-
 struct wfx_hif_event {
 	struct list_head link;
 	struct hif_ind_event evt;
