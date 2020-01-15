@@ -1230,22 +1230,13 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif;
 
-	// FIXME: Interface id should not been hardcoded
-	wvif = wdev_to_wvif(wdev, 0);
-	if (!wvif) {
-		WARN(1, "interface 0 does not exist anymore");
-		return 0;
-	}
-
-	mutex_lock(&wdev->conf_mutex);
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		mutex_lock(&wdev->conf_mutex);
 		wvif = NULL;
 		while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
 			ret = wfx_update_pm(wvif);
-		wvif = wdev_to_wvif(wdev, 0);
+		mutex_unlock(&wdev->conf_mutex);
 	}
-
-	mutex_unlock(&wdev->conf_mutex);
 	return ret;
 }
 
