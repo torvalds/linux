@@ -156,11 +156,13 @@ void rds_rdma_drop_keys(struct rds_sock *rs)
 static int rds_pin_pages(unsigned long user_addr, unsigned int nr_pages,
 			struct page **pages, int write)
 {
+	unsigned int gup_flags = FOLL_LONGTERM;
 	int ret;
 
-	ret = get_user_pages_fast(user_addr, nr_pages, write ? FOLL_WRITE : 0,
-				  pages);
+	if (write)
+		gup_flags |= FOLL_WRITE;
 
+	ret = get_user_pages_fast(user_addr, nr_pages, gup_flags, pages);
 	if (ret >= 0 && ret < nr_pages) {
 		while (ret--)
 			put_page(pages[ret]);
