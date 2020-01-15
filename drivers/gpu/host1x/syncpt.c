@@ -421,7 +421,7 @@ int host1x_syncpt_init(struct host1x *host)
 struct host1x_syncpt *host1x_syncpt_request(struct host1x_client *client,
 					    unsigned long flags)
 {
-	struct host1x *host = dev_get_drvdata(client->parent->parent);
+	struct host1x *host = dev_get_drvdata(client->host->parent);
 
 	return host1x_syncpt_alloc(host, client, flags);
 }
