@@ -469,8 +469,12 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 
 	// Fill tx request
 	req = (struct hif_req_tx *)hif_msg->body;
-	req->packet_id = queue_id << 16 |
-			 IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+	// packet_id just need to be unique on device. 32bits are more than
+	// necessary for that task, so we tae advantage of it to add some extra
+	// data for debug.
+	req->packet_id = queue_id << 28 |
+			 IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl)) << 16 |
+			 (atomic_add_return(1, &wvif->wdev->packet_id) & 0xFFFF);
 	req->data_flags.fc_offset = offset;
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
 		req->data_flags.after_dtim = 1;

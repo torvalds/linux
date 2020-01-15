@@ -54,6 +54,7 @@ struct wfx_dev {
 	int			tx_burst_idx;
 	atomic_t		tx_lock;
 
+	atomic_t		packet_id;
 	u32			key_map;
 	struct hif_req_add_key	keys[MAX_KEY_ENTRIES];
 
