@@ -893,7 +893,7 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
 }
 
 /**
- * ivybridge_parity_work - Workqueue called when a parity error interrupt
+ * ivb_parity_work - Workqueue called when a parity error interrupt
  * occurred.
  * @work: workqueue struct
  *
@@ -901,7 +901,7 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
  * this event, userspace should try to remap the bad rows since statistically
  * it is likely the same row is more likely to go bad again.
  */
-static void ivybridge_parity_work(struct work_struct *work)
+static void ivb_parity_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), l3_parity.error_work);
@@ -2031,7 +2031,7 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
  * 4 - Process the interrupt(s) that had bits set in the IIRs.
  * 5 - Re-enable Master Interrupt Control.
  */
-static irqreturn_t ironlake_irq_handler(int irq, void *arg)
+static irqreturn_t ilk_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private *dev_priv = arg;
 	u32 de_iir, gt_iir, de_ier, sde_ier = 0;
@@ -2742,7 +2742,7 @@ static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 
 /* drm_dma.h hooks
 */
-static void ironlake_irq_reset(struct drm_i915_private *dev_priv)
+static void ilk_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
@@ -3225,7 +3225,7 @@ static void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
 		spt_hpd_detection_setup(dev_priv);
 }
 
-static void ironlake_irq_postinstall(struct drm_i915_private *dev_priv)
+static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 display_mask, extra_mask;
@@ -3899,7 +3899,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 
 	intel_hpd_init_work(dev_priv);
 
-	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
+	INIT_WORK(&dev_priv->l3_parity.error_work, ivb_parity_work);
 	for (i = 0; i < MAX_L3_SLICES; ++i)
 		dev_priv->l3_parity.remap_info[i] = NULL;
 
@@ -3980,7 +3980,7 @@ static irq_handler_t intel_irq_handler(struct drm_i915_private *dev_priv)
 		else if (INTEL_GEN(dev_priv) >= 8)
 			return gen8_irq_handler;
 		else
-			return ironlake_irq_handler;
+			return ilk_irq_handler;
 	}
 }
 
@@ -4003,7 +4003,7 @@ static void intel_irq_reset(struct drm_i915_private *dev_priv)
 		else if (INTEL_GEN(dev_priv) >= 8)
 			gen8_irq_reset(dev_priv);
 		else
-			ironlake_irq_reset(dev_priv);
+			ilk_irq_reset(dev_priv);
 	}
 }
 
@@ -4026,7 +4026,7 @@ static void intel_irq_postinstall(struct drm_i915_private *dev_priv)
 		else if (INTEL_GEN(dev_priv) >= 8)
 			gen8_irq_postinstall(dev_priv);
 		else
-			ironlake_irq_postinstall(dev_priv);
+			ilk_irq_postinstall(dev_priv);
 	}
 }
 

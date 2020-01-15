@@ -469,6 +469,12 @@ static void vlv_free_s0ix_state(struct drm_i915_private *i915)
 	i915->vlv_s0ix_state = NULL;
 }
 
+static void sanitize_gpu(struct drm_i915_private *i915)
+{
+	if (!INTEL_INFO(i915)->gpu_reset_clobbers_display)
+		__intel_gt_reset(&i915->gt, ALL_ENGINES);
+}
+
 /**
  * i915_driver_early_probe - setup state not requiring device access
  * @dev_priv: device private
@@ -601,6 +607,9 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 	ret = intel_engines_init_mmio(&dev_priv->gt);
 	if (ret)
 		goto err_uncore;
+
+	/* As early as possible, scrub existing GPU state before clobbering */
+	sanitize_gpu(dev_priv);
 
 	return 0;
 
@@ -1817,7 +1826,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
-	intel_gt_sanitize(&dev_priv->gt, true);
+	sanitize_gpu(dev_priv);
 
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret)

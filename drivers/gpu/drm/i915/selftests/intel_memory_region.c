@@ -270,36 +270,31 @@ static int igt_gpu_write_dw(struct intel_context *ce,
 
 static int igt_cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 {
-	unsigned long n;
+	unsigned long n = obj->base.size >> PAGE_SHIFT;
+	u32 *ptr;
 	int err;
 
-	i915_gem_object_lock(obj);
-	err = i915_gem_object_set_to_wc_domain(obj, false);
-	i915_gem_object_unlock(obj);
+	err = i915_gem_object_wait(obj, 0, MAX_SCHEDULE_TIMEOUT);
 	if (err)
 		return err;
 
-	err = i915_gem_object_pin_pages(obj);
-	if (err)
-		return err;
+	ptr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	if (IS_ERR(ptr))
+		return PTR_ERR(ptr);
 
-	for (n = 0; n < obj->base.size >> PAGE_SHIFT; ++n) {
-		u32 __iomem *base;
-		u32 read_val;
-
-		base = i915_gem_object_lmem_io_map_page_atomic(obj, n);
-
-		read_val = ioread32(base + dword);
-		io_mapping_unmap_atomic(base);
-		if (read_val != val) {
-			pr_err("n=%lu base[%u]=%u, val=%u\n",
-			       n, dword, read_val, val);
+	ptr += dword;
+	while (n--) {
+		if (*ptr != val) {
+			pr_err("base[%u]=%08x, val=%08x\n",
+			       dword, *ptr, val);
 			err = -EINVAL;
 			break;
 		}
+
+		ptr += PAGE_SIZE / sizeof(*ptr);
 	}
 
-	i915_gem_object_unpin_pages(obj);
+	i915_gem_object_unpin_map(obj);
 	return err;
 }
 

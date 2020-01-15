@@ -45,6 +45,7 @@
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_mman.h"
+#include "gem/i915_gem_region.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
@@ -200,7 +201,7 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 
 static int
 i915_gem_create(struct drm_file *file,
-		struct drm_i915_private *dev_priv,
+		struct intel_memory_region *mr,
 		u64 *size_p,
 		u32 *handle_p)
 {
@@ -209,12 +210,16 @@ i915_gem_create(struct drm_file *file,
 	u64 size;
 	int ret;
 
-	size = round_up(*size_p, PAGE_SIZE);
+	GEM_BUG_ON(!is_power_of_2(mr->min_page_size));
+	size = round_up(*size_p, mr->min_page_size);
 	if (size == 0)
 		return -EINVAL;
 
+	/* For most of the ABI (e.g. mmap) we think in system pages */
+	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
+
 	/* Allocate the new object */
-	obj = i915_gem_object_create_shmem(dev_priv, size);
+	obj = i915_gem_object_create_region(mr, size, 0);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -234,6 +239,7 @@ i915_gem_dumb_create(struct drm_file *file,
 		     struct drm_device *dev,
 		     struct drm_mode_create_dumb *args)
 {
+	enum intel_memory_type mem_type;
 	int cpp = DIV_ROUND_UP(args->bpp, 8);
 	u32 format;
 
@@ -260,7 +266,14 @@ i915_gem_dumb_create(struct drm_file *file,
 		args->pitch = ALIGN(args->pitch, 4096);
 
 	args->size = args->pitch * args->height;
-	return i915_gem_create(file, to_i915(dev),
+
+	mem_type = INTEL_MEMORY_SYSTEM;
+	if (HAS_LMEM(to_i915(dev)))
+		mem_type = INTEL_MEMORY_LOCAL;
+
+	return i915_gem_create(file,
+			       intel_memory_region_by_type(to_i915(dev),
+							   mem_type),
 			       &args->size, &args->handle);
 }
 
@@ -274,12 +287,14 @@ int
 i915_gem_create_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *i915 = to_i915(dev);
 	struct drm_i915_gem_create *args = data;
 
-	i915_gem_flush_free_objects(dev_priv);
+	i915_gem_flush_free_objects(i915);
 
-	return i915_gem_create(file, dev_priv,
+	return i915_gem_create(file,
+			       intel_memory_region_by_type(i915,
+							   INTEL_MEMORY_SYSTEM),
 			       &args->size, &args->handle);
 }
 
@@ -1172,14 +1187,14 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 
 void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 {
+	i915_gem_driver_release__contexts(dev_priv);
+
 	intel_gt_driver_release(&dev_priv->gt);
 
 	intel_wa_list_free(&dev_priv->gt_wa_list);
 
 	intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
 	i915_gem_cleanup_userptr(dev_priv);
-
-	i915_gem_driver_release__contexts(dev_priv);
 
 	i915_gem_drain_freed_objects(dev_priv);
 

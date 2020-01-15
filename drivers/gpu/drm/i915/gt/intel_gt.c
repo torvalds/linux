@@ -38,8 +38,6 @@ void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 void intel_gt_init_hw_early(struct intel_gt *gt, struct i915_ggtt *ggtt)
 {
 	gt->ggtt = ggtt;
-
-	intel_gt_sanitize(gt, false);
 }
 
 static void init_unused_ring(struct intel_gt *gt, u32 base)
@@ -76,10 +74,6 @@ int intel_gt_init_hw(struct intel_gt *gt)
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_uncore *uncore = gt->uncore;
 	int ret;
-
-	ret = intel_gt_terminally_wedged(gt);
-	if (ret)
-		return ret;
 
 	gt->last_init_time = ktime_get();
 
@@ -372,7 +366,7 @@ static void intel_gt_fini_scratch(struct intel_gt *gt)
 static struct i915_address_space *kernel_vm(struct intel_gt *gt)
 {
 	if (INTEL_PPGTT(gt->i915) > INTEL_PPGTT_ALIASING)
-		return &i915_ppgtt_create(gt->i915)->vm;
+		return &i915_ppgtt_create(gt)->vm;
 	else
 		return i915_vm_get(&gt->ggtt->vm);
 }
@@ -410,13 +404,12 @@ static int __engines_record_defaults(struct intel_gt *gt)
 		struct intel_context *ce;
 		struct i915_request *rq;
 
+		/* We must be able to switch to something! */
+		GEM_BUG_ON(!engine->kernel_context);
+
 		err = intel_renderstate_init(&so, engine);
 		if (err)
 			goto out;
-
-		/* We must be able to switch to something! */
-		GEM_BUG_ON(!engine->kernel_context);
-		engine->serial++; /* force the kernel context switch */
 
 		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {

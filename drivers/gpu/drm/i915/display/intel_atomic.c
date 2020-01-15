@@ -37,6 +37,7 @@
 #include "intel_atomic.h"
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
+#include "intel_psr.h"
 #include "intel_sprite.h"
 
 /**
@@ -129,6 +130,7 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 	struct drm_crtc_state *crtc_state;
 
 	intel_hdcp_atomic_check(conn, old_state, new_state);
+	intel_psr_atomic_check(conn, old_state, new_state);
 
 	if (!new_state->crtc)
 		return 0;
@@ -172,6 +174,38 @@ intel_digital_connector_duplicate_state(struct drm_connector *connector)
 
 	__drm_atomic_helper_connector_duplicate_state(connector, &state->base);
 	return &state->base;
+}
+
+/**
+ * intel_connector_needs_modeset - check if connector needs a modeset
+ */
+bool
+intel_connector_needs_modeset(struct intel_atomic_state *state,
+			      struct drm_connector *connector)
+{
+	const struct drm_connector_state *old_conn_state, *new_conn_state;
+
+	old_conn_state = drm_atomic_get_old_connector_state(&state->base, connector);
+	new_conn_state = drm_atomic_get_new_connector_state(&state->base, connector);
+
+	return old_conn_state->crtc != new_conn_state->crtc ||
+	       (new_conn_state->crtc &&
+		drm_atomic_crtc_needs_modeset(drm_atomic_get_new_crtc_state(&state->base,
+									    new_conn_state->crtc)));
+}
+
+struct intel_digital_connector_state *
+intel_atomic_get_digital_connector_state(struct intel_atomic_state *state,
+					 struct intel_connector *connector)
+{
+	struct drm_connector_state *conn_state;
+
+	conn_state = drm_atomic_get_connector_state(&state->base,
+						    &connector->base);
+	if (IS_ERR(conn_state))
+		return ERR_CAST(conn_state);
+
+	return to_intel_digital_connector_state(conn_state);
 }
 
 /**

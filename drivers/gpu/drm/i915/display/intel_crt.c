@@ -65,7 +65,7 @@ static struct intel_crt *intel_encoder_to_crt(struct intel_encoder *encoder)
 	return container_of(encoder, struct intel_crt, base);
 }
 
-static struct intel_crt *intel_attached_crt(struct drm_connector *connector)
+static struct intel_crt *intel_attached_crt(struct intel_connector *connector)
 {
 	return intel_encoder_to_crt(intel_attached_encoder(connector));
 }
@@ -247,7 +247,7 @@ static void hsw_post_disable_crt(struct intel_encoder *encoder,
 
 	intel_ddi_disable_transcoder_func(old_crtc_state);
 
-	ironlake_pfit_disable(old_crtc_state);
+	ilk_pfit_disable(old_crtc_state);
 
 	intel_ddi_disable_pipe_clock(old_crtc_state);
 
@@ -351,7 +351,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 
 	/* The FDI receiver on LPT only supports 8bpc and only has 2 lanes. */
 	if (HAS_PCH_LPT(dev_priv) &&
-	    (ironlake_get_lanes_required(mode->clock, 270000, 24) > 2))
+	    ilk_get_lanes_required(mode->clock, 270000, 24) > 2)
 		return MODE_CLOCK_HIGH;
 
 	/* HSW/BDW FDI limited to 4k */
@@ -427,10 +427,10 @@ static int hsw_crt_compute_config(struct intel_encoder *encoder,
 	return 0;
 }
 
-static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
+static bool ilk_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 adpa;
 	bool ret;
@@ -440,7 +440,7 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 		bool turn_off_dac = HAS_PCH_SPLIT(dev_priv);
 		u32 save_adpa;
 
-		crt->force_hotplug_required = 0;
+		crt->force_hotplug_required = false;
 
 		save_adpa = adpa = I915_READ(crt->adpa_reg);
 		DRM_DEBUG_KMS("trigger hotplug detect cycle: adpa=0x%x\n", adpa);
@@ -477,7 +477,7 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	bool reenable_hpd;
 	u32 adpa;
@@ -535,7 +535,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	int i, tries = 0;
 
 	if (HAS_PCH_SPLIT(dev_priv))
-		return intel_ironlake_crt_detect_hotplug(connector);
+		return ilk_crt_detect_hotplug(connector);
 
 	if (IS_VALLEYVIEW(dev_priv))
 		return valleyview_crt_detect_hotplug(connector);
@@ -609,7 +609,7 @@ static int intel_crt_ddc_get_modes(struct drm_connector *connector,
 
 static bool intel_crt_detect_ddc(struct drm_connector *connector)
 {
-	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(crt->base.base.dev);
 	struct edid *edid;
 	struct i2c_adapter *i2c;
@@ -795,7 +795,7 @@ intel_crt_detect(struct drm_connector *connector,
 		 bool force)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *intel_encoder = &crt->base;
 	intel_wakeref_t wakeref;
 	int status, ret;
@@ -886,7 +886,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *intel_encoder = &crt->base;
 	intel_wakeref_t wakeref;
 	struct i2c_adapter *i2c;
@@ -925,7 +925,7 @@ void intel_crt_reset(struct drm_encoder *encoder)
 		POSTING_READ(crt->adpa_reg);
 
 		DRM_DEBUG_KMS("crt adpa set to 0x%x\n", adpa);
-		crt->force_hotplug_required = 1;
+		crt->force_hotplug_required = true;
 	}
 
 }
@@ -1063,7 +1063,7 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	/*
 	 * Configure the automatic hotplug detection stuff
 	 */
-	crt->force_hotplug_required = 0;
+	crt->force_hotplug_required = false;
 
 	/*
 	 * TODO: find a proper way to discover whether we need to set the the

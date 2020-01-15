@@ -488,17 +488,23 @@ lrc_descriptor(struct intel_context *ce, struct intel_engine_cs *engine)
 	return desc;
 }
 
-static u32 *set_offsets(u32 *regs,
+static inline unsigned int dword_in_page(void *addr)
+{
+	return offset_in_page(addr) / sizeof(u32);
+}
+
+static void set_offsets(u32 *regs,
 			const u8 *data,
-			const struct intel_engine_cs *engine)
+			const struct intel_engine_cs *engine,
+			bool clear)
 #define NOP(x) (BIT(7) | (x))
-#define LRI(count, flags) ((flags) << 6 | (count))
+#define LRI(count, flags) ((flags) << 6 | (count) | BUILD_BUG_ON_ZERO(count >= BIT(6)))
 #define POSTED BIT(0)
 #define REG(x) (((x) >> 2) | BUILD_BUG_ON_ZERO(x >= 0x200))
 #define REG16(x) \
 	(((x) >> 9) | BIT(7) | BUILD_BUG_ON_ZERO(x >= 0x10000)), \
 	(((x) >> 2) & 0x7f)
-#define END() 0
+#define END(x) 0, (x)
 {
 	const u32 base = engine->mmio_base;
 
@@ -506,7 +512,10 @@ static u32 *set_offsets(u32 *regs,
 		u8 count, flags;
 
 		if (*data & BIT(7)) { /* skip */
-			regs += *data++ & ~BIT(7);
+			count = *data++ & ~BIT(7);
+			if (clear)
+				memset32(regs, MI_NOOP, count);
+			regs += count;
 			continue;
 		}
 
@@ -532,12 +541,25 @@ static u32 *set_offsets(u32 *regs,
 				offset |= v & ~BIT(7);
 			} while (v & BIT(7));
 
-			*regs = base + (offset << 2);
+			regs[0] = base + (offset << 2);
+			if (clear)
+				regs[1] = 0;
 			regs += 2;
 		} while (--count);
 	}
 
-	return regs;
+	if (clear) {
+		u8 count = *++data;
+
+		/* Clear past the tail for HW access */
+		GEM_BUG_ON(dword_in_page(regs) > count);
+		memset32(regs, MI_NOOP, count - dword_in_page(regs));
+
+		/* Close the batch; used mainly by live_lrc_layout() */
+		*regs = MI_BATCH_BUFFER_END;
+		if (INTEL_GEN(engine->i915) >= 10)
+			*regs |= BIT(0);
+	}
 }
 
 static const u8 gen8_xcs_offsets[] = {
@@ -572,7 +594,7 @@ static const u8 gen8_xcs_offsets[] = {
 	REG16(0x200),
 	REG(0x028),
 
-	END(),
+	END(80)
 };
 
 static const u8 gen9_xcs_offsets[] = {
@@ -656,7 +678,7 @@ static const u8 gen9_xcs_offsets[] = {
 	REG16(0x67c),
 	REG(0x068),
 
-	END(),
+	END(176)
 };
 
 static const u8 gen12_xcs_offsets[] = {
@@ -688,7 +710,7 @@ static const u8 gen12_xcs_offsets[] = {
 	REG16(0x274),
 	REG16(0x270),
 
-	END(),
+	END(80)
 };
 
 static const u8 gen8_rcs_offsets[] = {
@@ -725,7 +747,91 @@ static const u8 gen8_rcs_offsets[] = {
 	LRI(1, 0),
 	REG(0x0c8),
 
-	END(),
+	END(80)
+};
+
+static const u8 gen9_rcs_offsets[] = {
+	NOP(1),
+	LRI(14, POSTED),
+	REG16(0x244),
+	REG(0x34),
+	REG(0x30),
+	REG(0x38),
+	REG(0x3c),
+	REG(0x168),
+	REG(0x140),
+	REG(0x110),
+	REG(0x11c),
+	REG(0x114),
+	REG(0x118),
+	REG(0x1c0),
+	REG(0x1c4),
+	REG(0x1c8),
+
+	NOP(3),
+	LRI(9, POSTED),
+	REG16(0x3a8),
+	REG16(0x28c),
+	REG16(0x288),
+	REG16(0x284),
+	REG16(0x280),
+	REG16(0x27c),
+	REG16(0x278),
+	REG16(0x274),
+	REG16(0x270),
+
+	NOP(13),
+	LRI(1, 0),
+	REG(0xc8),
+
+	NOP(13),
+	LRI(44, POSTED),
+	REG(0x28),
+	REG(0x9c),
+	REG(0xc0),
+	REG(0x178),
+	REG(0x17c),
+	REG16(0x358),
+	REG(0x170),
+	REG(0x150),
+	REG(0x154),
+	REG(0x158),
+	REG16(0x41c),
+	REG16(0x600),
+	REG16(0x604),
+	REG16(0x608),
+	REG16(0x60c),
+	REG16(0x610),
+	REG16(0x614),
+	REG16(0x618),
+	REG16(0x61c),
+	REG16(0x620),
+	REG16(0x624),
+	REG16(0x628),
+	REG16(0x62c),
+	REG16(0x630),
+	REG16(0x634),
+	REG16(0x638),
+	REG16(0x63c),
+	REG16(0x640),
+	REG16(0x644),
+	REG16(0x648),
+	REG16(0x64c),
+	REG16(0x650),
+	REG16(0x654),
+	REG16(0x658),
+	REG16(0x65c),
+	REG16(0x660),
+	REG16(0x664),
+	REG16(0x668),
+	REG16(0x66c),
+	REG16(0x670),
+	REG16(0x674),
+	REG16(0x678),
+	REG16(0x67c),
+	REG(0x68),
+
+	END(176)
 };
 
 static const u8 gen11_rcs_offsets[] = {
@@ -766,7 +872,7 @@ static const u8 gen11_rcs_offsets[] = {
 	LRI(1, 0),
 	REG(0x0c8),
 
-	END(),
+	END(80)
 };
 
 static const u8 gen12_rcs_offsets[] = {
@@ -807,7 +913,7 @@ static const u8 gen12_rcs_offsets[] = {
 	LRI(1, 0),
 	REG(0x0c8),
 
-	END(),
+	END(80)
 };
 
 #undef END
@@ -832,6 +938,8 @@ static const u8 *reg_offsets(const struct intel_engine_cs *engine)
 			return gen12_rcs_offsets;
 		else if (INTEL_GEN(engine->i915) >= 11)
 			return gen11_rcs_offsets;
+		else if (INTEL_GEN(engine->i915) >= 9)
+			return gen9_rcs_offsets;
 		else
 			return gen8_rcs_offsets;
 	} else {
@@ -1108,7 +1216,7 @@ __execlists_schedule_in(struct i915_request *rq)
 		/* We don't need a strict matching tag, just different values */
 		ce->lrc_desc &= ~GENMASK_ULL(47, 37);
 		ce->lrc_desc |=
-			(u64)(engine->context_tag++ % NUM_CONTEXT_TAG) <<
+			(u64)(++engine->context_tag % NUM_CONTEXT_TAG) <<
 			GEN11_SW_CTX_ID_SHIFT;
 		BUILD_BUG_ON(NUM_CONTEXT_TAG > GEN12_MAX_CONTEXT_HW_ID);
 	}
@@ -1242,10 +1350,6 @@ static u64 execlists_update_context(struct i915_request *rq)
 	 * before its image is complete leading to invalid PD chasing.
 	 */
 	wmb();
-
-	/* Wa_1607138340:tgl */
-	if (IS_TGL_REVID(rq->i915, TGL_REVID_A0, TGL_REVID_A0))
-		desc |= CTX_DESC_FORCE_RESTORE;
 
 	ce->lrc_desc &= ~CTX_DESC_FORCE_RESTORE;
 	return desc;
@@ -1430,8 +1534,8 @@ static bool can_merge_rq(const struct i915_request *prev,
 	if (i915_request_completed(next))
 		return true;
 
-	if (unlikely((prev->flags ^ next->flags) &
-		     (I915_REQUEST_NOPREEMPT | I915_REQUEST_SENTINEL)))
+	if (unlikely((prev->fence.flags ^ next->fence.flags) &
+		     (I915_FENCE_FLAG_NOPREEMPT | I915_FENCE_FLAG_SENTINEL)))
 		return false;
 
 	if (!can_merge_ctx(prev->context, next->context))
@@ -1443,7 +1547,7 @@ static bool can_merge_rq(const struct i915_request *prev,
 static void virtual_update_register_offsets(u32 *regs,
 					    struct intel_engine_cs *engine)
 {
-	set_offsets(regs, reg_offsets(engine), engine);
+	set_offsets(regs, reg_offsets(engine), engine, false);
 }
 
 static bool virtual_matches(const struct virtual_engine *ve,
@@ -1590,7 +1694,7 @@ active_timeslice(const struct intel_engine_cs *engine)
 {
 	const struct i915_request *rq = *engine->execlists.active;
 
-	if (i915_request_completed(rq))
+	if (!rq || i915_request_completed(rq))
 		return 0;
 
 	if (engine->execlists.switch_priority_hint < effective_prio(rq))
@@ -1634,6 +1738,11 @@ static void set_preempt_timeout(struct intel_engine_cs *engine)
 
 	set_timer_ms(&engine->execlists.preempt,
 		     active_preempt_timeout(engine));
+}
+
+static inline void clear_ports(struct i915_request **ports, int count)
+{
+	memset_p((void **)ports, NULL, count);
 }
 
 static void execlists_dequeue(struct intel_engine_cs *engine)
@@ -1996,10 +2105,9 @@ done:
 
 			goto skip_submit;
 		}
+		clear_ports(port + 1, last_port - port);
 
-		memset(port + 1, 0, (last_port - port) * sizeof(*port));
 		execlists_submit_ports(engine);
-
 		set_preempt_timeout(engine);
 	} else {
 skip_submit:
@@ -2014,13 +2122,14 @@ cancel_port_requests(struct intel_engine_execlists * const execlists)
 
 	for (port = execlists->pending; *port; port++)
 		execlists_schedule_out(*port);
-	memset(execlists->pending, 0, sizeof(execlists->pending));
+	clear_ports(execlists->pending, ARRAY_SIZE(execlists->pending));
 
 	/* Mark the end of active before we overwrite *active */
 	for (port = xchg(&execlists->active, execlists->pending); *port; port++)
 		execlists_schedule_out(*port);
-	WRITE_ONCE(execlists->active,
-		   memset(execlists->inflight, 0, sizeof(execlists->inflight)));
+	clear_ports(execlists->inflight, ARRAY_SIZE(execlists->inflight));
+
+	WRITE_ONCE(execlists->active, execlists->inflight);
 }
 
 static inline void
@@ -2176,7 +2285,6 @@ static void process_csb(struct intel_engine_cs *engine)
 
 			/* Point active to the new ELSP; prevent overwriting */
 			WRITE_ONCE(execlists->active, execlists->pending);
-			set_timeslice(engine);
 
 			if (!inject_preempt_hang(execlists))
 				ring_set_paused(engine, 0);
@@ -2217,6 +2325,7 @@ static void process_csb(struct intel_engine_cs *engine)
 	} while (head != tail);
 
 	execlists->csb_head = head;
+	set_timeslice(engine);
 
 	/*
 	 * Gen11 has proven to fail wrt global observation point between
@@ -2399,7 +2508,7 @@ set_redzone(void *vaddr, const struct intel_engine_cs *engine)
 
 	vaddr += engine->context_size;
 
-	memset(vaddr, POISON_INUSE, I915_GTT_PAGE_SIZE);
+	memset(vaddr, CONTEXT_REDZONE, I915_GTT_PAGE_SIZE);
 }
 
 static void
@@ -2410,7 +2519,7 @@ check_redzone(const void *vaddr, const struct intel_engine_cs *engine)
 
 	vaddr += engine->context_size;
 
-	if (memchr_inv(vaddr, POISON_INUSE, I915_GTT_PAGE_SIZE))
+	if (memchr_inv(vaddr, CONTEXT_REDZONE, I915_GTT_PAGE_SIZE))
 		dev_err_once(engine->i915->drm.dev,
 			     "%s context redzone overwritten!\n",
 			     engine->name);
@@ -2453,33 +2562,21 @@ __execlists_context_pin(struct intel_context *ce,
 			struct intel_engine_cs *engine)
 {
 	void *vaddr;
-	int ret;
 
 	GEM_BUG_ON(!ce->state);
-
-	ret = intel_context_active_acquire(ce);
-	if (ret)
-		goto err;
 	GEM_BUG_ON(!i915_vma_is_pinned(ce->state));
 
 	vaddr = i915_gem_object_pin_map(ce->state->obj,
 					i915_coherent_map_type(engine->i915) |
 					I915_MAP_OVERRIDE);
-	if (IS_ERR(vaddr)) {
-		ret = PTR_ERR(vaddr);
-		goto unpin_active;
-	}
+	if (IS_ERR(vaddr))
+		return PTR_ERR(vaddr);
 
-	ce->lrc_desc = lrc_descriptor(ce, engine);
+	ce->lrc_desc = lrc_descriptor(ce, engine) | CTX_DESC_FORCE_RESTORE;
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 	__execlists_update_reg_state(ce, engine);
 
 	return 0;
-
-unpin_active:
-	intel_context_active_release(ce);
-err:
-	return ret;
 }
 
 static int execlists_context_pin(struct intel_context *ce)
@@ -2494,6 +2591,9 @@ static int execlists_context_alloc(struct intel_context *ce)
 
 static void execlists_context_reset(struct intel_context *ce)
 {
+	CE_TRACE(ce, "reset\n");
+	GEM_BUG_ON(!intel_context_is_pinned(ce));
+
 	/*
 	 * Because we emit WA_TAIL_DWORDS there may be a disparity
 	 * between our bookkeeping in ce->ring->head and ce->ring->tail and
@@ -2510,8 +2610,14 @@ static void execlists_context_reset(struct intel_context *ce)
 	 * So to avoid that we reset the context images upon resume. For
 	 * simplicity, we just zero everything out.
 	 */
-	intel_ring_reset(ce->ring, 0);
+	intel_ring_reset(ce->ring, ce->ring->emit);
+
+	/* Scrub away the garbage */
+	execlists_init_reg_state(ce->lrc_reg_state,
+				 ce, ce->engine, ce->ring, true);
 	__execlists_update_reg_state(ce, ce->engine);
+
+	ce->lrc_desc |= CTX_DESC_FORCE_RESTORE;
 }
 
 static const struct intel_context_ops execlists_context_ops = {
@@ -2925,6 +3031,8 @@ static void enable_execlists(struct intel_engine_cs *engine)
 			RING_HWS_PGA,
 			i915_ggtt_offset(engine->status_page.vma));
 	ENGINE_POSTING_READ(engine, RING_HWS_PGA);
+
+	engine->context_tag = 0;
 }
 
 static bool unexpected_starting_state(struct intel_engine_cs *engine)
@@ -3030,10 +3138,8 @@ static void reset_csb_pointers(struct intel_engine_cs *engine)
 			       &execlists->csb_status[reset_value]);
 }
 
-static void __execlists_reset_reg_state(const struct intel_context *ce,
-					const struct intel_engine_cs *engine)
+static void __reset_stop_ring(u32 *regs, const struct intel_engine_cs *engine)
 {
-	u32 *regs = ce->lrc_reg_state;
 	int x;
 
 	x = lrc_ring_mi_mode(engine);
@@ -3041,6 +3147,14 @@ static void __execlists_reset_reg_state(const struct intel_context *ce,
 		regs[x + 1] &= ~STOP_RING;
 		regs[x + 1] |= STOP_RING << 16;
 	}
+}
+
+static void __execlists_reset_reg_state(const struct intel_context *ce,
+					const struct intel_engine_cs *engine)
+{
+	u32 *regs = ce->lrc_reg_state;
+
+	__reset_stop_ring(regs, engine);
 }
 
 static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
@@ -3795,7 +3909,6 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 {
 	/* Default vfuncs which can be overriden by each engine. */
 
-	engine->release = execlists_release;
 	engine->resume = execlists_resume;
 
 	engine->cops = &execlists_context_ops;
@@ -3910,6 +4023,9 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 
 	reset_csb_pointers(engine);
 
+	/* Finally, take ownership and responsibility for cleanup! */
+	engine->release = execlists_release;
+
 	return 0;
 }
 
@@ -3949,18 +4065,21 @@ static u32 intel_lr_indirect_ctx_offset(const struct intel_engine_cs *engine)
 
 static void init_common_reg_state(u32 * const regs,
 				  const struct intel_engine_cs *engine,
-				  const struct intel_ring *ring)
+				  const struct intel_ring *ring,
+				  bool inhibit)
 {
-	regs[CTX_CONTEXT_CONTROL] =
-		_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT) |
-		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH);
+	u32 ctl;
+
+	ctl = _MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH);
+	ctl |= _MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
+	if (inhibit)
+		ctl |= CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT;
 	if (INTEL_GEN(engine->i915) < 11)
-		regs[CTX_CONTEXT_CONTROL] |=
-			_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT |
-					    CTX_CTRL_RS_CTX_ENABLE);
+		ctl |= _MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT |
+					   CTX_CTRL_RS_CTX_ENABLE);
+	regs[CTX_CONTEXT_CONTROL] = ctl;
 
 	regs[CTX_RING_CTL] = RING_CTL_SIZE(ring->size) | RING_VALID;
-	regs[CTX_BB_STATE] = RING_BB_PPGTT;
 }
 
 static void init_wa_bb_reg_state(u32 * const regs,
@@ -4016,7 +4135,7 @@ static void execlists_init_reg_state(u32 *regs,
 				     const struct intel_context *ce,
 				     const struct intel_engine_cs *engine,
 				     const struct intel_ring *ring,
-				     bool close)
+				     bool inhibit)
 {
 	/*
 	 * A context is actually a big batch buffer with several
@@ -4028,21 +4147,17 @@ static void execlists_init_reg_state(u32 *regs,
 	 *
 	 * Must keep consistent with virtual_update_register_offsets().
 	 */
-	u32 *bbe = set_offsets(regs, reg_offsets(engine), engine);
+	set_offsets(regs, reg_offsets(engine), engine, inhibit);
 
-	if (close) { /* Close the batch; used mainly by live_lrc_layout() */
-		*bbe = MI_BATCH_BUFFER_END;
-		if (INTEL_GEN(engine->i915) >= 10)
-			*bbe |= BIT(0);
-	}
-
-	init_common_reg_state(regs, engine, ring);
+	init_common_reg_state(regs, engine, ring, inhibit);
 	init_ppgtt_reg_state(regs, vm_alias(ce->vm));
 
 	init_wa_bb_reg_state(regs, engine,
 			     INTEL_GEN(engine->i915) >= 12 ?
 			     GEN12_CTX_BB_PER_CTX_PTR :
 			     CTX_BB_PER_CTX_PTR);
+
+	__reset_stop_ring(regs, engine);
 }
 
 static int
@@ -4053,7 +4168,6 @@ populate_lr_context(struct intel_context *ce,
 {
 	bool inhibit = true;
 	void *vaddr;
-	u32 *regs;
 	int ret;
 
 	vaddr = i915_gem_object_pin_map(ctx_obj, I915_MAP_WB);
@@ -4083,11 +4197,8 @@ populate_lr_context(struct intel_context *ce,
 
 	/* The second page of the context object contains some fields which must
 	 * be set up prior to the first execution. */
-	regs = vaddr + LRC_STATE_PN * PAGE_SIZE;
-	execlists_init_reg_state(regs, ce, engine, ring, inhibit);
-	if (inhibit)
-		regs[CTX_CONTEXT_CONTROL] |=
-			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
+	execlists_init_reg_state(vaddr + LRC_STATE_PN * PAGE_SIZE,
+				 ce, engine, ring, inhibit);
 
 	ret = 0;
 err_unpin_ctx:
@@ -4481,9 +4592,11 @@ intel_execlists_create_virtual(struct intel_engine_cs **siblings,
 	ve->base.gt = siblings[0]->gt;
 	ve->base.uncore = siblings[0]->uncore;
 	ve->base.id = -1;
+
 	ve->base.class = OTHER_CLASS;
 	ve->base.uabi_class = I915_ENGINE_CLASS_INVALID;
 	ve->base.instance = I915_ENGINE_CLASS_INVALID_VIRTUAL;
+	ve->base.uabi_instance = I915_ENGINE_CLASS_INVALID_VIRTUAL;
 
 	/*
 	 * The decision on whether to submit a request using semaphores

@@ -17,6 +17,8 @@
 #include "intel_engine_types.h"
 #include "intel_sseu.h"
 
+#define CONTEXT_REDZONE POISON_INUSE
+
 struct i915_gem_context;
 struct i915_vma;
 struct intel_context;

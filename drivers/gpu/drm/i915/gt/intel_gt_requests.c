@@ -14,13 +14,16 @@
 #include "intel_gt_requests.h"
 #include "intel_timeline.h"
 
-static void retire_requests(struct intel_timeline *tl)
+static bool retire_requests(struct intel_timeline *tl)
 {
 	struct i915_request *rq, *rn;
 
 	list_for_each_entry_safe(rq, rn, &tl->requests, link)
 		if (!i915_request_retire(rq))
-			break;
+			return false;
+
+	/* And check nothing new was submitted */
+	return !i915_active_fence_isset(&tl->last_request);
 }
 
 static bool flush_submission(struct intel_gt *gt)
@@ -29,9 +32,13 @@ static bool flush_submission(struct intel_gt *gt)
 	enum intel_engine_id id;
 	bool active = false;
 
+	if (!intel_gt_pm_is_awake(gt))
+		return false;
+
 	for_each_engine(engine, gt, id) {
-		active |= intel_engine_flush_submission(engine);
+		intel_engine_flush_submission(engine);
 		active |= flush_work(&engine->retire_work);
+		active |= flush_work(&engine->wakeref.work);
 	}
 
 	return active;
@@ -120,7 +127,6 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 		timeout = -timeout, interruptible = false;
 
 	flush_submission(gt); /* kick the ksoftirqd tasklets */
-
 	spin_lock(&timelines->lock);
 	list_for_each_entry_safe(tl, tn, &timelines->active_list, link) {
 		if (!mutex_trylock(&tl->mutex)) {
@@ -145,7 +151,8 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 			}
 		}
 
-		retire_requests(tl);
+		if (!retire_requests(tl) || flush_submission(gt))
+			active_count++;
 
 		spin_lock(&timelines->lock);
 
@@ -153,8 +160,6 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 		list_safe_reset_next(tl, tn, link);
 		if (atomic_dec_and_test(&tl->active_count))
 			list_del(&tl->link);
-		else
-			active_count += i915_active_fence_isset(&tl->last_request);
 
 		mutex_unlock(&tl->mutex);
 
@@ -168,9 +173,6 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 
 	list_for_each_entry_safe(tl, tn, &free, link)
 		__intel_timeline_free(&tl->kref);
-
-	if (flush_submission(gt))
-		active_count++;
 
 	return active_count ? timeout : 0;
 }

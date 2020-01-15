@@ -943,7 +943,7 @@ static void intel_dsc_dsi_pps_write(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *crtc_state)
 {
 	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	struct mipi_dsi_device *dsi;
 	struct drm_dsc_picture_parameter_set pps;
 	enum port port;
@@ -961,7 +961,7 @@ static void intel_dsc_dsi_pps_write(struct intel_encoder *encoder,
 static void intel_dsc_dp_pps_write(struct intel_encoder *encoder,
 				   const struct intel_crtc_state *crtc_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	struct drm_dsc_pps_infoframe dp_dsc_pps_sdp;

@@ -527,13 +527,19 @@ static struct i915_request *nop_request(struct intel_engine_cs *engine)
 	return rq;
 }
 
-static void wait_for_submit(struct intel_engine_cs *engine,
-			    struct i915_request *rq)
+static int wait_for_submit(struct intel_engine_cs *engine,
+			   struct i915_request *rq,
+			   unsigned long timeout)
 {
+	timeout += jiffies;
 	do {
 		cond_resched();
 		intel_engine_flush_submission(engine);
-	} while (!i915_request_is_active(rq));
+		if (i915_request_is_active(rq))
+			return 0;
+	} while (time_before(jiffies, timeout));
+
+	return -ETIME;
 }
 
 static long timeslice_threshold(const struct intel_engine_cs *engine)
@@ -601,7 +607,12 @@ static int live_timeslice_queue(void *arg)
 			goto err_heartbeat;
 		}
 		engine->schedule(rq, &attr);
-		wait_for_submit(engine, rq);
+		err = wait_for_submit(engine, rq, HZ / 2);
+		if (err) {
+			pr_err("%s: Timed out trying to submit semaphores\n",
+			       engine->name);
+			goto err_rq;
+		}
 
 		/* ELSP[1]: nop request */
 		nop = nop_request(engine);
@@ -609,8 +620,13 @@ static int live_timeslice_queue(void *arg)
 			err = PTR_ERR(nop);
 			goto err_rq;
 		}
-		wait_for_submit(engine, nop);
+		err = wait_for_submit(engine, nop, HZ / 2);
 		i915_request_put(nop);
+		if (err) {
+			pr_err("%s: Timed out trying to submit nop\n",
+			       engine->name);
+			goto err_rq;
+		}
 
 		GEM_BUG_ON(i915_request_completed(rq));
 		GEM_BUG_ON(execlists_active(&engine->execlists) != rq);
@@ -1137,7 +1153,7 @@ static int live_nopreempt(void *arg)
 		}
 
 		/* Low priority client, but unpreemptable! */
-		rq_a->flags |= I915_REQUEST_NOPREEMPT;
+		__set_bit(I915_FENCE_FLAG_NOPREEMPT, &rq_a->fence.flags);
 
 		i915_request_add(rq_a);
 		if (!igt_wait_for_spinner(&a.spin, rq_a)) {
@@ -3362,7 +3378,7 @@ static int live_lrc_layout(void *arg)
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	u32 *mem;
+	u32 *lrc;
 	int err;
 
 	/*
@@ -3370,13 +3386,13 @@ static int live_lrc_layout(void *arg)
 	 * match the layout saved by HW.
 	 */
 
-	mem = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!mem)
+	lrc = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!lrc)
 		return -ENOMEM;
 
 	err = 0;
 	for_each_engine(engine, gt, id) {
-		u32 *hw, *lrc;
+		u32 *hw;
 		int dw;
 
 		if (!engine->default_state)
@@ -3390,8 +3406,7 @@ static int live_lrc_layout(void *arg)
 		}
 		hw += LRC_STATE_PN * PAGE_SIZE / sizeof(*hw);
 
-		lrc = memset(mem, 0, PAGE_SIZE);
-		execlists_init_reg_state(lrc,
+		execlists_init_reg_state(memset(lrc, POISON_INUSE, PAGE_SIZE),
 					 engine->kernel_context,
 					 engine,
 					 engine->kernel_context->ring,
@@ -3402,6 +3417,13 @@ static int live_lrc_layout(void *arg)
 			u32 lri = hw[dw];
 
 			if (lri == 0) {
+				dw++;
+				continue;
+			}
+
+			if (lrc[dw] == 0) {
+				pr_debug("%s: skipped instruction %x at dword %d\n",
+					 engine->name, lri, dw);
 				dw++;
 				continue;
 			}
@@ -3454,7 +3476,7 @@ static int live_lrc_layout(void *arg)
 			break;
 	}
 
-	kfree(mem);
+	kfree(lrc);
 	return err;
 }
 

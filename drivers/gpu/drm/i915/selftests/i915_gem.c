@@ -124,8 +124,6 @@ static void pm_resume(struct drm_i915_private *i915)
 	 * that runtime-pm just works.
 	 */
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		intel_gt_sanitize(&i915->gt, false);
-
 		i915_gem_restore_gtt_mappings(i915);
 		i915_gem_restore_fences(&i915->ggtt);
 

@@ -46,6 +46,7 @@
 #include <linux/dma-resv.h>
 #include <linux/shmem_fs.h>
 #include <linux/stackdepot.h>
+#include <linux/xarray.h>
 
 #include <drm/intel-gtt.h>
 #include <drm/drm_legacy.h> /* for struct drm_dma_handle */
@@ -110,8 +111,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20191223"
-#define DRIVER_TIMESTAMP	1577120893
+#define DRIVER_DATE		"20200114"
+#define DRIVER_TIMESTAMP	1579001978
 
 struct drm_i915_gem_object;
 
@@ -201,8 +202,7 @@ struct drm_i915_file_private {
 		struct list_head request_list;
 	} mm;
 
-	struct idr context_idr;
-	struct mutex context_idr_lock; /* guards context_idr */
+	struct xarray context_xa;
 
 	struct idr vm_idr;
 	struct mutex vm_idr_lock; /* guards vm_idr */
@@ -505,6 +505,7 @@ struct i915_psr {
 	bool dc3co_enabled;
 	u32 dc3co_exit_delay;
 	struct delayed_work idle_work;
+	bool initially_probed;
 };
 
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
@@ -1252,6 +1253,16 @@ struct drm_i915_private {
 			struct llist_head free_list;
 			struct work_struct free_work;
 		} contexts;
+
+		/*
+		 * We replace the local file with a global mappings as the
+		 * backing storage for the mmap is on the device and not
+		 * on the struct file, and we do not want to prolong the
+		 * lifetime of the local fd. To minimise the number of
+		 * anonymous inodes we create, we use a global singleton to
+		 * share the global mapping.
+		 */
+		struct file *mmap_singleton;
 	} gem;
 
 	u8 pch_ssc_use;
@@ -1657,8 +1668,10 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	(IS_BROADWELL(dev_priv) || IS_GEN(dev_priv, 9))
 
 /* WaRsDisableCoarsePowerGating:skl,cnl */
-#define NEEDS_WaRsDisableCoarsePowerGating(dev_priv) \
-	IS_GEN_RANGE(dev_priv, 9, 10)
+#define NEEDS_WaRsDisableCoarsePowerGating(dev_priv)			\
+	(IS_CANNONLAKE(dev_priv) ||					\
+	 IS_SKL_GT3(dev_priv) ||					\
+	 IS_SKL_GT4(dev_priv))
 
 #define HAS_GMBUS_IRQ(dev_priv) (INTEL_GEN(dev_priv) >= 4)
 #define HAS_GMBUS_BURST_READ(dev_priv) (INTEL_GEN(dev_priv) >= 10 || \
@@ -1861,7 +1874,7 @@ static inline u32 i915_reset_count(struct i915_gpu_error *error)
 }
 
 static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
-					  struct intel_engine_cs *engine)
+					  const struct intel_engine_cs *engine)
 {
 	return atomic_read(&error->reset_engine_count[engine->uabi_class]);
 }
@@ -1889,7 +1902,7 @@ struct dma_buf *i915_gem_prime_export(struct drm_gem_object *gem_obj, int flags)
 static inline struct i915_gem_context *
 __i915_gem_context_lookup_rcu(struct drm_i915_file_private *file_priv, u32 id)
 {
-	return idr_find(&file_priv->context_idr, id);
+	return xa_load(&file_priv->context_xa, id);
 }
 
 static inline struct i915_gem_context *
@@ -2015,6 +2028,9 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,
 		     struct io_mapping *iomap);
+int remap_io_sg(struct vm_area_struct *vma,
+		unsigned long addr, unsigned long size,
+		struct scatterlist *sgl, resource_size_t iobase);
 
 static inline int intel_hws_csb_write_index(struct drm_i915_private *i915)
 {

@@ -2244,26 +2244,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 				    MG_DP_MODE_LN1_ACU_PORT1)
 #define   MG_DP_MODE_CFG_DP_X2_MODE			(1 << 7)
 #define   MG_DP_MODE_CFG_DP_X1_MODE			(1 << 6)
-#define   MG_DP_MODE_CFG_TR2PWR_GATING			(1 << 5)
-#define   MG_DP_MODE_CFG_TRPWR_GATING			(1 << 4)
-#define   MG_DP_MODE_CFG_CLNPWR_GATING			(1 << 3)
-#define   MG_DP_MODE_CFG_DIGPWR_GATING			(1 << 2)
-#define   MG_DP_MODE_CFG_GAONPWR_GATING			(1 << 1)
-
-#define MG_MISC_SUS0_PORT1				0x168814
-#define MG_MISC_SUS0_PORT2				0x169814
-#define MG_MISC_SUS0_PORT3				0x16A814
-#define MG_MISC_SUS0_PORT4				0x16B814
-#define MG_MISC_SUS0(tc_port) \
-	_MMIO(_PORT(tc_port, MG_MISC_SUS0_PORT1, MG_MISC_SUS0_PORT2))
-#define   MG_MISC_SUS0_SUSCLK_DYNCLKGATE_MODE_MASK	(3 << 14)
-#define   MG_MISC_SUS0_SUSCLK_DYNCLKGATE_MODE(x)	((x) << 14)
-#define   MG_MISC_SUS0_CFG_TR2PWR_GATING		(1 << 12)
-#define   MG_MISC_SUS0_CFG_CL2PWR_GATING		(1 << 11)
-#define   MG_MISC_SUS0_CFG_GAONPWR_GATING		(1 << 10)
-#define   MG_MISC_SUS0_CFG_TRPWR_GATING			(1 << 7)
-#define   MG_MISC_SUS0_CFG_CL1PWR_GATING		(1 << 6)
-#define   MG_MISC_SUS0_CFG_DGPWR_GATING			(1 << 5)
 
 /* The spec defines this only for BXT PHY0, but lets assume that this
  * would exist for PHY1 too if it had a second channel.
@@ -4177,7 +4157,13 @@ enum {
 #define  CPSSUNIT_CLKGATE_DIS		REG_BIT(9)
 
 #define UNSLICE_UNIT_LEVEL_CLKGATE	_MMIO(0x9434)
-#define  VFUNIT_CLKGATE_DIS		(1 << 20)
+#define   VFUNIT_CLKGATE_DIS		REG_BIT(20)
+#define   HSUNIT_CLKGATE_DIS		REG_BIT(8)
+#define   VSUNIT_CLKGATE_DIS		REG_BIT(3)
+
+#define UNSLICE_UNIT_LEVEL_CLKGATE2	_MMIO(0x94e4)
+#define   VSUNIT_CLKGATE_DIS_TGL	REG_BIT(19)
+#define   PSDUNIT_CLKGATE_DIS		REG_BIT(5)
 
 #define INF_UNIT_LEVEL_CLKGATE		_MMIO(0x9560)
 #define   CGPSF_CLKGATE_DIS		(1 << 3)
@@ -6808,6 +6794,7 @@ enum {
 #define   PLANE_CTL_TILED_Y			(4 << 10)
 #define   PLANE_CTL_TILED_YF			(5 << 10)
 #define   PLANE_CTL_FLIP_HORIZONTAL		(1 << 8)
+#define   PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE	(1 << 4) /* TGL+ */
 #define   PLANE_CTL_ALPHA_MASK			(0x3 << 4) /* Pre-GLK */
 #define   PLANE_CTL_ALPHA_DISABLE		(0 << 4)
 #define   PLANE_CTL_ALPHA_SW_PREMULTIPLY	(2 << 4)

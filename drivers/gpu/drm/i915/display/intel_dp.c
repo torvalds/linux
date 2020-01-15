@@ -146,9 +146,9 @@ bool intel_dp_is_edp(struct intel_dp *intel_dp)
 	return intel_dig_port->base.type == INTEL_OUTPUT_EDP;
 }
 
-static struct intel_dp *intel_attached_dp(struct drm_connector *connector)
+static struct intel_dp *intel_attached_dp(struct intel_connector *connector)
 {
-	return enc_to_intel_dp(&intel_attached_encoder(connector)->base);
+	return enc_to_intel_dp(intel_attached_encoder(connector));
 }
 
 static void intel_dp_link_down(struct intel_encoder *encoder,
@@ -614,7 +614,7 @@ static enum drm_mode_status
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_dp *intel_dp = intel_attached_dp(to_intel_connector(connector));
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
@@ -834,7 +834,7 @@ static enum pipe vlv_find_free_pps(struct drm_i915_private *dev_priv)
 	 * Pick one that's not used by other ports.
 	 */
 	for_each_intel_dp(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		if (encoder->type == INTEL_OUTPUT_EDP) {
 			WARN_ON(intel_dp->active_pipe != INVALID_PIPE &&
@@ -1031,7 +1031,7 @@ void intel_power_sequencer_reset(struct drm_i915_private *dev_priv)
 	 */
 
 	for_each_intel_dp(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		WARN_ON(intel_dp->active_pipe != INVALID_PIPE);
 
@@ -2034,7 +2034,7 @@ static int intel_dp_dsc_compute_bpp(struct intel_dp *intel_dp, u8 dsc_max_bpc)
 static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 				       struct intel_crtc_state *crtc_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	u8 line_buf_depth;
 	int ret;
@@ -2205,7 +2205,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 			     struct drm_connector_state *conn_state)
 {
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct link_config_limits limits;
 	int common_len;
 	int ret;
@@ -2366,8 +2366,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	struct intel_lspcon *lspcon = enc_to_intel_lspcon(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_lspcon *lspcon = enc_to_intel_lspcon(encoder);
 	enum port port = encoder->port;
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
@@ -2482,7 +2482,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum port port = encoder->port;
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
@@ -2509,7 +2509,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 	 *
 	 * CPT PCH is quite different, having many bits moved
 	 * to the TRANS_DP_CTL register instead. That
-	 * configuration happens (oddly) in ironlake_pch_enable
+	 * configuration happens (oddly) in ilk_pch_enable
 	 */
 
 	/* Preserve the BIOS-computed detected bit. This is
@@ -2653,7 +2653,7 @@ static void edp_wait_backlight_off(struct intel_dp *intel_dp)
  * is locked
  */
 
-static  u32 ironlake_get_pp_control(struct intel_dp *intel_dp)
+static  u32 ilk_get_pp_control(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 control;
@@ -2703,7 +2703,7 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 	if (!edp_have_panel_power(intel_dp))
 		wait_panel_power_cycle(intel_dp);
 
-	pp = ironlake_get_pp_control(intel_dp);
+	pp = ilk_get_pp_control(intel_dp);
 	pp |= EDP_FORCE_VDD;
 
 	pp_stat_reg = _pp_stat_reg(intel_dp);
@@ -2768,7 +2768,7 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 		      intel_dig_port->base.base.base.id,
 		      intel_dig_port->base.base.name);
 
-	pp = ironlake_get_pp_control(intel_dp);
+	pp = ilk_get_pp_control(intel_dp);
 	pp &= ~EDP_FORCE_VDD;
 
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
@@ -2864,7 +2864,7 @@ static void edp_panel_on(struct intel_dp *intel_dp)
 	wait_panel_power_cycle(intel_dp);
 
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
-	pp = ironlake_get_pp_control(intel_dp);
+	pp = ilk_get_pp_control(intel_dp);
 	if (IS_GEN(dev_priv, 5)) {
 		/* ILK workaround: disable reset around power sequence */
 		pp &= ~PANEL_POWER_RESET;
@@ -2919,7 +2919,7 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 	WARN(!intel_dp->want_panel_vdd, "Need [ENCODER:%d:%s] VDD to turn off panel\n",
 	     dig_port->base.base.base.id, dig_port->base.base.name);
 
-	pp = ironlake_get_pp_control(intel_dp);
+	pp = ilk_get_pp_control(intel_dp);
 	/* We need to switch off panel power _and_ force vdd, for otherwise some
 	 * panels get very unhappy and cease to work. */
 	pp &= ~(PANEL_POWER_ON | PANEL_POWER_RESET | EDP_FORCE_VDD |
@@ -2968,7 +2968,7 @@ static void _intel_edp_backlight_on(struct intel_dp *intel_dp)
 		i915_reg_t pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 		u32 pp;
 
-		pp = ironlake_get_pp_control(intel_dp);
+		pp = ilk_get_pp_control(intel_dp);
 		pp |= EDP_BLC_ENABLE;
 
 		I915_WRITE(pp_ctrl_reg, pp);
@@ -2980,7 +2980,7 @@ static void _intel_edp_backlight_on(struct intel_dp *intel_dp)
 void intel_edp_backlight_on(const struct intel_crtc_state *crtc_state,
 			    const struct drm_connector_state *conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(conn_state->best_encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(conn_state->best_encoder));
 
 	if (!intel_dp_is_edp(intel_dp))
 		return;
@@ -3004,7 +3004,7 @@ static void _intel_edp_backlight_off(struct intel_dp *intel_dp)
 		i915_reg_t pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 		u32 pp;
 
-		pp = ironlake_get_pp_control(intel_dp);
+		pp = ilk_get_pp_control(intel_dp);
 		pp &= ~EDP_BLC_ENABLE;
 
 		I915_WRITE(pp_ctrl_reg, pp);
@@ -3018,7 +3018,7 @@ static void _intel_edp_backlight_off(struct intel_dp *intel_dp)
 /* Disable backlight PP control and backlight PWM. */
 void intel_edp_backlight_off(const struct drm_connector_state *old_conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(old_conn_state->best_encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(old_conn_state->best_encoder));
 
 	if (!intel_dp_is_edp(intel_dp))
 		return;
@@ -3036,13 +3036,13 @@ void intel_edp_backlight_off(const struct drm_connector_state *old_conn_state)
 static void intel_edp_backlight_power(struct intel_connector *connector,
 				      bool enable)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(&connector->base);
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	intel_wakeref_t wakeref;
 	bool is_enabled;
 
 	is_enabled = false;
 	with_pps_lock(intel_dp, wakeref)
-		is_enabled = ironlake_get_pp_control(intel_dp) & EDP_BLC_ENABLE;
+		is_enabled = ilk_get_pp_control(intel_dp) & EDP_BLC_ENABLE;
 	if (is_enabled == enable)
 		return;
 
@@ -3079,13 +3079,13 @@ static void assert_edp_pll(struct drm_i915_private *dev_priv, bool state)
 #define assert_edp_pll_enabled(d) assert_edp_pll((d), true)
 #define assert_edp_pll_disabled(d) assert_edp_pll((d), false)
 
-static void ironlake_edp_pll_on(struct intel_dp *intel_dp,
-				const struct intel_crtc_state *pipe_config)
+static void ilk_edp_pll_on(struct intel_dp *intel_dp,
+			   const struct intel_crtc_state *pipe_config)
 {
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	assert_pipe_disabled(dev_priv, crtc->pipe);
+	assert_pipe_disabled(dev_priv, pipe_config->cpu_transcoder);
 	assert_dp_port_disabled(intel_dp);
 	assert_edp_pll_disabled(dev_priv);
 
@@ -3119,13 +3119,13 @@ static void ironlake_edp_pll_on(struct intel_dp *intel_dp,
 	udelay(200);
 }
 
-static void ironlake_edp_pll_off(struct intel_dp *intel_dp,
-				 const struct intel_crtc_state *old_crtc_state)
+static void ilk_edp_pll_off(struct intel_dp *intel_dp,
+			    const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	assert_pipe_disabled(dev_priv, crtc->pipe);
+	assert_pipe_disabled(dev_priv, old_crtc_state->cpu_transcoder);
 	assert_dp_port_disabled(intel_dp);
 	assert_edp_pll_enabled(dev_priv);
 
@@ -3258,7 +3258,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 				  enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	intel_wakeref_t wakeref;
 	bool ret;
 
@@ -3279,7 +3279,7 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 				struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u32 tmp, flags = 0;
 	enum port port = encoder->port;
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
@@ -3363,7 +3363,7 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *old_crtc_state,
 			     const struct drm_connector_state *old_conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 	intel_dp->link_trained = false;
 
@@ -3397,7 +3397,7 @@ static void g4x_post_disable_dp(struct intel_encoder *encoder,
 				const struct intel_crtc_state *old_crtc_state,
 				const struct drm_connector_state *old_conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum port port = encoder->port;
 
 	/*
@@ -3410,7 +3410,7 @@ static void g4x_post_disable_dp(struct intel_encoder *encoder,
 
 	/* Only ilk+ has port A */
 	if (port == PORT_A)
-		ironlake_edp_pll_off(intel_dp, old_crtc_state);
+		ilk_edp_pll_off(intel_dp, old_crtc_state);
 }
 
 static void vlv_post_disable_dp(struct intel_encoder *encoder,
@@ -3548,7 +3548,7 @@ static void intel_enable_dp(struct intel_encoder *encoder,
 			    const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	u32 dp_reg = I915_READ(intel_dp->output_reg);
 	enum pipe pipe = crtc->pipe;
@@ -3608,14 +3608,14 @@ static void g4x_pre_enable_dp(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config,
 			      const struct drm_connector_state *conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum port port = encoder->port;
 
 	intel_dp_prepare(encoder, pipe_config);
 
 	/* Only ilk+ has port A */
 	if (port == PORT_A)
-		ironlake_edp_pll_on(intel_dp, pipe_config);
+		ilk_edp_pll_on(intel_dp, pipe_config);
 }
 
 static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
@@ -3658,7 +3658,7 @@ static void vlv_steal_power_sequencer(struct drm_i915_private *dev_priv,
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
 	for_each_intel_dp(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		WARN(intel_dp->active_pipe == pipe,
 		     "stealing pipe %c power sequencer from active [ENCODER:%d:%s]\n",
@@ -3681,7 +3681,7 @@ static void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 					   const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
@@ -4203,7 +4203,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		   const struct intel_crtc_state *old_crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	enum port port = encoder->port;
 	u32 DP = intel_dp->DP;
@@ -4903,7 +4903,7 @@ static u8 intel_dp_autotest_video_pattern(struct intel_dp *intel_dp)
 	intel_dp->compliance.test_data.hdisplay = be16_to_cpu(h_width);
 	intel_dp->compliance.test_data.vdisplay = be16_to_cpu(v_height);
 	/* Set test active flag here so userspace doesn't interrupt things */
-	intel_dp->compliance.test_active = 1;
+	intel_dp->compliance.test_active = true;
 
 	return DP_TEST_ACK;
 }
@@ -4947,7 +4947,7 @@ static u8 intel_dp_autotest_edid(struct intel_dp *intel_dp)
 	}
 
 	/* Set test active flag here so userspace doesn't interrupt things */
-	intel_dp->compliance.test_active = 1;
+	intel_dp->compliance.test_active = true;
 
 	return test_result;
 }
@@ -5096,7 +5096,7 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 			  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_connector_state *conn_state;
 	struct intel_crtc_state *crtc_state;
@@ -5536,7 +5536,7 @@ static bool intel_combo_phy_connected(struct drm_i915_private *dev_priv,
 static bool icp_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
 	if (intel_phy_is_combo(dev_priv, phy))
@@ -5651,7 +5651,7 @@ intel_dp_detect(struct drm_connector *connector,
 		bool force)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_dp *intel_dp = intel_attached_dp(to_intel_connector(connector));
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
 	enum drm_connector_status status;
@@ -5755,7 +5755,7 @@ out:
 static void
 intel_dp_force(struct drm_connector *connector)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_dp *intel_dp = intel_attached_dp(to_intel_connector(connector));
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *intel_encoder = &dig_port->base;
 	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
@@ -5790,7 +5790,7 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 	}
 
 	/* if eDP has no EDID, fall back to fixed mode */
-	if (intel_dp_is_edp(intel_attached_dp(connector)) &&
+	if (intel_dp_is_edp(intel_attached_dp(to_intel_connector(connector))) &&
 	    intel_connector->panel.fixed_mode) {
 		struct drm_display_mode *mode;
 
@@ -5808,7 +5808,7 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 static int
 intel_dp_connector_register(struct drm_connector *connector)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_dp *intel_dp = intel_attached_dp(to_intel_connector(connector));
 	int ret;
 
 	ret = intel_connector_register(connector);
@@ -5830,7 +5830,7 @@ intel_dp_connector_register(struct drm_connector *connector)
 static void
 intel_dp_connector_unregister(struct drm_connector *connector)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_dp *intel_dp = intel_attached_dp(to_intel_connector(connector));
 
 	drm_dp_cec_unregister_connector(&intel_dp->aux);
 	drm_dp_aux_unregister(&intel_dp->aux);
@@ -5839,7 +5839,7 @@ intel_dp_connector_unregister(struct drm_connector *connector)
 
 void intel_dp_encoder_flush_work(struct drm_encoder *encoder)
 {
-	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(to_intel_encoder(encoder));
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 
 	intel_dp_mst_encoder_cleanup(intel_dig_port);
@@ -5868,12 +5868,12 @@ static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	intel_dp_encoder_flush_work(encoder);
 
 	drm_encoder_cleanup(encoder);
-	kfree(enc_to_dig_port(encoder));
+	kfree(enc_to_dig_port(to_intel_encoder(encoder)));
 }
 
 void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(intel_encoder);
 	intel_wakeref_t wakeref;
 
 	if (!intel_dp_is_edp(intel_dp))
@@ -5904,7 +5904,7 @@ static
 int intel_dp_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 				u8 *an)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_dig_port->base.base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(&intel_dig_port->base.base));
 	static const struct drm_dp_aux_msg msg = {
 		.request = DP_AUX_NATIVE_WRITE,
 		.address = DP_AUX_HDCP_AKSV,
@@ -6514,7 +6514,7 @@ static enum pipe vlv_active_pipe(struct intel_dp *intel_dp)
 void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(encoder));
 	struct intel_lspcon *lspcon = dp_to_lspcon(intel_dp);
 	intel_wakeref_t wakeref;
 
@@ -6693,7 +6693,7 @@ intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct edp_power_seq *seq)
 
 	intel_pps_get_registers(intel_dp, &regs);
 
-	pp_ctl = ironlake_get_pp_control(intel_dp);
+	pp_ctl = ilk_get_pp_control(intel_dp);
 
 	/* Ensure PPS is unlocked */
 	if (!HAS_DDI(dev_priv))
@@ -6863,7 +6863,7 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 	 * soon as the new power sequencer gets initialized.
 	 */
 	if (force_disable_vdd) {
-		u32 pp = ironlake_get_pp_control(intel_dp);
+		u32 pp = ilk_get_pp_control(intel_dp);
 
 		WARN(pp & PANEL_POWER_ON, "Panel power already on\n");
 
@@ -7660,7 +7660,7 @@ void intel_dp_mst_suspend(struct drm_i915_private *dev_priv)
 		if (encoder->type != INTEL_OUTPUT_DDI)
 			continue;
 
-		intel_dp = enc_to_intel_dp(&encoder->base);
+		intel_dp = enc_to_intel_dp(encoder);
 
 		if (!intel_dp->can_mst)
 			continue;
@@ -7681,7 +7681,7 @@ void intel_dp_mst_resume(struct drm_i915_private *dev_priv)
 		if (encoder->type != INTEL_OUTPUT_DDI)
 			continue;
 
-		intel_dp = enc_to_intel_dp(&encoder->base);
+		intel_dp = enc_to_intel_dp(encoder);
 
 		if (!intel_dp->can_mst)
 			continue;

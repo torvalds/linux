@@ -1561,7 +1561,9 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		for (j = 0; j < mode_set->num_connectors; j++) {
 			struct drm_connector *connector = mode_set->connectors[j];
 
-			if (connector->has_tile) {
+			if (connector->has_tile &&
+			    desired_mode->hdisplay == connector->tile_h_size &&
+			    desired_mode->vdisplay == connector->tile_v_size) {
 				lasth = (connector->tile_h_loc == (connector->num_h_tile - 1));
 				lastv = (connector->tile_v_loc == (connector->num_v_tile - 1));
 				/* cloning to multiple tiles is just crazy-talk, so: */

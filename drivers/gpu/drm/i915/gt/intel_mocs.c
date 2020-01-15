@@ -127,7 +127,7 @@ struct drm_i915_mocs_table {
 		   LE_0_PAGETABLE | LE_TC_2_LLC_ELLC | LE_LRUM(3), \
 		   L3_3_WB)
 
-static const struct drm_i915_mocs_entry skylake_mocs_table[] = {
+static const struct drm_i915_mocs_entry skl_mocs_table[] = {
 	GEN9_MOCS_ENTRIES,
 	MOCS_ENTRY(I915_MOCS_CACHED,
 		   LE_3_WB | LE_TC_2_LLC_ELLC | LE_LRUM(3),
@@ -233,7 +233,7 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
 		   L3_1_UC)
 
-static const struct drm_i915_mocs_entry tigerlake_mocs_table[] = {
+static const struct drm_i915_mocs_entry tgl_mocs_table[] = {
 	/* Base - Error (Reserved for Non-Use) */
 	MOCS_ENTRY(0, 0x0, 0x0),
 	/* Base - Reserved */
@@ -267,7 +267,7 @@ static const struct drm_i915_mocs_entry tigerlake_mocs_table[] = {
 		   L3_3_WB),
 };
 
-static const struct drm_i915_mocs_entry icelake_mocs_table[] = {
+static const struct drm_i915_mocs_entry icl_mocs_table[] = {
 	/* Base - Uncached (Deprecated) */
 	MOCS_ENTRY(I915_MOCS_UNCACHED,
 		   LE_1_UC | LE_TC_1_LLC,
@@ -284,17 +284,17 @@ static bool get_mocs_settings(const struct drm_i915_private *i915,
 			      struct drm_i915_mocs_table *table)
 {
 	if (INTEL_GEN(i915) >= 12) {
-		table->size  = ARRAY_SIZE(tigerlake_mocs_table);
-		table->table = tigerlake_mocs_table;
+		table->size  = ARRAY_SIZE(tgl_mocs_table);
+		table->table = tgl_mocs_table;
 		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
 	} else if (IS_GEN(i915, 11)) {
-		table->size  = ARRAY_SIZE(icelake_mocs_table);
-		table->table = icelake_mocs_table;
+		table->size  = ARRAY_SIZE(icl_mocs_table);
+		table->table = icl_mocs_table;
 		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
 	} else if (IS_GEN9_BC(i915) || IS_CANNONLAKE(i915)) {
-		table->size  = ARRAY_SIZE(skylake_mocs_table);
+		table->size  = ARRAY_SIZE(skl_mocs_table);
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
-		table->table = skylake_mocs_table;
+		table->table = skl_mocs_table;
 	} else if (IS_GEN9_LP(i915)) {
 		table->size  = ARRAY_SIZE(broxton_mocs_table);
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;

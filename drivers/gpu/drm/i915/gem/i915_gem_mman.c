@@ -4,6 +4,7 @@
  * Copyright © 2014-2016 Intel Corporation
  */
 
+#include <linux/anon_inodes.h>
 #include <linux/mman.h>
 #include <linux/pfn_t.h>
 #include <linux/sizes.h>
@@ -212,6 +213,7 @@ static vm_fault_t i915_error_to_vmf_fault(int err)
 	case -EIO: /* shmemfs failure from swap device */
 	case -EFAULT: /* purged object */
 	case -ENODEV: /* bad object, how did you get here! */
+	case -ENXIO: /* unable to access backing store (on device) */
 		return VM_FAULT_SIGBUS;
 
 	case -ENOSPC: /* shmemfs allocation failure */
@@ -236,42 +238,38 @@ static vm_fault_t vm_fault_cpu(struct vm_fault *vmf)
 	struct vm_area_struct *area = vmf->vma;
 	struct i915_mmap_offset *mmo = area->vm_private_data;
 	struct drm_i915_gem_object *obj = mmo->obj;
-	unsigned long i, size = area->vm_end - area->vm_start;
-	bool write = area->vm_flags & VM_WRITE;
-	vm_fault_t ret = VM_FAULT_SIGBUS;
+	resource_size_t iomap;
 	int err;
 
-	if (!i915_gem_object_has_struct_page(obj))
-		return ret;
-
 	/* Sanity check that we allow writing into this object */
-	if (i915_gem_object_is_readonly(obj) && write)
-		return ret;
+	if (unlikely(i915_gem_object_is_readonly(obj) &&
+		     area->vm_flags & VM_WRITE))
+		return VM_FAULT_SIGBUS;
 
 	err = i915_gem_object_pin_pages(obj);
 	if (err)
-		return i915_error_to_vmf_fault(err);
+		goto out;
 
-	/* PTEs are revoked in obj->ops->put_pages() */
-	for (i = 0; i < size >> PAGE_SHIFT; i++) {
-		struct page *page = i915_gem_object_get_page(obj, i);
-
-		ret = vmf_insert_pfn(area,
-				     (unsigned long)area->vm_start + i * PAGE_SIZE,
-				     page_to_pfn(page));
-		if (ret != VM_FAULT_NOPAGE)
-			break;
+	iomap = -1;
+	if (!i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_STRUCT_PAGE)) {
+		iomap = obj->mm.region->iomap.base;
+		iomap -= obj->mm.region->region.start;
 	}
 
-	if (write) {
+	/* PTEs are revoked in obj->ops->put_pages() */
+	err = remap_io_sg(area,
+			  area->vm_start, area->vm_end - area->vm_start,
+			  obj->mm.pages->sgl, iomap);
+
+	if (area->vm_flags & VM_WRITE) {
 		GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
-		obj->cache_dirty = true; /* XXX flush after PAT update? */
 		obj->mm.dirty = true;
 	}
 
 	i915_gem_object_unpin_pages(obj);
 
-	return ret;
+out:
+	return i915_error_to_vmf_fault(err);
 }
 
 static vm_fault_t vm_fault_gtt(struct vm_fault *vmf)
@@ -560,7 +558,9 @@ __assign_mmap_offset(struct drm_file *file,
 	}
 
 	if (mmap_type != I915_MMAP_TYPE_GTT &&
-	    !i915_gem_object_has_struct_page(obj)) {
+	    !i915_gem_object_type_has(obj,
+				      I915_GEM_OBJECT_HAS_STRUCT_PAGE |
+				      I915_GEM_OBJECT_HAS_IOMEM)) {
 		err = -ENODEV;
 		goto out;
 	}
@@ -694,6 +694,46 @@ static const struct vm_operations_struct vm_ops_cpu = {
 	.close = vm_close,
 };
 
+static int singleton_release(struct inode *inode, struct file *file)
+{
+	struct drm_i915_private *i915 = file->private_data;
+
+	cmpxchg(&i915->gem.mmap_singleton, file, NULL);
+	drm_dev_put(&i915->drm);
+
+	return 0;
+}
+
+static const struct file_operations singleton_fops = {
+	.owner = THIS_MODULE,
+	.release = singleton_release,
+};
+
+static struct file *mmap_singleton(struct drm_i915_private *i915)
+{
+	struct file *file;
+
+	rcu_read_lock();
+	file = i915->gem.mmap_singleton;
+	if (file && !get_file_rcu(file))
+		file = NULL;
+	rcu_read_unlock();
+	if (file)
+		return file;
+
+	file = anon_inode_getfile("i915.gem", &singleton_fops, i915, O_RDWR);
+	if (IS_ERR(file))
+		return file;
+
+	/* Everyone shares a single global address space */
+	file->f_mapping = i915->drm.anon_inode->i_mapping;
+
+	smp_store_mb(i915->gem.mmap_singleton, file);
+	drm_dev_get(&i915->drm);
+
+	return file;
+}
+
 /*
  * This overcomes the limitation in drm_gem_mmap's assignment of a
  * drm_gem_object as the vma->vm_private_data. Since we need to
@@ -707,6 +747,7 @@ int i915_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_device *dev = priv->minor->dev;
 	struct i915_mmap_offset *mmo = NULL;
 	struct drm_gem_object *obj = NULL;
+	struct file *anon;
 
 	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
@@ -755,8 +796,25 @@ int i915_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 		vma->vm_flags &= ~VM_MAYWRITE;
 	}
 
+	anon = mmap_singleton(to_i915(obj->dev));
+	if (IS_ERR(anon)) {
+		drm_gem_object_put_unlocked(obj);
+		return PTR_ERR(anon);
+	}
+
 	vma->vm_flags |= VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_private_data = mmo;
+
+	/*
+	 * We keep the ref on mmo->obj, not vm_file, but we require
+	 * vma->vm_file->f_mapping, see vma_link(), for later revocation.
+	 * Our userspace is accustomed to having per-file resource cleanup
+	 * (i.e. contexts, objects and requests) on their close(fd), which
+	 * requires avoiding extraneous references to their filp, hence why
+	 * we prefer to use an anonymous file for their mmaps.
+	 */
+	fput(vma->vm_file);
+	vma->vm_file = anon;
 
 	switch (mmo->mmap_type) {
 	case I915_MMAP_TYPE_WC:

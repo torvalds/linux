@@ -254,7 +254,7 @@ static void bdw_ctx_workarounds_init(struct intel_engine_cs *engine,
 
 	/* WaDisableDopClockGating:bdw
 	 *
-	 * Also see the related UCGTCL1 write in broadwell_init_clock_gating()
+	 * Also see the related UCGTCL1 write in bdw_init_clock_gating()
 	 * to disable EUTC clock gating.
 	 */
 	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
