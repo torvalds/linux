@@ -55,6 +55,9 @@
 /* Controller debug log header */
 #define QCA_DEBUG_HANDLE	0x2EDC
 
+/* max retry count when init fails */
+#define MAX_INIT_RETRIES 3
+
 /* Controller dump header */
 #define QCA_SSR_DUMP_HANDLE		0x0108
 #define QCA_DUMP_PACKET_SIZE		255
@@ -1539,6 +1542,7 @@ static int qca_setup(struct hci_uart *hu)
 	struct hci_dev *hdev = hu->hdev;
 	struct qca_data *qca = hu->priv;
 	unsigned int speed, qca_baudrate = QCA_BAUDRATE_115200;
+	unsigned int retries = 0;
 	enum qca_btsoc_type soc_type = qca_soc_type(hu);
 	const char *firmware_name = qca_get_firmware_name(hu);
 	int ret;
@@ -1559,6 +1563,7 @@ static int qca_setup(struct hci_uart *hu)
 	bt_dev_info(hdev, "setting up %s",
 		qca_is_wcn399x(soc_type) ? "wcn399x" : "ROME");
 
+retry:
 	ret = qca_power_on(hdev);
 	if (ret)
 		return ret;
@@ -1613,6 +1618,20 @@ static int qca_setup(struct hci_uart *hu)
 		 * patch/nvm-config is found, so run with original fw/config.
 		 */
 		ret = 0;
+	} else {
+		if (retries < MAX_INIT_RETRIES) {
+			qca_power_shutdown(hu);
+			if (hu->serdev) {
+				serdev_device_close(hu->serdev);
+				ret = serdev_device_open(hu->serdev);
+				if (ret) {
+					bt_dev_err(hdev, "failed to open port");
+					return ret;
+				}
+			}
+			retries++;
+			goto retry;
+		}
 	}
 
 	/* Setup bdaddr */
