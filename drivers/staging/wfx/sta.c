@@ -839,21 +839,13 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		wfx_do_join(wvif);
 }
 
-static void wfx_ps_notify(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd,
-			  int link_id)
+static void wfx_ps_notify_sta(struct wfx_vif *wvif,
+			      enum sta_notify_cmd notify_cmd, int link_id)
 {
 	u32 bit, prev;
 
 	spin_lock_bh(&wvif->ps_state_lock);
-	/* Zero link id means "for all link IDs" */
-	if (link_id) {
-		bit = BIT(link_id);
-	} else if (notify_cmd != STA_NOTIFY_AWAKE) {
-		dev_warn(wvif->wdev->dev, "unsupported notify command\n");
-		bit = 0;
-	} else {
-		bit = wvif->link_id_map & ~1;
-	}
+	bit = BIT(link_id);
 	prev = wvif->sta_asleep_mask & bit;
 
 	switch (notify_cmd) {
@@ -867,7 +859,7 @@ static void wfx_ps_notify(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd,
 	case STA_NOTIFY_AWAKE:
 		if (prev) {
 			wvif->sta_asleep_mask &= ~bit;
-			if (link_id && !wvif->sta_asleep_mask)
+			if (!wvif->sta_asleep_mask)
 				schedule_work(&wvif->mcast_stop_work);
 			wfx_bh_request_tx(wvif->wdev);
 		}
@@ -882,7 +874,7 @@ void wfx_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *) &sta->drv_priv;
 
-	wfx_ps_notify(wvif, notify_cmd, sta_priv->link_id);
+	wfx_ps_notify_sta(wvif, notify_cmd, sta_priv->link_id);
 }
 
 static int wfx_update_tim(struct wfx_vif *wvif)
@@ -993,6 +985,14 @@ int wfx_ampdu_action(struct ieee80211_hw *hw,
 	return -ENOTSUPP;
 }
 
+static void wfx_dtim_notify(struct wfx_vif *wvif)
+{
+	spin_lock_bh(&wvif->ps_state_lock);
+	wvif->sta_asleep_mask = 0;
+	wfx_bh_request_tx(wvif->wdev);
+	spin_unlock_bh(&wvif->ps_state_lock);
+}
+
 void wfx_suspend_resume(struct wfx_vif *wvif,
 			const struct hif_ind_suspend_resume_tx *arg)
 {
@@ -1013,12 +1013,9 @@ void wfx_suspend_resume(struct wfx_vif *wvif,
 		if (cancel_tmo)
 			del_timer_sync(&wvif->mcast_timeout);
 	} else if (arg->suspend_resume_flags.resume) {
-		// FIXME: should change each station status independently
-		wfx_ps_notify(wvif, STA_NOTIFY_AWAKE, 0);
-		wfx_bh_request_tx(wvif->wdev);
+		wfx_dtim_notify(wvif);
 	} else {
-		// FIXME: should change each station status independently
-		wfx_ps_notify(wvif, STA_NOTIFY_SLEEP, 0);
+		dev_warn(wvif->wdev->dev, "unsupported suspend/resume notification\n");
 	}
 }
 
