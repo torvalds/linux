@@ -217,3 +217,25 @@ bool dmub_dcn20_is_supported(struct dmub_srv *dmub)
 
 	return supported;
 }
+
+void dmub_dcn20_set_gpint(struct dmub_srv *dmub,
+			  union dmub_gpint_data_register reg)
+{
+	REG_WRITE(DMCUB_GPINT_DATAIN1, reg.all);
+}
+
+bool dmub_dcn20_is_gpint_acked(struct dmub_srv *dmub,
+			       union dmub_gpint_data_register reg)
+{
+	union dmub_gpint_data_register test;
+
+	reg.bits.status = 0;
+	test.all = REG_READ(DMCUB_GPINT_DATAIN1);
+
+	return test.all == reg.all;
+}
+
+uint32_t dmub_dcn20_get_gpint_response(struct dmub_srv *dmub)
+{
+	return REG_READ(DMCUB_SCRATCH7);
+}
