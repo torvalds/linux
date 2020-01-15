@@ -690,10 +690,9 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	struct ieee80211_sta *sta = NULL;
 
 	wvif->beacon_int = info->beacon_int;
-	rcu_read_lock();
+	rcu_read_lock(); // protect sta
 	if (info->bssid && !info->ibss_joined)
 		sta = ieee80211_find_sta(wvif->vif, info->bssid);
-	rcu_read_unlock();
 	if (sta)
 		wvif->bss_params.operational_rate_set =
 			wfx_rate_mask_to_hw(wvif->wdev, sta->supp_rates[wvif->channel->band]);
@@ -712,6 +711,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	wvif->bss_params.aid = info->aid;
 
 	hif_set_association_mode(wvif, info, sta ? &sta->ht_cap : NULL);
+	rcu_read_unlock();
 
 	if (!info->ibss_joined) {
 		hif_keep_alive_period(wvif, 30 /* sec */);
