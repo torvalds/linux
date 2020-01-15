@@ -1613,7 +1613,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 #undef fw_domain_init
 
 	/* All future platforms are expected to require complex power gating */
-	WARN_ON(!ret && uncore->fw_domains == 0);
+	drm_WARN_ON(&i915->drm, !ret && uncore->fw_domains == 0);
 
 out:
 	if (ret)

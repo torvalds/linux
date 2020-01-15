@@ -609,7 +609,7 @@ static void parse_csr_fw(struct drm_i915_private *dev_priv,
 
 static void intel_csr_runtime_pm_get(struct drm_i915_private *dev_priv)
 {
-	WARN_ON(dev_priv->csr.wakeref);
+	drm_WARN_ON(&dev_priv->drm, dev_priv->csr.wakeref);
 	dev_priv->csr.wakeref =
 		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 }
@@ -787,7 +787,7 @@ void intel_csr_ucode_fini(struct drm_i915_private *dev_priv)
 		return;
 
 	intel_csr_ucode_suspend(dev_priv);
-	WARN_ON(dev_priv->csr.wakeref);
+	drm_WARN_ON(&dev_priv->drm, dev_priv->csr.wakeref);
 
 	kfree(dev_priv->csr.dmc_payload);
 }
