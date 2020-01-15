@@ -985,38 +985,29 @@ int wfx_ampdu_action(struct ieee80211_hw *hw,
 	return -ENOTSUPP;
 }
 
-static void wfx_dtim_notify(struct wfx_vif *wvif)
-{
-	spin_lock_bh(&wvif->ps_state_lock);
-	wvif->sta_asleep_mask = 0;
-	wfx_bh_request_tx(wvif->wdev);
-	spin_unlock_bh(&wvif->ps_state_lock);
-}
-
 void wfx_suspend_resume(struct wfx_vif *wvif,
 			const struct hif_ind_suspend_resume_tx *arg)
 {
-	if (arg->suspend_resume_flags.bc_mc_only) {
-		bool cancel_tmo = false;
+	bool cancel_tmo = false;
 
-		spin_lock_bh(&wvif->ps_state_lock);
-		if (!arg->suspend_resume_flags.resume)
-			wvif->mcast_tx = false;
-		else
-			wvif->mcast_tx = wvif->aid0_bit_set &&
-					 wvif->mcast_buffered;
-		if (wvif->mcast_tx) {
-			cancel_tmo = true;
-			wfx_bh_request_tx(wvif->wdev);
-		}
-		spin_unlock_bh(&wvif->ps_state_lock);
-		if (cancel_tmo)
-			del_timer_sync(&wvif->mcast_timeout);
-	} else if (arg->suspend_resume_flags.resume) {
-		wfx_dtim_notify(wvif);
-	} else {
+	if (!arg->suspend_resume_flags.bc_mc_only) {
 		dev_warn(wvif->wdev->dev, "unsupported suspend/resume notification\n");
+		return;
 	}
+
+	spin_lock_bh(&wvif->ps_state_lock);
+	if (!arg->suspend_resume_flags.resume)
+		wvif->mcast_tx = false;
+	else
+		wvif->mcast_tx = wvif->aid0_bit_set &&
+				 wvif->mcast_buffered;
+	if (wvif->mcast_tx) {
+		cancel_tmo = true;
+		wfx_bh_request_tx(wvif->wdev);
+	}
+	spin_unlock_bh(&wvif->ps_state_lock);
+	if (cancel_tmo)
+		del_timer_sync(&wvif->mcast_timeout);
 }
 
 int wfx_add_chanctx(struct ieee80211_hw *hw,
