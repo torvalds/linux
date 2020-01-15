@@ -946,22 +946,53 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block
 	bool swsmu = is_support_sw_smu(adev);
 
 	switch (block_type) {
-	case AMD_IP_BLOCK_TYPE_GFX:
 	case AMD_IP_BLOCK_TYPE_UVD:
-	case AMD_IP_BLOCK_TYPE_VCN:
 	case AMD_IP_BLOCK_TYPE_VCE:
-	case AMD_IP_BLOCK_TYPE_SDMA:
 		if (swsmu) {
 			ret = smu_dpm_set_power_gate(&adev->smu, block_type, gate);
-		} else {
-			if (adev->powerplay.pp_funcs &&
-			    adev->powerplay.pp_funcs->set_powergating_by_smu) {
-				mutex_lock(&adev->pm.mutex);
-				ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
-					(adev)->powerplay.pp_handle, block_type, gate));
-				mutex_unlock(&adev->pm.mutex);
-			}
+		} else if (adev->powerplay.pp_funcs &&
+			   adev->powerplay.pp_funcs->set_powergating_by_smu) {
+			/*
+			 * TODO: need a better lock mechanism
+			 *
+			 * Here adev->pm.mutex lock protection is enforced on
+			 * UVD and VCE cases only. Since for other cases, there
+			 * may be already lock protection in amdgpu_pm.c.
+			 * This is a quick fix for the deadlock issue below.
+			 *     NFO: task ocltst:2028 blocked for more than 120 seconds.
+			 *     Tainted: G           OE     5.0.0-37-generic #40~18.04.1-Ubuntu
+			 *     echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+			 *     cltst          D    0  2028   2026 0x00000000
+			 *     all Trace:
+			 *     __schedule+0x2c0/0x870
+			 *     schedule+0x2c/0x70
+			 *     schedule_preempt_disabled+0xe/0x10
+			 *     __mutex_lock.isra.9+0x26d/0x4e0
+			 *     __mutex_lock_slowpath+0x13/0x20
+			 *     ? __mutex_lock_slowpath+0x13/0x20
+			 *     mutex_lock+0x2f/0x40
+			 *     amdgpu_dpm_set_powergating_by_smu+0x64/0xe0 [amdgpu]
+			 *     gfx_v8_0_enable_gfx_static_mg_power_gating+0x3c/0x70 [amdgpu]
+			 *     gfx_v8_0_set_powergating_state+0x66/0x260 [amdgpu]
+			 *     amdgpu_device_ip_set_powergating_state+0x62/0xb0 [amdgpu]
+			 *     pp_dpm_force_performance_level+0xe7/0x100 [amdgpu]
+			 *     amdgpu_set_dpm_forced_performance_level+0x129/0x330 [amdgpu]
+			 */
+			mutex_lock(&adev->pm.mutex);
+			ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+				(adev)->powerplay.pp_handle, block_type, gate));
+			mutex_unlock(&adev->pm.mutex);
 		}
+		break;
+	case AMD_IP_BLOCK_TYPE_GFX:
+	case AMD_IP_BLOCK_TYPE_VCN:
+	case AMD_IP_BLOCK_TYPE_SDMA:
+		if (swsmu)
+			ret = smu_dpm_set_power_gate(&adev->smu, block_type, gate);
+		else if (adev->powerplay.pp_funcs &&
+			 adev->powerplay.pp_funcs->set_powergating_by_smu)
+			ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+				(adev)->powerplay.pp_handle, block_type, gate));
 		break;
 	case AMD_IP_BLOCK_TYPE_JPEG:
 		if (swsmu)
@@ -970,12 +1001,9 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block
 	case AMD_IP_BLOCK_TYPE_GMC:
 	case AMD_IP_BLOCK_TYPE_ACP:
 		if (adev->powerplay.pp_funcs &&
-		    adev->powerplay.pp_funcs->set_powergating_by_smu) {
-			mutex_lock(&adev->pm.mutex);
+		    adev->powerplay.pp_funcs->set_powergating_by_smu)
 			ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
 				(adev)->powerplay.pp_handle, block_type, gate));
-			mutex_unlock(&adev->pm.mutex);
-		}
 		break;
 	default:
 		break;
