@@ -32,6 +32,19 @@
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_debugfs.h"
 #include "dm_helpers.h"
+#include "dmub/inc/dmub_srv.h"
+
+struct dmub_debugfs_trace_header {
+	uint32_t entry_count;
+	uint32_t reserved[3];
+};
+
+struct dmub_debugfs_trace_entry {
+	uint32_t trace_code;
+	uint32_t tick_count;
+	uint32_t param0;
+	uint32_t param1;
+};
 
 /* function description
  * get/ set DP configuration: lane_count, link_rate, spread_spectrum
@@ -675,6 +688,50 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	return bytes_from_user;
 }
 
+/**
+ * Returns the DMCUB tracebuffer contents.
+ * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dmub_tracebuffer
+ */
+static int dmub_tracebuffer_show(struct seq_file *m, void *data)
+{
+	struct amdgpu_device *adev = m->private;
+	struct dmub_srv_fb_info *fb_info = adev->dm.dmub_fb_info;
+	struct dmub_debugfs_trace_entry *entries;
+	uint8_t *tbuf_base;
+	uint32_t tbuf_size, max_entries, num_entries, i;
+
+	if (!fb_info)
+		return 0;
+
+	tbuf_base = (uint8_t *)fb_info->fb[DMUB_WINDOW_5_TRACEBUFF].cpu_addr;
+	if (!tbuf_base)
+		return 0;
+
+	tbuf_size = fb_info->fb[DMUB_WINDOW_5_TRACEBUFF].size;
+	max_entries = (tbuf_size - sizeof(struct dmub_debugfs_trace_header)) /
+		      sizeof(struct dmub_debugfs_trace_entry);
+
+	num_entries =
+		((struct dmub_debugfs_trace_header *)tbuf_base)->entry_count;
+
+	num_entries = min(num_entries, max_entries);
+
+	entries = (struct dmub_debugfs_trace_entry
+			   *)(tbuf_base +
+			      sizeof(struct dmub_debugfs_trace_header));
+
+	for (i = 0; i < num_entries; ++i) {
+		struct dmub_debugfs_trace_entry *entry = &entries[i];
+
+		seq_printf(m,
+			   "trace_code=%u tick_count=%u param0=%u param1=%u\n",
+			   entry->trace_code, entry->tick_count, entry->param0,
+			   entry->param1);
+	}
+
+	return 0;
+}
+
 /*
  * Returns the current and maximum output bpc for the connector.
  * Example usage: cat /sys/kernel/debug/dri/0/DP-1/output_bpc
@@ -880,6 +937,7 @@ static ssize_t dp_dpcd_data_read(struct file *f, char __user *buf,
 	return read_size - r;
 }
 
+DEFINE_SHOW_ATTRIBUTE(dmub_tracebuffer);
 DEFINE_SHOW_ATTRIBUTE(output_bpc);
 DEFINE_SHOW_ATTRIBUTE(vrr_range);
 
@@ -1187,6 +1245,9 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 
 	debugfs_create_file_unsafe("amdgpu_dm_visual_confirm", 0644, root, adev,
 				   &visual_confirm_fops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_dmub_tracebuffer", 0644, root,
+				   adev, &dmub_tracebuffer_fops);
 
 	return 0;
 }
