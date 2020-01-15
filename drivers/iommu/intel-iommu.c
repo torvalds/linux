@@ -4454,13 +4454,24 @@ static void __init init_iommu_pm_ops(void)
 static inline void init_iommu_pm_ops(void) {}
 #endif	/* CONFIG_PM */
 
+static int rmrr_sanity_check(struct acpi_dmar_reserved_memory *rmrr)
+{
+	if (!IS_ALIGNED(rmrr->base_address, PAGE_SIZE) ||
+	    !IS_ALIGNED(rmrr->end_address + 1, PAGE_SIZE) ||
+	    rmrr->end_address <= rmrr->base_address ||
+	    arch_rmrr_sanity_check(rmrr))
+		return -EINVAL;
+
+	return 0;
+}
+
 int __init dmar_parse_one_rmrr(struct acpi_dmar_header *header, void *arg)
 {
 	struct acpi_dmar_reserved_memory *rmrr;
 	struct dmar_rmrr_unit *rmrru;
 
 	rmrr = (struct acpi_dmar_reserved_memory *)header;
-	if (arch_rmrr_sanity_check(rmrr))
+	if (rmrr_sanity_check(rmrr))
 		WARN_TAINT(1, TAINT_FIRMWARE_WORKAROUND,
 			   "Your BIOS is broken; bad RMRR [%#018Lx-%#018Lx]\n"
 			   "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
