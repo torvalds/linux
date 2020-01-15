@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 
 #include <linux/device.h>
+#include <linux/dmaengine.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -34,7 +35,6 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/des.h>
 #include <crypto/internal/skcipher.h>
-#include <linux/platform_data/crypto-atmel.h>
 #include "atmel-tdes-regs.h"
 
 #define ATMEL_TDES_PRIORITY	300
@@ -1157,34 +1157,11 @@ static const struct of_device_id atmel_tdes_dt_ids[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, atmel_tdes_dt_ids);
-
-static struct crypto_platform_data *atmel_tdes_of_init(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-	struct crypto_platform_data *pdata;
-
-	if (!np) {
-		dev_err(&pdev->dev, "device node not found\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-
-	return pdata;
-}
-#else /* CONFIG_OF */
-static inline struct crypto_platform_data *atmel_tdes_of_init(struct platform_device *pdev)
-{
-	return ERR_PTR(-EINVAL);
-}
 #endif
 
 static int atmel_tdes_probe(struct platform_device *pdev)
 {
 	struct atmel_tdes_dev *tdes_dd;
-	struct crypto_platform_data	*pdata;
 	struct device *dev = &pdev->dev;
 	struct resource *tdes_res;
 	int err;
@@ -1256,16 +1233,6 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 		goto err_tasklet_kill;
 
 	if (tdes_dd->caps.has_dma) {
-		pdata = pdev->dev.platform_data;
-		if (!pdata) {
-			pdata = atmel_tdes_of_init(pdev);
-			if (IS_ERR(pdata)) {
-				dev_err(&pdev->dev, "platform data not available\n");
-				err = PTR_ERR(pdata);
-				goto err_buff_cleanup;
-			}
-		}
-
 		err = atmel_tdes_dma_init(tdes_dd);
 		if (err)
 			goto err_buff_cleanup;

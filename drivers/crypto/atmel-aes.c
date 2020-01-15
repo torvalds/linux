@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 
 #include <linux/device.h>
+#include <linux/dmaengine.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -37,7 +38,6 @@
 #include <crypto/xts.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
-#include <linux/platform_data/crypto-atmel.h>
 #include "atmel-aes-regs.h"
 #include "atmel-authenc.h"
 
@@ -2479,44 +2479,14 @@ static const struct of_device_id atmel_aes_dt_ids[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, atmel_aes_dt_ids);
-
-static struct crypto_platform_data *atmel_aes_of_init(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-	struct crypto_platform_data *pdata;
-
-	if (!np) {
-		dev_err(&pdev->dev, "device node not found\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-
-	return pdata;
-}
-#else
-static inline struct crypto_platform_data *atmel_aes_of_init(struct platform_device *pdev)
-{
-	return ERR_PTR(-EINVAL);
-}
 #endif
 
 static int atmel_aes_probe(struct platform_device *pdev)
 {
 	struct atmel_aes_dev *aes_dd;
-	struct crypto_platform_data *pdata;
 	struct device *dev = &pdev->dev;
 	struct resource *aes_res;
 	int err;
-
-	pdata = pdev->dev.platform_data;
-	if (!pdata) {
-		pdata = atmel_aes_of_init(pdev);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
-	}
 
 	aes_dd = devm_kzalloc(&pdev->dev, sizeof(*aes_dd), GFP_KERNEL);
 	if (!aes_dd)

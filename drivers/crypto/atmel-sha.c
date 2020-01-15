@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 
 #include <linux/device.h>
+#include <linux/dmaengine.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -36,7 +37,6 @@
 #include <crypto/sha.h>
 #include <crypto/hash.h>
 #include <crypto/internal/hash.h>
-#include <linux/platform_data/crypto-atmel.h>
 #include "atmel-sha-regs.h"
 #include "atmel-authenc.h"
 
@@ -2551,34 +2551,11 @@ static const struct of_device_id atmel_sha_dt_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(of, atmel_sha_dt_ids);
-
-static struct crypto_platform_data *atmel_sha_of_init(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-	struct crypto_platform_data *pdata;
-
-	if (!np) {
-		dev_err(&pdev->dev, "device node not found\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-
-	return pdata;
-}
-#else /* CONFIG_OF */
-static inline struct crypto_platform_data *atmel_sha_of_init(struct platform_device *dev)
-{
-	return ERR_PTR(-EINVAL);
-}
 #endif
 
 static int atmel_sha_probe(struct platform_device *pdev)
 {
 	struct atmel_sha_dev *sha_dd;
-	struct crypto_platform_data	*pdata;
 	struct device *dev = &pdev->dev;
 	struct resource *sha_res;
 	int err;
@@ -2650,16 +2627,6 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	atmel_sha_get_cap(sha_dd);
 
 	if (sha_dd->caps.has_dma) {
-		pdata = pdev->dev.platform_data;
-		if (!pdata) {
-			pdata = atmel_sha_of_init(pdev);
-			if (IS_ERR(pdata)) {
-				dev_err(&pdev->dev, "platform data not available\n");
-				err = PTR_ERR(pdata);
-				goto err_iclk_unprepare;
-			}
-		}
-
 		err = atmel_sha_dma_init(sha_dd);
 		if (err)
 			goto err_iclk_unprepare;
