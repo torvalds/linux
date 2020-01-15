@@ -625,7 +625,7 @@ static void writecache_add_to_freelist(struct dm_writecache *wc, struct wc_entry
 	wc->freelist_size++;
 }
 
-static struct wc_entry *writecache_pop_from_freelist(struct dm_writecache *wc)
+static struct wc_entry *writecache_pop_from_freelist(struct dm_writecache *wc, sector_t expected_sector)
 {
 	struct wc_entry *e;
 
@@ -634,6 +634,8 @@ static struct wc_entry *writecache_pop_from_freelist(struct dm_writecache *wc)
 		if (unlikely(!wc->current_free))
 			return NULL;
 		e = wc->current_free;
+		if (expected_sector != (sector_t)-1 && unlikely(cache_sector(wc, e) != expected_sector))
+			return NULL;
 		next = rb_next(&e->rb_node);
 		rb_erase(&e->rb_node, &wc->freetree);
 		if (unlikely(!next))
@@ -643,6 +645,8 @@ static struct wc_entry *writecache_pop_from_freelist(struct dm_writecache *wc)
 		if (unlikely(list_empty(&wc->freelist)))
 			return NULL;
 		e = container_of(wc->freelist.next, struct wc_entry, lru);
+		if (expected_sector != (sector_t)-1 && unlikely(cache_sector(wc, e) != expected_sector))
+			return NULL;
 		list_del(&e->lru);
 	}
 	wc->freelist_size--;
@@ -1193,7 +1197,7 @@ read_next_block:
 					goto bio_copy;
 				}
 			}
-			e = writecache_pop_from_freelist(wc);
+			e = writecache_pop_from_freelist(wc, (sector_t)-1);
 			if (unlikely(!e)) {
 				writecache_wait_on_freelist(wc);
 				continue;
@@ -1205,9 +1209,26 @@ bio_copy:
 			if (WC_MODE_PMEM(wc)) {
 				bio_copy_block(wc, bio, memory_data(wc, e));
 			} else {
-				dm_accept_partial_bio(bio, wc->block_size >> SECTOR_SHIFT);
+				unsigned bio_size = wc->block_size;
+				sector_t start_cache_sec = cache_sector(wc, e);
+				sector_t current_cache_sec = start_cache_sec + (bio_size >> SECTOR_SHIFT);
+
+				while (bio_size < bio->bi_iter.bi_size) {
+					struct wc_entry *f = writecache_pop_from_freelist(wc, current_cache_sec);
+					if (!f)
+						break;
+					write_original_sector_seq_count(wc, f, bio->bi_iter.bi_sector +
+									(bio_size >> SECTOR_SHIFT), wc->seq_count);
+					writecache_insert_entry(wc, f);
+					wc->uncommitted_blocks++;
+					bio_size += wc->block_size;
+					current_cache_sec += wc->block_size >> SECTOR_SHIFT;
+				}
+
 				bio_set_dev(bio, wc->ssd_dev->bdev);
-				bio->bi_iter.bi_sector = cache_sector(wc, e);
+				bio->bi_iter.bi_sector = start_cache_sec;
+				dm_accept_partial_bio(bio, bio_size >> SECTOR_SHIFT);
+
 				if (unlikely(wc->uncommitted_blocks >= wc->autocommit_blocks)) {
 					wc->uncommitted_blocks = 0;
 					queue_work(wc->writeback_wq, &wc->flush_work);
