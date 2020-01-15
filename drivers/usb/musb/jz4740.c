@@ -23,9 +23,9 @@ struct jz4740_glue {
 
 static irqreturn_t jz4740_musb_interrupt(int irq, void *__hci)
 {
-	unsigned long   flags;
-	irqreturn_t     retval = IRQ_NONE;
-	struct musb     *musb = __hci;
+	unsigned long	flags;
+	irqreturn_t	retval = IRQ_NONE;
+	struct musb	*musb = __hci;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
@@ -39,7 +39,7 @@ static irqreturn_t jz4740_musb_interrupt(int irq, void *__hci)
 	 * never see them set
 	 */
 	musb->int_usb &= MUSB_INTR_SUSPEND | MUSB_INTR_RESUME |
-	    MUSB_INTR_RESET | MUSB_INTR_SOF;
+			 MUSB_INTR_RESET | MUSB_INTR_SOF;
 
 	if (musb->int_usb || musb->int_tx || musb->int_rx)
 		retval = musb_interrupt(musb);
@@ -50,20 +50,20 @@ static irqreturn_t jz4740_musb_interrupt(int irq, void *__hci)
 }
 
 static struct musb_fifo_cfg jz4740_musb_fifo_cfg[] = {
-{ .hw_ep_num = 1, .style = FIFO_TX, .maxpacket = 512, },
-{ .hw_ep_num = 1, .style = FIFO_RX, .maxpacket = 512, },
-{ .hw_ep_num = 2, .style = FIFO_TX, .maxpacket = 64, },
+	{ .hw_ep_num = 1, .style = FIFO_TX, .maxpacket = 512, },
+	{ .hw_ep_num = 1, .style = FIFO_RX, .maxpacket = 512, },
+	{ .hw_ep_num = 2, .style = FIFO_TX, .maxpacket = 64, },
 };
 
 static const struct musb_hdrc_config jz4740_musb_config = {
 	/* Silicon does not implement USB OTG. */
-	.multipoint = 0,
+	.multipoint	= 0,
 	/* Max EPs scanned, driver will decide which EP can be used. */
-	.num_eps    = 4,
+	.num_eps	= 4,
 	/* RAMbits needed to configure EPs from table */
-	.ram_bits   = 9,
-	.fifo_cfg = jz4740_musb_fifo_cfg,
-	.fifo_cfg_size = ARRAY_SIZE(jz4740_musb_fifo_cfg),
+	.ram_bits	= 9,
+	.fifo_cfg	= jz4740_musb_fifo_cfg,
+	.fifo_cfg_size	= ARRAY_SIZE(jz4740_musb_fifo_cfg),
 };
 
 static int jz4740_musb_init(struct musb *musb)
@@ -115,7 +115,7 @@ static int jz4740_probe(struct platform_device *pdev)
 	const struct musb_hdrc_platform_data *pdata = &jz4740_musb_pdata;
 	struct platform_device		*musb;
 	struct jz4740_glue		*glue;
-	struct clk                      *clk;
+	struct clk			*clk;
 	int				ret;
 
 	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
@@ -178,7 +178,7 @@ err_platform_device_put:
 
 static int jz4740_remove(struct platform_device *pdev)
 {
-	struct jz4740_glue	*glue = platform_get_drvdata(pdev);
+	struct jz4740_glue *glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->pdev);
 	clk_disable_unprepare(glue->clk);
