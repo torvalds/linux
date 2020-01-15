@@ -9,6 +9,7 @@
  * Based on sunxi_wdt.c
  */
 
+#include <dt-bindings/reset-controller/mt2712-resets.h>
 #include <dt-bindings/reset-controller/mt8183-resets.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -65,6 +66,10 @@ struct mtk_wdt_dev {
 
 struct mtk_wdt_data {
 	int toprgu_sw_rst_num;
+};
+
+static const struct mtk_wdt_data mt2712_data = {
+	.toprgu_sw_rst_num = MT2712_TOPRGU_SW_RST_NUM,
 };
 
 static const struct mtk_wdt_data mt8183_data = {
@@ -314,6 +319,7 @@ static int mtk_wdt_resume(struct device *dev)
 #endif
 
 static const struct of_device_id mtk_wdt_dt_ids[] = {
+	{ .compatible = "mediatek,mt2712-wdt", .data = &mt2712_data },
 	{ .compatible = "mediatek,mt6589-wdt" },
 	{ .compatible = "mediatek,mt8183-wdt", .data = &mt8183_data },
 	{ /* sentinel */ }
