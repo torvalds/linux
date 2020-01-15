@@ -5361,7 +5361,7 @@ M:	David Lechner <david@lechnology.com>
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/tiny/st7735r.c
-F:	Documentation/devicetree/bindings/display/sitronix,st7735r.txt
+F:	Documentation/devicetree/bindings/display/sitronix,st7735r.yaml
 
 DRM DRIVER FOR SONY ACX424AKP PANELS
 M:	Linus Walleij <linus.walleij@linaro.org>
