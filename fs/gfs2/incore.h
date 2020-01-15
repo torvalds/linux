@@ -380,7 +380,10 @@ struct gfs2_glock {
 	struct delayed_work gl_work;
 	union {
 		/* For iopen glocks only */
-		struct delayed_work gl_delete;
+		struct {
+			struct delayed_work gl_delete;
+			u64 gl_no_formal_ino;
+		};
 		/* For rgrp glocks only */
 		struct {
 			loff_t start;
