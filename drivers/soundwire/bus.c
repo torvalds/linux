@@ -2,6 +2,7 @@
 // Copyright(c) 2015-17 Intel Corporation.
 
 #include <linux/acpi.h>
+#include <linux/delay.h>
 #include <linux/mod_devicetable.h>
 #include <linux/pm_runtime.h>
 #include <linux/soundwire/sdw_registers.h>
@@ -359,6 +360,52 @@ static int sdw_write_no_pm(struct sdw_slave *slave, u32 addr, u8 value)
 	return sdw_nwrite_no_pm(slave, addr, 1, &value);
 }
 
+static int
+sdw_bread_no_pm(struct sdw_bus *bus, u16 dev_num, u32 addr)
+{
+	struct sdw_msg msg;
+	u8 buf;
+	int ret;
+
+	ret = sdw_fill_msg(&msg, NULL, addr, 1, dev_num,
+			   SDW_MSG_FLAG_READ, &buf);
+	if (ret)
+		return ret;
+
+	ret = sdw_transfer(bus, &msg);
+	if (ret < 0)
+		return ret;
+	else
+		return buf;
+}
+
+static int
+sdw_bwrite_no_pm(struct sdw_bus *bus, u16 dev_num, u32 addr, u8 value)
+{
+	struct sdw_msg msg;
+	int ret;
+
+	ret = sdw_fill_msg(&msg, NULL, addr, 1, dev_num,
+			   SDW_MSG_FLAG_WRITE, &value);
+	if (ret)
+		return ret;
+
+	return sdw_transfer(bus, &msg);
+}
+
+static int
+sdw_read_no_pm(struct sdw_slave *slave, u32 addr)
+{
+	u8 buf;
+	int ret;
+
+	ret = sdw_nread_no_pm(slave, addr, 1, &buf);
+	if (ret < 0)
+		return ret;
+	else
+		return buf;
+}
+
 /**
  * sdw_nread() - Read "n" contiguous SDW Slave registers
  * @slave: SDW Slave
@@ -672,6 +719,291 @@ static void sdw_modify_slave_status(struct sdw_slave *slave,
 	slave->status = status;
 	mutex_unlock(&slave->bus->bus_lock);
 }
+
+static enum sdw_clk_stop_mode sdw_get_clk_stop_mode(struct sdw_slave *slave)
+{
+	enum sdw_clk_stop_mode mode;
+
+	/*
+	 * Query for clock stop mode if Slave implements
+	 * ops->get_clk_stop_mode, else read from property.
+	 */
+	if (slave->ops && slave->ops->get_clk_stop_mode) {
+		mode = slave->ops->get_clk_stop_mode(slave);
+	} else {
+		if (slave->prop.clk_stop_mode1)
+			mode = SDW_CLK_STOP_MODE1;
+		else
+			mode = SDW_CLK_STOP_MODE0;
+	}
+
+	return mode;
+}
+
+static int sdw_slave_clk_stop_callback(struct sdw_slave *slave,
+				       enum sdw_clk_stop_mode mode,
+				       enum sdw_clk_stop_type type)
+{
+	int ret;
+
+	if (slave->ops && slave->ops->clk_stop) {
+		ret = slave->ops->clk_stop(slave, mode, type);
+		if (ret < 0) {
+			dev_err(&slave->dev,
+				"Clk Stop type =%d failed: %d\n", type, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int sdw_slave_clk_stop_prepare(struct sdw_slave *slave,
+				      enum sdw_clk_stop_mode mode,
+				      bool prepare)
+{
+	bool wake_en;
+	u32 val = 0;
+	int ret;
+
+	wake_en = slave->prop.wake_capable;
+
+	if (prepare) {
+		val = SDW_SCP_SYSTEMCTRL_CLK_STP_PREP;
+
+		if (mode == SDW_CLK_STOP_MODE1)
+			val |= SDW_SCP_SYSTEMCTRL_CLK_STP_MODE1;
+
+		if (wake_en)
+			val |= SDW_SCP_SYSTEMCTRL_WAKE_UP_EN;
+	} else {
+		val = sdw_read_no_pm(slave, SDW_SCP_SYSTEMCTRL);
+
+		val &= ~(SDW_SCP_SYSTEMCTRL_CLK_STP_PREP);
+	}
+
+	ret = sdw_write_no_pm(slave, SDW_SCP_SYSTEMCTRL, val);
+
+	if (ret != 0)
+		dev_err(&slave->dev,
+			"Clock Stop prepare failed for slave: %d", ret);
+
+	return ret;
+}
+
+static int sdw_bus_wait_for_clk_prep_deprep(struct sdw_bus *bus, u16 dev_num)
+{
+	int retry = bus->clk_stop_timeout;
+	int val;
+
+	do {
+		val = sdw_bread_no_pm(bus, dev_num, SDW_SCP_STAT) &
+			SDW_SCP_STAT_CLK_STP_NF;
+		if (!val) {
+			dev_info(bus->dev, "clock stop prep/de-prep done slave:%d",
+				 dev_num);
+			return 0;
+		}
+
+		usleep_range(1000, 1500);
+		retry--;
+	} while (retry);
+
+	dev_err(bus->dev, "clock stop prep/de-prep failed slave:%d",
+		dev_num);
+
+	return -ETIMEDOUT;
+}
+
+/**
+ * sdw_bus_prep_clk_stop: prepare Slave(s) for clock stop
+ *
+ * @bus: SDW bus instance
+ *
+ * Query Slave for clock stop mode and prepare for that mode.
+ */
+int sdw_bus_prep_clk_stop(struct sdw_bus *bus)
+{
+	enum sdw_clk_stop_mode slave_mode;
+	bool simple_clk_stop = true;
+	struct sdw_slave *slave;
+	bool is_slave = false;
+	int ret = 0;
+
+	/*
+	 * In order to save on transition time, prepare
+	 * each Slave and then wait for all Slave(s) to be
+	 * prepared for clock stop.
+	 */
+	list_for_each_entry(slave, &bus->slaves, node) {
+		if (!slave->dev_num)
+			continue;
+
+		/* Identify if Slave(s) are available on Bus */
+		is_slave = true;
+
+		if (slave->status != SDW_SLAVE_ATTACHED &&
+		    slave->status != SDW_SLAVE_ALERT)
+			continue;
+
+		slave_mode = sdw_get_clk_stop_mode(slave);
+		slave->curr_clk_stop_mode = slave_mode;
+
+		ret = sdw_slave_clk_stop_callback(slave, slave_mode,
+						  SDW_CLK_PRE_PREPARE);
+		if (ret < 0) {
+			dev_err(&slave->dev,
+				"pre-prepare failed:%d", ret);
+			return ret;
+		}
+
+		ret = sdw_slave_clk_stop_prepare(slave,
+						 slave_mode, true);
+		if (ret < 0) {
+			dev_err(&slave->dev,
+				"pre-prepare failed:%d", ret);
+			return ret;
+		}
+
+		if (slave_mode == SDW_CLK_STOP_MODE1)
+			simple_clk_stop = false;
+	}
+
+	if (is_slave && !simple_clk_stop) {
+		ret = sdw_bus_wait_for_clk_prep_deprep(bus,
+						       SDW_BROADCAST_DEV_NUM);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Inform slaves that prep is done */
+	list_for_each_entry(slave, &bus->slaves, node) {
+		if (!slave->dev_num)
+			continue;
+
+		if (slave->status != SDW_SLAVE_ATTACHED &&
+		    slave->status != SDW_SLAVE_ALERT)
+			continue;
+
+		slave_mode = slave->curr_clk_stop_mode;
+
+		if (slave_mode == SDW_CLK_STOP_MODE1) {
+			ret = sdw_slave_clk_stop_callback(slave,
+							  slave_mode,
+							  SDW_CLK_POST_PREPARE);
+
+			if (ret < 0) {
+				dev_err(&slave->dev,
+					"post-prepare failed:%d", ret);
+			}
+		}
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(sdw_bus_prep_clk_stop);
+
+/**
+ * sdw_bus_clk_stop: stop bus clock
+ *
+ * @bus: SDW bus instance
+ *
+ * After preparing the Slaves for clock stop, stop the clock by broadcasting
+ * write to SCP_CTRL register.
+ */
+int sdw_bus_clk_stop(struct sdw_bus *bus)
+{
+	int ret;
+
+	/*
+	 * broadcast clock stop now, attached Slaves will ACK this,
+	 * unattached will ignore
+	 */
+	ret = sdw_bwrite_no_pm(bus, SDW_BROADCAST_DEV_NUM,
+			       SDW_SCP_CTRL, SDW_SCP_CTRL_CLK_STP_NOW);
+	if (ret < 0) {
+		dev_err(bus->dev,
+			"ClockStopNow Broadcast message failed %d", ret);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(sdw_bus_clk_stop);
+
+/**
+ * sdw_bus_exit_clk_stop: Exit clock stop mode
+ *
+ * @bus: SDW bus instance
+ *
+ * This De-prepares the Slaves by exiting Clock Stop Mode 0. For the Slaves
+ * exiting Clock Stop Mode 1, they will be de-prepared after they enumerate
+ * back.
+ */
+int sdw_bus_exit_clk_stop(struct sdw_bus *bus)
+{
+	enum sdw_clk_stop_mode mode;
+	bool simple_clk_stop = true;
+	struct sdw_slave *slave;
+	bool is_slave = false;
+	int ret;
+
+	/*
+	 * In order to save on transition time, de-prepare
+	 * each Slave and then wait for all Slave(s) to be
+	 * de-prepared after clock resume.
+	 */
+	list_for_each_entry(slave, &bus->slaves, node) {
+		if (!slave->dev_num)
+			continue;
+
+		/* Identify if Slave(s) are available on Bus */
+		is_slave = true;
+
+		if (slave->status != SDW_SLAVE_ATTACHED &&
+		    slave->status != SDW_SLAVE_ALERT)
+			continue;
+
+		mode = slave->curr_clk_stop_mode;
+
+		if (mode == SDW_CLK_STOP_MODE1) {
+			simple_clk_stop = false;
+			continue;
+		}
+
+		ret = sdw_slave_clk_stop_callback(slave, mode,
+						  SDW_CLK_PRE_DEPREPARE);
+		if (ret < 0)
+			dev_warn(&slave->dev,
+				 "clk stop deprep failed:%d", ret);
+
+		ret = sdw_slave_clk_stop_prepare(slave, mode,
+						 false);
+
+		if (ret < 0)
+			dev_warn(&slave->dev,
+				 "clk stop deprep failed:%d", ret);
+	}
+
+	if (is_slave && !simple_clk_stop)
+		sdw_bus_wait_for_clk_prep_deprep(bus, SDW_BROADCAST_DEV_NUM);
+
+	list_for_each_entry(slave, &bus->slaves, node) {
+		if (!slave->dev_num)
+			continue;
+
+		if (slave->status != SDW_SLAVE_ATTACHED &&
+		    slave->status != SDW_SLAVE_ALERT)
+			continue;
+
+		mode = slave->curr_clk_stop_mode;
+		sdw_slave_clk_stop_callback(slave, mode,
+					    SDW_CLK_POST_DEPREPARE);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(sdw_bus_exit_clk_stop);
 
 int sdw_configure_dpn_intr(struct sdw_slave *slave,
 			   int port, bool enable, int mask)
