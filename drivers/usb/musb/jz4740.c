@@ -66,11 +66,6 @@ static const struct musb_hdrc_config jz4740_musb_config = {
 	.fifo_cfg_size = ARRAY_SIZE(jz4740_musb_fifo_cfg),
 };
 
-static struct musb_hdrc_platform_data jz4740_musb_platform_data = {
-	.mode   = MUSB_PERIPHERAL,
-	.config = &jz4740_musb_config,
-};
-
 static int jz4740_musb_init(struct musb *musb)
 {
 	struct device *dev = musb->controller->parent;
@@ -107,10 +102,16 @@ static const struct musb_platform_ops jz4740_musb_ops = {
 	.init		= jz4740_musb_init,
 };
 
+static const struct musb_hdrc_platform_data jz4740_musb_pdata = {
+	.mode		= MUSB_PERIPHERAL,
+	.config		= &jz4740_musb_config,
+	.platform_ops	= &jz4740_musb_ops,
+};
+
 static int jz4740_probe(struct platform_device *pdev)
 {
 	struct device			*dev = &pdev->dev;
-	struct musb_hdrc_platform_data	*pdata = &jz4740_musb_platform_data;
+	const struct musb_hdrc_platform_data *pdata = &jz4740_musb_pdata;
 	struct platform_device		*musb;
 	struct jz4740_glue		*glue;
 	struct clk                      *clk;
@@ -143,8 +144,6 @@ static int jz4740_probe(struct platform_device *pdev)
 
 	glue->musb			= musb;
 	glue->clk			= clk;
-
-	pdata->platform_ops		= &jz4740_musb_ops;
 
 	platform_set_drvdata(pdev, glue);
 
