@@ -286,10 +286,8 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 	int tid = ieee80211_get_tid(hdr);
 
 	spin_lock_bh(&wvif->ps_state_lock);
-	if (ieee80211_is_auth(hdr->frame_control)) {
+	if (ieee80211_is_auth(hdr->frame_control))
 		wvif->sta_asleep_mask &= mask;
-		wvif->pspoll_mask &= mask;
-	}
 
 	if (tx_priv->link_id == WFX_LINK_ID_AFTER_DTIM &&
 	    !wvif->mcast_buffered) {

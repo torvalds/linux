@@ -91,7 +91,6 @@ struct wfx_vif {
 	struct work_struct	tx_policy_upload_work;
 
 	u32			sta_asleep_mask;
-	u32			pspoll_mask;
 	spinlock_t		ps_state_lock;
 	struct work_struct	update_tim_work;
 

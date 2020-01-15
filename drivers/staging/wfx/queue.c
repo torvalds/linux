@@ -493,12 +493,10 @@ static int wfx_tx_queue_mask_get(struct wfx_vif *wvif,
 	/* Search for unicast traffic */
 	tx_allowed_mask = ~wvif->sta_asleep_mask;
 	tx_allowed_mask |= BIT(WFX_LINK_ID_UAPSD);
-	if (wvif->sta_asleep_mask) {
-		tx_allowed_mask |= wvif->pspoll_mask;
+	if (wvif->sta_asleep_mask)
 		tx_allowed_mask &= ~BIT(WFX_LINK_ID_AFTER_DTIM);
-	} else {
+	else
 		tx_allowed_mask |= BIT(WFX_LINK_ID_AFTER_DTIM);
-	}
 	idx = wfx_get_prio_queue(wvif, tx_allowed_mask, &total);
 	if (idx < 0)
 		return -ENOENT;
@@ -584,8 +582,6 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 
 		if (hif_handle_tx_data(wvif, skb, queue))
 			continue;  /* Handled by WSM */
-
-		wvif->pspoll_mask &= ~BIT(tx_priv->raw_link_id);
 
 		/* allow bursting if txop is set */
 		if (wvif->edca_params[queue_num].txop)

@@ -13,41 +13,6 @@
 #include "bh.h"
 #include "sta.h"
 
-static int wfx_handle_pspoll(struct wfx_vif *wvif, struct sk_buff *skb)
-{
-	struct ieee80211_sta *sta;
-	struct ieee80211_pspoll *pspoll = (struct ieee80211_pspoll *)skb->data;
-	int link_id = 0;
-	u32 pspoll_mask = 0;
-	int i;
-
-	if (wvif->state != WFX_STATE_AP)
-		return 1;
-	if (!ether_addr_equal(wvif->vif->addr, pspoll->bssid))
-		return 1;
-
-	rcu_read_lock();
-	sta = ieee80211_find_sta(wvif->vif, pspoll->ta);
-	if (sta)
-		link_id = ((struct wfx_sta_priv *)&sta->drv_priv)->link_id;
-	rcu_read_unlock();
-	if (link_id)
-		pspoll_mask = BIT(link_id);
-	else
-		return 1;
-
-	wvif->pspoll_mask |= pspoll_mask;
-	/* Do not report pspols if data for given link id is queued already. */
-	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
-		if (wfx_tx_queue_get_num_queued(&wvif->wdev->tx_queue[i],
-						pspoll_mask)) {
-			wfx_bh_request_tx(wvif->wdev);
-			return 1;
-		}
-	}
-	return 0;
-}
-
 static int wfx_drop_encrypt_data(struct wfx_dev *wdev,
 				 const struct hif_ind_rx *arg,
 				 struct sk_buff *skb)
@@ -124,10 +89,6 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 		dev_warn(wvif->wdev->dev, "malformed SDU received\n");
 		goto drop;
 	}
-
-	if (ieee80211_is_pspoll(frame->frame_control))
-		if (wfx_handle_pspoll(wvif, skb))
-			goto drop;
 
 	hdr->band = NL80211_BAND_2GHZ;
 	hdr->freq = ieee80211_channel_to_frequency(arg->channel_number,
