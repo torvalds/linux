@@ -216,7 +216,6 @@ struct dmub_rb_cmd_dpphy_init {
 
 struct dmub_cmd_psr_copy_settings_data {
 	uint16_t psr_level;
-	uint8_t hubp_inst;
 	uint8_t dpp_inst;
 	uint8_t mpcc_inst;
 	uint8_t opp_inst;
@@ -225,17 +224,8 @@ struct dmub_cmd_psr_copy_settings_data {
 	uint8_t digbe_inst;
 	uint8_t dpphy_inst;
 	uint8_t aux_inst;
-	uint8_t hyst_frames;
-	uint8_t hyst_lines;
-	uint8_t phy_num;
-	uint8_t phy_type;
-	uint8_t aux_repeat;
 	uint8_t smu_optimizations_en;
-	uint8_t skip_wait_for_pll_lock;
 	uint8_t frame_delay;
-	uint8_t smu_phy_id;
-	uint8_t num_of_controllers;
-	uint8_t link_rate;
 	uint8_t frame_cap_ind;
 };
 

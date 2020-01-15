@@ -159,10 +159,6 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 
 	copy_settings_data->mpcc_inst				= pipe_ctx->plane_res.mpcc_inst;
 
-	if (pipe_ctx->plane_res.hubp)
-		copy_settings_data->hubp_inst			= pipe_ctx->plane_res.hubp->inst;
-	else
-		copy_settings_data->hubp_inst			= 0;
 	if (pipe_ctx->plane_res.dpp)
 		copy_settings_data->dpp_inst			= pipe_ctx->plane_res.dpp->inst;
 	else
@@ -178,18 +174,9 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 
 	// Misc
 	copy_settings_data->psr_level				= psr_context->psr_level.u32all;
-	copy_settings_data->hyst_frames				= psr_context->timehyst_frames;
-	copy_settings_data->hyst_lines				= psr_context->hyst_lines;
-	copy_settings_data->phy_type				= psr_context->phyType;
-	copy_settings_data->aux_repeat				= psr_context->aux_repeats;
 	copy_settings_data->smu_optimizations_en		= psr_context->allow_smu_optimizations;
-	copy_settings_data->skip_wait_for_pll_lock		= psr_context->skipPsrWaitForPllLock;
 	copy_settings_data->frame_delay				= psr_context->frame_delay;
-	copy_settings_data->smu_phy_id				= psr_context->smuPhyId;
-	copy_settings_data->num_of_controllers			= psr_context->numberOfControllers;
 	copy_settings_data->frame_cap_ind			= psr_context->psrFrameCaptureIndicationReq;
-	copy_settings_data->phy_num				= psr_context->frame_delay & 0x7;
-	copy_settings_data->link_rate				= psr_context->frame_delay & 0xF;
 
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.psr_copy_settings.header);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);
