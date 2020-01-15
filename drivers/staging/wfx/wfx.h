@@ -104,12 +104,10 @@ struct wfx_vif {
 	bool			disable_beacon_filter;
 	struct work_struct	update_filtering_work;
 
-	u32			erp_info;
 	unsigned long		uapsd_mask;
 	struct ieee80211_tx_queue_params edca_params[IEEE80211_NUM_ACS];
 	struct hif_req_set_bss_params bss_params;
 	struct work_struct	bss_params_work;
-	struct work_struct	set_cts_work;
 
 	int			join_complete_status;
 	struct work_struct	unjoin_work;

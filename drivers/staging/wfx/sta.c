@@ -671,24 +671,6 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return 0;
 }
 
-static void wfx_set_cts_work(struct work_struct *work)
-{
-	struct wfx_vif *wvif = container_of(work, struct wfx_vif, set_cts_work);
-	u8 erp_ie[3] = { WLAN_EID_ERP_INFO, 1, 0 };
-	struct hif_ie_flags target_frame = {
-		.beacon = 1,
-	};
-
-	mutex_lock(&wvif->wdev->conf_mutex);
-	erp_ie[2] = wvif->erp_info;
-	mutex_unlock(&wvif->wdev->conf_mutex);
-
-	hif_erp_use_protection(wvif, erp_ie[2] & WLAN_ERP_USE_PROTECTION);
-
-	if (wvif->vif->type != NL80211_IFTYPE_STATION)
-		hif_update_ie(wvif, &target_frame, erp_ie, sizeof(erp_ie));
-}
-
 static int wfx_start_ap(struct wfx_vif *wvif)
 {
 	int ret;
@@ -896,24 +878,21 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
-	/* ERP Protection */
 	if (changed & BSS_CHANGED_ASSOC ||
 	    changed & BSS_CHANGED_ERP_CTS_PROT ||
 	    changed & BSS_CHANGED_ERP_PREAMBLE) {
-		u32 prev_erp_info = wvif->erp_info;
+		struct hif_ie_flags target_frame = {
+			.beacon = 1,
+		};
+		u8 erp_ie[3] = { WLAN_EID_ERP_INFO, 1, 0 };
 
+		hif_erp_use_protection(wvif, info->use_cts_prot);
 		if (info->use_cts_prot)
-			wvif->erp_info |= WLAN_ERP_USE_PROTECTION;
-		else if (!(prev_erp_info & WLAN_ERP_NON_ERP_PRESENT))
-			wvif->erp_info &= ~WLAN_ERP_USE_PROTECTION;
-
+			erp_ie[2] |= WLAN_ERP_USE_PROTECTION;
 		if (info->use_short_preamble)
-			wvif->erp_info |= WLAN_ERP_BARKER_PREAMBLE;
-		else
-			wvif->erp_info &= ~WLAN_ERP_BARKER_PREAMBLE;
-
-		if (prev_erp_info != wvif->erp_info)
-			schedule_work(&wvif->set_cts_work);
+			erp_ie[2] |= WLAN_ERP_BARKER_PREAMBLE;
+		if (wvif->vif->type != NL80211_IFTYPE_STATION)
+			hif_update_ie(wvif, &target_frame, erp_ie, sizeof(erp_ie));
 	}
 
 	if (changed & BSS_CHANGED_ASSOC || changed & BSS_CHANGED_ERP_SLOT)
@@ -1237,7 +1216,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	complete(&wvif->set_pm_mode_complete);
 	INIT_WORK(&wvif->update_filtering_work, wfx_update_filtering_work);
 	INIT_WORK(&wvif->bss_params_work, wfx_bss_params_work);
-	INIT_WORK(&wvif->set_cts_work, wfx_set_cts_work);
 	INIT_WORK(&wvif->unjoin_work, wfx_unjoin_work);
 	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
 
