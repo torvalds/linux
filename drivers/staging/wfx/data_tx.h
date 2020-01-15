@@ -34,7 +34,6 @@ struct wfx_link_entry {
 	u8			mac[ETH_ALEN];
 	u8			old_mac[ETH_ALEN];
 	u8			buffered[WFX_MAX_TID];
-	struct sk_buff_head	rx_queue;
 };
 
 struct tx_policy {

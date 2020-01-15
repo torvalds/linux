@@ -108,7 +108,6 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	struct ieee80211_hdr *frame = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 	struct wfx_link_entry *entry = NULL;
-	bool early_data = false;
 
 	memset(hdr, 0, sizeof(*hdr));
 
@@ -121,9 +120,6 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	if (link_id && link_id <= WFX_MAX_STA_IN_AP_MODE) {
 		entry = &wvif->link_id_db[link_id - 1];
 		entry->timestamp = jiffies;
-		if (entry->status == WFX_LINK_SOFT &&
-		    ieee80211_is_data(frame->frame_control))
-			early_data = true;
 	}
 
 	if (arg->status == HIF_STATUS_MICFAILURE)
@@ -181,18 +177,7 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 			schedule_work(&wvif->update_filtering_work);
 		}
 	}
-
-	if (early_data) {
-		spin_lock_bh(&wvif->ps_state_lock);
-		/* Double-check status with lock held */
-		if (entry->status == WFX_LINK_SOFT)
-			skb_queue_tail(&entry->rx_queue, skb);
-		else
-			ieee80211_rx_irqsafe(wvif->wdev->hw, skb);
-		spin_unlock_bh(&wvif->ps_state_lock);
-	} else {
-		ieee80211_rx_irqsafe(wvif->wdev->hw, skb);
-	}
+	ieee80211_rx_irqsafe(wvif->wdev->hw, skb);
 
 	return;
 

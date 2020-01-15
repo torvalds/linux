@@ -571,7 +571,6 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *) &sta->drv_priv;
 	struct wfx_link_entry *entry;
-	struct sk_buff *skb;
 
 	if (wvif->vif->type != NL80211_IFTYPE_AP)
 		return 0;
@@ -589,8 +588,6 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 					IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
 		wvif->sta_asleep_mask |= BIT(sta_priv->link_id);
 	entry->status = WFX_LINK_HARD;
-	while ((skb = skb_dequeue(&entry->rx_queue)))
-		ieee80211_rx_irqsafe(wdev->hw, skb);
 	spin_unlock_bh(&wvif->ps_state_lock);
 	return 0;
 }

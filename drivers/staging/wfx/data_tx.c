@@ -292,7 +292,6 @@ static int wfx_alloc_link_id(struct wfx_vif *wvif, const u8 *mac)
 		entry->status = WFX_LINK_RESERVE;
 		ether_addr_copy(entry->mac, mac);
 		memset(&entry->buffered, 0, WFX_MAX_TID);
-		skb_queue_head_init(&entry->rx_queue);
 		wfx_tx_lock(wvif->wdev);
 
 		if (!schedule_work(&wvif->link_id_work))
@@ -400,8 +399,6 @@ void wfx_link_id_gc_work(struct work_struct *work)
 				next_gc = min_t(unsigned long, next_gc, ttl);
 			}
 		}
-		if (need_reset)
-			skb_queue_purge(&wvif->link_id_db[i].rx_queue);
 	}
 	spin_unlock_bh(&wvif->ps_state_lock);
 	if (next_gc != -1)
