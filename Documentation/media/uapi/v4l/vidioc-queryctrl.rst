@@ -378,7 +378,7 @@ See also the examples in :ref:`control`.
       - 0
       - 0
       - A control which performs an action when set. Drivers must ignore
-	the value passed with ``VIDIOC_S_CTRL`` and return an ``EINVAL`` error
+	the value passed with ``VIDIOC_S_CTRL`` and return an ``EACCES`` error
 	code on a ``VIDIOC_G_CTRL`` attempt.
     * - ``V4L2_CTRL_TYPE_INTEGER64``
       - any
