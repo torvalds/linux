@@ -51,8 +51,6 @@ static void init_zhaoxin_cap(struct cpuinfo_x86 *c)
 
 	if (c->x86 >= 0x6)
 		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
-
-	cpu_detect_cache_sizes(c);
 }
 
 static void early_init_zhaoxin(struct cpuinfo_x86 *c)
