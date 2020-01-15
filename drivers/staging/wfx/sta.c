@@ -826,6 +826,10 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_TXPOWER)
 		hif_set_output_power(wvif, info->txpower);
+
+	if (changed & BSS_CHANGED_PS)
+		wfx_update_pm(wvif);
+
 	mutex_unlock(&wdev->conf_mutex);
 
 	if (do_join)
@@ -1058,18 +1062,7 @@ void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 int wfx_config(struct ieee80211_hw *hw, u32 changed)
 {
-	int ret = 0;
-	struct wfx_dev *wdev = hw->priv;
-	struct wfx_vif *wvif;
-
-	if (changed & IEEE80211_CONF_CHANGE_PS) {
-		mutex_lock(&wdev->conf_mutex);
-		wvif = NULL;
-		while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
-			ret = wfx_update_pm(wvif);
-		mutex_unlock(&wdev->conf_mutex);
-	}
-	return ret;
+	return 0;
 }
 
 int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
