@@ -390,12 +390,13 @@ static int handle(const char *name, umode_t mode, kuid_t uid, kgid_t gid,
 
 static int devtmpfsd(void *p)
 {
-	int *err = p;
-	*err = ksys_unshare(CLONE_NEWNS);
-	if (*err)
+	int err;
+
+	err = ksys_unshare(CLONE_NEWNS);
+	if (err)
 		goto out;
-	*err = do_mount("devtmpfs", "/", "devtmpfs", MS_SILENT, NULL);
-	if (*err)
+	err = do_mount("devtmpfs", "/", "devtmpfs", MS_SILENT, NULL);
+	if (err)
 		goto out;
 	ksys_chdir("/.."); /* will traverse into overmounted root */
 	ksys_chroot(".");
@@ -421,8 +422,9 @@ static int devtmpfsd(void *p)
 	}
 	return 0;
 out:
+	*(int *)p = err;
 	complete(&setup_done);
-	return *err;
+	return err;
 }
 
 /*
