@@ -365,7 +365,6 @@ static bool hif_handle_tx_data(struct wfx_vif *wvif, struct sk_buff *skb,
 	struct ieee80211_hdr *frame = (struct ieee80211_hdr *) (req->frame + req->data_flags.fc_offset);
 
 	enum {
-		do_probe,
 		do_drop,
 		do_wep,
 		do_tx,
