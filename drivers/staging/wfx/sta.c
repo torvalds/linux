@@ -572,6 +572,7 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *) &sta->drv_priv;
 	struct wfx_link_entry *entry;
 
+	spin_lock_init(&sta_priv->lock);
 	if (wvif->vif->type != NL80211_IFTYPE_AP)
 		return 0;
 

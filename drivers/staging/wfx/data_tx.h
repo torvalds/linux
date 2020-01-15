@@ -14,9 +14,6 @@
 #include "hif_api_cmd.h"
 #include "hif_api_mib.h"
 
-// FIXME: use IEEE80211_NUM_TIDS
-#define WFX_MAX_TID               8
-
 struct wfx_tx_priv;
 struct wfx_dev;
 struct wfx_vif;
@@ -33,7 +30,6 @@ struct wfx_link_entry {
 	enum wfx_link_status	status;
 	u8			mac[ETH_ALEN];
 	u8			old_mac[ETH_ALEN];
-	u8			buffered[WFX_MAX_TID];
 };
 
 struct tx_policy {

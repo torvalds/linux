@@ -291,7 +291,6 @@ static int wfx_alloc_link_id(struct wfx_vif *wvif, const u8 *mac)
 
 		entry->status = WFX_LINK_RESERVE;
 		ether_addr_copy(entry->mac, mac);
-		memset(&entry->buffered, 0, WFX_MAX_TID);
 		wfx_tx_lock(wvif->wdev);
 
 		if (!schedule_work(&wvif->link_id_work))
@@ -434,6 +433,7 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 			     struct ieee80211_sta *sta)
 {
 	u32 mask = ~BIT(tx_priv->raw_link_id);
+	struct wfx_sta_priv *sta_priv;
 
 	spin_lock_bh(&wvif->ps_state_lock);
 	if (ieee80211_is_auth(hdr->frame_control)) {
@@ -448,15 +448,17 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 			schedule_work(&wvif->mcast_start_work);
 	}
 
-	if (tx_priv->raw_link_id) {
+	if (tx_priv->raw_link_id)
 		wvif->link_id_db[tx_priv->raw_link_id - 1].timestamp = jiffies;
-		if (tx_priv->tid < WFX_MAX_TID)
-			wvif->link_id_db[tx_priv->raw_link_id - 1].buffered[tx_priv->tid]++;
-	}
 	spin_unlock_bh(&wvif->ps_state_lock);
 
-	if (sta)
+	if (sta && tx_priv->tid < WFX_MAX_TID) {
+		sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
+		spin_lock_bh(&sta_priv->lock);
+		sta_priv->buffered[tx_priv->tid]++;
 		ieee80211_sta_set_buffered(sta, tx_priv->tid, true);
+		spin_unlock_bh(&sta_priv->lock);
+	}
 }
 
 static u8 wfx_tx_get_raw_link_id(struct wfx_vif *wvif,
@@ -789,31 +791,25 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 	wfx_pending_remove(wvif->wdev, skb);
 }
 
-static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb,
-				   struct hif_req_tx *req)
+static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb)
 {
-	struct ieee80211_sta *sta;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_sta *sta;
+	struct wfx_sta_priv *sta_priv;
 	int tid = wfx_tx_get_tid(hdr);
-	int raw_link_id = req->queue_id.peer_sta_id;
-	u8 *buffered;
 
-	if (raw_link_id && tid < WFX_MAX_TID) {
-		buffered = wvif->link_id_db[raw_link_id - 1].buffered;
-
-		spin_lock_bh(&wvif->ps_state_lock);
-		WARN(!buffered[tid], "inconsistent notification");
-		buffered[tid]--;
-		spin_unlock_bh(&wvif->ps_state_lock);
-
-		if (!buffered[tid]) {
-			rcu_read_lock();
-			sta = ieee80211_find_sta(wvif->vif, hdr->addr1);
-			if (sta)
-				ieee80211_sta_set_buffered(sta, tid, false);
-			rcu_read_unlock();
-		}
+	rcu_read_lock(); // protect sta
+	sta = ieee80211_find_sta(wvif->vif, hdr->addr1);
+	if (sta && tid < WFX_MAX_TID) {
+		sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
+		spin_lock_bh(&sta_priv->lock);
+		WARN(!sta_priv->buffered[tid], "inconsistent notification");
+		sta_priv->buffered[tid]--;
+		if (!sta_priv->buffered[tid])
+			ieee80211_sta_set_buffered(sta, tid, false);
+		spin_unlock_bh(&sta_priv->lock);
 	}
+	rcu_read_unlock();
 }
 
 void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb)
@@ -827,7 +823,7 @@ void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb)
 
 	WARN_ON(!wvif);
 	skb_pull(skb, offset);
-	wfx_notify_buffered_tx(wvif, skb, req);
+	wfx_notify_buffered_tx(wvif, skb);
 	wfx_tx_policy_put(wvif, req->tx_flags.retry_policy_index);
 	ieee80211_tx_status_irqsafe(wdev->hw, skb);
 }
