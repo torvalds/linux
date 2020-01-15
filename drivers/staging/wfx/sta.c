@@ -843,12 +843,8 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED &&
-	    wvif->state != WFX_STATE_IBSS) {
-		if (wvif->enable_beacon != info->enable_beacon) {
-			hif_beacon_transmit(wvif, info->enable_beacon);
-			wvif->enable_beacon = info->enable_beacon;
-		}
-	}
+	    wvif->state != WFX_STATE_IBSS)
+		hif_beacon_transmit(wvif, info->enable_beacon);
 
 	if (changed & BSS_CHANGED_BEACON_INFO)
 		hif_set_beacon_wakeup_period(wvif, info->dtim_period,
@@ -1299,7 +1295,6 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 		}
 		memset(wvif->link_id_db, 0, sizeof(wvif->link_id_db));
 		wvif->sta_asleep_mask = 0;
-		wvif->enable_beacon = false;
 		wvif->mcast_tx = false;
 		wvif->aid0_bit_set = false;
 		wvif->mcast_buffered = false;
