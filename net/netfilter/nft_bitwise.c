@@ -130,8 +130,8 @@ nla_put_failure:
 static struct nft_data zero;
 
 static int nft_bitwise_offload(struct nft_offload_ctx *ctx,
-                               struct nft_flow_rule *flow,
-                               const struct nft_expr *expr)
+			       struct nft_flow_rule *flow,
+			       const struct nft_expr *expr)
 {
 	const struct nft_bitwise *priv = nft_expr_priv(expr);
 	struct nft_offload_reg *reg = &ctx->regs[priv->dreg];
