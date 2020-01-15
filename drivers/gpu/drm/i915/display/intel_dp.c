@@ -2209,7 +2209,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 						    intel_dp->max_link_rate);
 
 	/* No common link rates between source and sink */
-	WARN_ON(common_len <= 0);
+	drm_WARN_ON(encoder->base.dev, common_len <= 0);
 
 	limits.min_clock = 0;
 	limits.max_clock = common_len - 1;
@@ -5193,7 +5193,8 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
-	WARN(ret, "Acquiring modeset locks failed with %i\n", ret);
+	drm_WARN(encoder->base.dev, ret,
+		 "Acquiring modeset locks failed with %i\n", ret);
 
 	/*
 	 * Keeping it consistent with intel_ddi_hotplug() and

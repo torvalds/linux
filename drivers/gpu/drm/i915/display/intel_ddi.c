@@ -1694,7 +1694,8 @@ static void skl_ddi_clock_get(struct intel_encoder *encoder,
 			link_clock = 270000;
 			break;
 		default:
-			WARN(1, "Unsupported link rate\n");
+			drm_WARN(encoder->base.dev, 1,
+				 "Unsupported link rate\n");
 			break;
 		}
 		link_clock *= 2;
@@ -4677,7 +4678,8 @@ intel_ddi_hotplug(struct intel_encoder *encoder,
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
-	WARN(ret, "Acquiring modeset locks failed with %i\n", ret);
+	drm_WARN(encoder->base.dev, ret,
+		 "Acquiring modeset locks failed with %i\n", ret);
 
 	/*
 	 * Unpowered type-c dongles can take some time to boot and be

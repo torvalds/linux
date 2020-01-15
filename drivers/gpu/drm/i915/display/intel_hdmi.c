@@ -655,12 +655,12 @@ static void intel_write_infoframe(struct intel_encoder *encoder,
 	     intel_hdmi_infoframe_enable(type)) == 0)
 		return;
 
-	if (WARN_ON(frame->any.type != type))
+	if (drm_WARN_ON(encoder->base.dev, frame->any.type != type))
 		return;
 
 	/* see comment above for the reason for this offset */
 	len = hdmi_infoframe_pack_only(frame, buffer + 1, sizeof(buffer) - 1);
-	if (WARN_ON(len < 0))
+	if (drm_WARN_ON(encoder->base.dev, len < 0))
 		return;
 
 	/* Insert the 'hole' (see big comment above) at position 3 */
@@ -734,8 +734,8 @@ intel_hdmi_compute_avi_infoframe(struct intel_encoder *encoder,
 	drm_hdmi_avi_infoframe_colorspace(frame, conn_state);
 
 	/* nonsense combination */
-	WARN_ON(crtc_state->limited_color_range &&
-		crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);
+	drm_WARN_ON(encoder->base.dev, crtc_state->limited_color_range &&
+		    crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);
 
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_RGB) {
 		drm_hdmi_avi_infoframe_quant_range(frame, connector,
@@ -753,7 +753,7 @@ intel_hdmi_compute_avi_infoframe(struct intel_encoder *encoder,
 	/* TODO: handle pixel repetition for YCBCR420 outputs */
 
 	ret = hdmi_avi_infoframe_check(frame);
-	if (WARN_ON(ret))
+	if (drm_WARN_ON(encoder->base.dev, ret))
 		return false;
 
 	return true;
@@ -774,13 +774,13 @@ intel_hdmi_compute_spd_infoframe(struct intel_encoder *encoder,
 		intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_SPD);
 
 	ret = hdmi_spd_infoframe_init(frame, "Intel", "Integrated gfx");
-	if (WARN_ON(ret))
+	if (drm_WARN_ON(encoder->base.dev, ret))
 		return false;
 
 	frame->sdi = HDMI_SPD_SDI_PC;
 
 	ret = hdmi_spd_infoframe_check(frame);
-	if (WARN_ON(ret))
+	if (drm_WARN_ON(encoder->base.dev, ret))
 		return false;
 
 	return true;
@@ -806,11 +806,11 @@ intel_hdmi_compute_hdmi_infoframe(struct intel_encoder *encoder,
 	ret = drm_hdmi_vendor_infoframe_from_display_mode(frame,
 							  conn_state->connector,
 							  &crtc_state->hw.adjusted_mode);
-	if (WARN_ON(ret))
+	if (drm_WARN_ON(encoder->base.dev, ret))
 		return false;
 
 	ret = hdmi_vendor_infoframe_check(frame);
-	if (WARN_ON(ret))
+	if (drm_WARN_ON(encoder->base.dev, ret))
 		return false;
 
 	return true;
@@ -1863,7 +1863,7 @@ static void intel_enable_hdmi_audio(struct intel_encoder *encoder,
 {
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 
-	WARN_ON(!pipe_config->has_hdmi_sink);
+	drm_WARN_ON(encoder->base.dev, !pipe_config->has_hdmi_sink);
 	DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
 			 pipe_name(crtc->pipe));
 	intel_audio_codec_enable(encoder, pipe_config, conn_state);
