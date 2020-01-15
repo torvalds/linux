@@ -87,12 +87,16 @@ static int uinput_dev_event(struct input_dev *dev,
 	struct uinput_device	*udev = input_get_drvdata(dev);
 	struct timespec64	ts;
 
-	udev->buff[udev->head].type = type;
-	udev->buff[udev->head].code = code;
-	udev->buff[udev->head].value = value;
 	ktime_get_ts64(&ts);
-	udev->buff[udev->head].input_event_sec = ts.tv_sec;
-	udev->buff[udev->head].input_event_usec = ts.tv_nsec / NSEC_PER_USEC;
+
+	udev->buff[udev->head] = (struct input_event) {
+		.input_event_sec = ts.tv_sec,
+		.input_event_usec = ts.tv_nsec / NSEC_PER_USEC,
+		.type = type,
+		.code = code,
+		.value = value,
+	};
+
 	udev->head = (udev->head + 1) % UINPUT_BUFFER_SIZE;
 
 	wake_up_interruptible(&udev->waitq);
