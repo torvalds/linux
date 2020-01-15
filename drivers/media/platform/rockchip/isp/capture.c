@@ -933,6 +933,8 @@ static int mp_config_mi(struct rkisp_stream *stream)
 	mp_mi_ctrl_set_format(base, stream->out_isp_fmt.write_format);
 	mp_mi_ctrl_autoupdate_en(base);
 
+	/* set up first buffer */
+	mi_frame_end(stream);
 	return 0;
 }
 
@@ -985,6 +987,8 @@ static int sp_config_mi(struct rkisp_stream *stream)
 
 	sp_mi_ctrl_autoupdate_en(base);
 
+	/* set up first buffer */
+	mi_frame_end(stream);
 	return 0;
 }
 
@@ -1059,6 +1063,9 @@ static int dmatx2_config_mi(struct rkisp_stream *stream)
 				    stream->out_fmt.width,
 				    stream->out_fmt.height);
 		raw_wr_set_pic_offs(stream, 0);
+		raw_rd_set_pic_size(base,
+				    stream->out_fmt.width,
+				    stream->out_fmt.height);
 		vc = csi->sink[CSI_SRC_CH3 - 1].index;
 		val = SW_CSI_RAW_WR_CH_EN(vc);
 		if (IS_HDR_DBG(dev->hdr.op_mode) ||
@@ -1156,9 +1163,6 @@ static int dmatx0_config_mi(struct rkisp_stream *stream)
 				    dmatx->out_fmt.width,
 				    dmatx->out_fmt.height);
 		raw_wr_set_pic_offs(dmatx, 0);
-		raw_rd_set_pic_size(base,
-				    dmatx->out_fmt.width,
-				    dmatx->out_fmt.height);
 		vc = csi->sink[CSI_SRC_CH1 - 1].index;
 		val = SW_CSI_RAW_WR_CH_EN(vc);
 		if (IS_HDR_DBG(dev->hdr.op_mode) ||
@@ -1238,7 +1242,8 @@ static void mp_disable_mi(struct rkisp_stream *stream)
 	void __iomem *base = dev->base_addr;
 
 	mi_ctrl_mp_disable(base);
-	hdr_stop_dmatx(dev);
+	if (dev->isp_ver == ISP_V20)
+		hdr_stop_dmatx(dev);
 }
 
 static void sp_disable_mi(struct rkisp_stream *stream)
@@ -1522,7 +1527,7 @@ static int rkisp_allow_buffer(struct rkisp_device *dev,
 }
 
 static void rkisp_free_buffer(struct rkisp_device *dev,
-			       struct rkisp_dummy_buffer *buf)
+			      struct rkisp_dummy_buffer *buf)
 {
 	if (buf && buf->vaddr && buf->size) {
 		dma_free_coherent(dev->dev, buf->size,
@@ -1538,12 +1543,6 @@ static int rkisp_create_hdr_buf(struct rkisp_device *dev)
 	struct rkisp_dummy_buffer *buf;
 	struct rkisp_stream *stream;
 	u32 size;
-
-	if (dev->isp_ver != ISP_V20 ||
-	    !dev->active_sensor ||
-	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2))
-		return 0;
 
 	stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX0];
 	size = stream->out_fmt.plane_fmt[0].sizeimage;
@@ -1606,20 +1605,24 @@ void hdr_destroy_buf(struct rkisp_device *dev)
 	int i, j, max_dma, max_buf = 1;
 	struct rkisp_dummy_buffer *buf;
 
-	if (dev->isp_ver != ISP_V20 ||
+	if (atomic_read(&dev->cap_dev.refcnt) > 1 ||
 	    !dev->active_sensor ||
 	    (dev->active_sensor &&
 	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2))
 		return;
-	dev->hdr.cnt = 0;
+
+	atomic_set(&dev->hdr.refcnt, 0);
 	max_dma = hdr_dma_frame(dev);
 	if (IS_HDR_DBG(dev->hdr.op_mode) &&
 	    !dev->dmarx_dev.trigger)
 		max_buf = HDR_MAX_DUMMY_BUF;
 	for (i = 0; i < max_dma; i++) {
 		buf = dev->hdr.rx_cur_buf[i];
-		if (buf)
+		if (buf) {
 			rkisp_free_buffer(dev, buf);
+			dev->hdr.rx_cur_buf[i] = NULL;
+		}
+
 		for (j = 0; j < max_buf; j++) {
 			buf = hdr_dqbuf(&dev->hdr.q_tx[i]);
 			if (buf)
@@ -1638,8 +1641,7 @@ int hdr_update_dmatx_buf(struct rkisp_device *dev)
 	struct rkisp_dummy_buffer *buf;
 	u8 index;
 
-	if (dev->isp_ver != ISP_V20 ||
-	    !dev->active_sensor ||
+	if (!dev->active_sensor ||
 	    (dev->active_sensor &&
 	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2))
 		return 0;
@@ -1703,13 +1705,12 @@ end:
 
 int hdr_config_dmatx(struct rkisp_device *dev)
 {
-	if (dev->isp_ver != ISP_V20 ||
-	    dev->hdr.cnt ||
+	if (atomic_inc_return(&dev->hdr.refcnt) > 1 ||
 	    !dev->active_sensor ||
 	    (dev->active_sensor &&
 	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2))
 		return 0;
-	dev->hdr.cnt++;
+
 	rkisp_create_hdr_buf(dev);
 
 	if (dev->hdr.op_mode == HDR_FRAMEX2_DDR ||
@@ -1737,33 +1738,37 @@ int hdr_config_dmatx(struct rkisp_device *dev)
 
 void hdr_stop_dmatx(struct rkisp_device *dev)
 {
-	void __iomem *base = dev->base_addr;
 	struct rkisp_stream *stream;
-	int i;
+
+	if (atomic_dec_return(&dev->hdr.refcnt) ||
+	    !dev->active_sensor ||
+	    (dev->active_sensor &&
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2))
+		return;
 
 	if (dev->hdr.op_mode == HDR_FRAMEX2_DDR ||
 	    dev->hdr.op_mode == HDR_LINEX2_DDR ||
 	    dev->hdr.op_mode == HDR_FRAMEX3_DDR ||
 	    dev->hdr.op_mode == HDR_LINEX3_DDR ||
 	    dev->hdr.op_mode == HDR_DBG_FRAME2 ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME3)
-		isp_clear_bits(base + CSI2RX_RAW0_WR_CTRL,
-			       SW_CSI_RAW_WR_EN_ORG);
+	    dev->hdr.op_mode == HDR_DBG_FRAME3) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX0];
+		raw_wr_disable(stream);
+		stream->u.dmatx.is_config = false;
+	}
 	if (dev->hdr.op_mode == HDR_FRAMEX3_DDR ||
 	    dev->hdr.op_mode == HDR_LINEX3_DDR ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME3)
-		isp_clear_bits(base + CSI2RX_RAW1_WR_CTRL,
-			       SW_CSI_RAW_WR_EN_ORG);
+	    dev->hdr.op_mode == HDR_DBG_FRAME3) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX1];
+		raw_wr_disable(stream);
+		stream->u.dmatx.is_config = false;
+	}
 	if (dev->hdr.op_mode == HDR_DBG_FRAME1 ||
 	    dev->hdr.op_mode == HDR_DBG_FRAME2 ||
-	    dev->hdr.op_mode == HDR_DBG_FRAME3)
-		isp_clear_bits(base + CSI2RX_RAW2_WR_CTRL,
-			       SW_CSI_RAW_WR_EN_ORG);
-	for (i = RKISP_STREAM_DMATX0; i < RKISP_MAX_STREAM; i++) {
-		stream = &dev->cap_dev.stream[i];
-		if (!stream->streaming &&
-		    stream->u.dmatx.is_config)
-			stream->u.dmatx.is_config = false;
+	    dev->hdr.op_mode == HDR_DBG_FRAME3) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX2];
+		raw_wr_disable(stream);
+		stream->u.dmatx.is_config = false;
 	}
 }
 
@@ -1794,7 +1799,8 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	stream->stopping = true;
 	stream->ops->stop_mi(stream);
 	if (dev->isp_state == ISP_START &&
-	    dev->isp_inp != INP_DMARX_ISP) {
+	    dev->isp_inp != INP_DMARX_ISP &&
+	    !dev->dmarx_dev.trigger) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
 					 msecs_to_jiffies(1000));
@@ -1830,35 +1836,35 @@ static int rkisp_start(struct rkisp_stream *stream)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	struct rkisp_device *dev = stream->ispdev;
-	bool other_streaming = false;
-	unsigned int i;
+	bool is_update = false;
 	int ret;
 
-	for (i = 0; i < RKISP_MAX_STREAM; i++) {
-		if (i != stream->id &&
-			dev->cap_dev.stream[i].streaming) {
-			other_streaming = true;
-			break;
-		}
-	}
-
-	/* stream raw need mi_cfg_upd to update first base address shadow
-	 * config raw in first stream (sp/mp), and enable when raw stream open.
+	/*
+	 * MP/SP/MPFBC/DMATX need mi_cfg_upd to update shadow reg
+	 * MP/SP/MPFBC will update each other when frame end, but
+	 * MPFBC will limit MP/SP function: resize need to close,
+	 * output yuv format only 422 and 420 than two-plane mode,
+	 * and 422 or 420 is limit to MPFBC output format,
+	 * default 422. MPFBC need start before MP/SP.
+	 * DMATX will not update MP/SP/MPFBC, so it need update
+	 * togeter with other.
 	 */
-	if (!other_streaming &&
-	    (stream->id == RKISP_STREAM_DMATX0 ||
-	     stream->id == RKISP_STREAM_DMATX1 ||
-	     stream->id == RKISP_STREAM_DMATX2 ||
-	     stream->id == RKISP_STREAM_DMATX3)) {
-		v4l2_err(&dev->v4l2_dev,
-			"stream raw only support to open after stream mp/sp");
-		return -EINVAL;
+	if (stream->id == RKISP_STREAM_MP ||
+	    stream->id == RKISP_STREAM_SP) {
+		is_update = (stream->id == RKISP_STREAM_MP) ?
+			!dev->cap_dev.stream[RKISP_STREAM_SP].streaming :
+			!dev->cap_dev.stream[RKISP_STREAM_MP].streaming;
 	}
 
 	if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13)
 		dmatx0_config_mi(stream);
 
-	hdr_config_dmatx(dev);
+	/* only MP support HDR mode, SP want to with HDR need
+	 * to start after MP.
+	 */
+	if (dev->isp_ver == ISP_V20 &&
+	    stream->id == RKISP_STREAM_MP)
+		hdr_config_dmatx(dev);
 
 	if (stream->ops->set_data_path)
 		stream->ops->set_data_path(base);
@@ -1866,10 +1872,6 @@ static int rkisp_start(struct rkisp_stream *stream)
 	if (ret)
 		return ret;
 
-	/* for mp/sp Set up an buffer for the next frame */
-	if (stream->id == RKISP_STREAM_MP ||
-	    stream->id == RKISP_STREAM_SP)
-		mi_frame_end(stream);
 	stream->ops->enable_mi(stream);
 	/* It's safe to config ACTIVE and SHADOW regs for the
 	 * first stream. While when the second is starting, do NOT
@@ -1880,10 +1882,11 @@ static int rkisp_start(struct rkisp_stream *stream)
 	 * also required because the sencond FE maybe corrupt especially
 	 * when run at 120fps.
 	 */
-	if (!other_streaming && !dev->mpfbc_dev.en) {
+	if (is_update && !dev->mpfbc_dev.en) {
 		force_cfg_update(base);
 		mi_frame_end(stream);
-		hdr_update_dmatx_buf(dev);
+		if (dev->isp_ver == ISP_V20)
+			hdr_update_dmatx_buf(dev);
 	}
 	stream->streaming = true;
 
@@ -2029,7 +2032,8 @@ static void rkisp_destroy_dummy_buf(struct rkisp_stream *stream)
 	struct rkisp_device *dev = stream->ispdev;
 
 	rkisp_free_buffer(dev, dummy_buf);
-	hdr_destroy_buf(dev);
+	if (dev->isp_ver == ISP_V20)
+		hdr_destroy_buf(dev);
 }
 
 static void destroy_buf_queue(struct rkisp_stream *stream,
@@ -2070,12 +2074,15 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 		 "%s %d\n", __func__, stream->id);
 
 	rkisp_stream_stop(stream);
-	/* call to the other devices */
-	media_pipeline_stop(&node->vdev.entity);
-	ret = dev->pipe.set_stream(&dev->pipe, false);
-	if (ret < 0)
-		v4l2_err(v4l2_dev, "pipeline stream-off failed error:%d\n",
-			 ret);
+	if (stream->id == RKISP_STREAM_MP ||
+	    stream->id == RKISP_STREAM_SP) {
+		/* call to the other devices */
+		media_pipeline_stop(&node->vdev.entity);
+		ret = dev->pipe.set_stream(&dev->pipe, false);
+		if (ret < 0)
+			v4l2_err(v4l2_dev,
+				 "pipeline stream-off failed:%d\n", ret);
+	}
 
 	/* release buffers */
 	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
@@ -2084,6 +2091,7 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 	if (ret < 0)
 		v4l2_err(v4l2_dev, "pipeline close failed error:%d\n", ret);
 	rkisp_destroy_dummy_buf(stream);
+	atomic_dec(&dev->cap_dev.refcnt);
 }
 
 static int rkisp_stream_start(struct rkisp_stream *stream)
@@ -2139,11 +2147,13 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	if (WARN_ON(stream->streaming))
 		return -EBUSY;
 
+	atomic_inc(&dev->cap_dev.refcnt);
 	if (!dev->isp_inp)
 		goto buffer_done;
-	if (dev->isp_inp & INP_CSI ||
-	    dev->isp_inp & INP_DVP) {
-		/* Always update sensor info in case media topology changed */
+
+	if (atomic_read(&dev->cap_dev.refcnt) == 1 &&
+	    (dev->isp_inp & INP_CSI || dev->isp_inp & INP_DVP)) {
+		/* update sensor info when first streaming */
 		ret = rkisp_update_sensor_info(dev);
 		if (ret < 0) {
 			v4l2_err(v4l2_dev,
@@ -2185,15 +2195,19 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto close_pipe;
 	}
 
-	/* start sub-devices */
-	ret = dev->pipe.set_stream(&dev->pipe, true);
-	if (ret < 0)
-		goto stop_stream;
+	if (stream->id == RKISP_STREAM_MP ||
+	    stream->id == RKISP_STREAM_SP) {
+		/* start sub-devices */
+		ret = dev->pipe.set_stream(&dev->pipe, true);
+		if (ret < 0)
+			goto stop_stream;
 
-	ret = media_pipeline_start(&node->vdev.entity, &dev->pipe.pipe);
-	if (ret < 0) {
-		v4l2_err(&dev->v4l2_dev, "start pipeline failed %d\n", ret);
-		goto pipe_stream_off;
+		ret = media_pipeline_start(&node->vdev.entity, &dev->pipe.pipe);
+		if (ret < 0) {
+			v4l2_err(&dev->v4l2_dev,
+				 "start pipeline failed %d\n", ret);
+			goto pipe_stream_off;
+		}
 	}
 
 	return 0;
@@ -2208,6 +2222,7 @@ destroy_dummy_buf:
 	rkisp_destroy_dummy_buf(stream);
 buffer_done:
 	destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
+	atomic_dec(&dev->cap_dev.refcnt);
 	return ret;
 }
 
@@ -2367,12 +2382,10 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 int rkisp_fh_open(struct file *filp)
 {
 	struct rkisp_stream *stream = video_drvdata(filp);
-	struct rkisp_device *dev = stream->ispdev;
 	int ret;
 
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
-		atomic_inc(&dev->open_cnt);
 		ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 1);
 		if (ret < 0)
 			vb2_fop_release(filp);
@@ -2384,16 +2397,14 @@ int rkisp_fh_open(struct file *filp)
 int rkisp_fop_release(struct file *file)
 {
 	struct rkisp_stream *stream = video_drvdata(file);
-	struct rkisp_device *dev = stream->ispdev;
 	int ret;
 
 	ret = vb2_fop_release(file);
 	if (!ret) {
 		ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 0);
 		if (ret < 0)
-			v4l2_err(&dev->v4l2_dev,
-				"set pipeline power failed %d\n", ret);
-		atomic_dec(&dev->open_cnt);
+			v4l2_err(&stream->ispdev->v4l2_dev,
+				 "set pipeline power failed %d\n", ret);
 	}
 	return ret;
 }
@@ -2855,6 +2866,7 @@ int rkisp_register_stream_vdevs(struct rkisp_device *dev)
 
 	memset(cap_dev, 0, sizeof(*cap_dev));
 	cap_dev->ispdev = dev;
+	atomic_set(&cap_dev->refcnt, 0);
 
 	ret = rkisp_stream_init(dev, RKISP_STREAM_MP);
 	if (ret < 0)

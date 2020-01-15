@@ -223,6 +223,7 @@ struct rkisp_stream {
 struct rkisp_capture_device {
 	struct rkisp_device *ispdev;
 	struct rkisp_stream stream[RKISP_MAX_STREAM];
+	atomic_t refcnt;
 };
 
 void rkisp_unregister_stream_vdevs(struct rkisp_device *dev);

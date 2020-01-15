@@ -139,20 +139,20 @@ struct rkisp_sensor_info {
 };
 
 /* struct rkisp_hdr - hdr configured
- * @cnt: open counter
  * @op_mode: hdr optional mode
  * @esp_mode: hdr especial mode
  * @index: hdr dma index
+ * @refcnt: open counter
  * @q_tx: dmatx buf list
  * @q_rx: dmarx buf list
  * @rx_cur_buf: rawrd current buf
  * @dummy_buf: hdr dma internal buf
  */
 struct rkisp_hdr {
-	u8 cnt;
 	u8 op_mode;
 	u8 esp_mode;
 	u8 index[HDR_DMA_MAX];
+	atomic_t refcnt;
 	struct v4l2_subdev *sensor;
 	struct list_head q_tx[HDR_DMA_MAX];
 	struct list_head q_rx[HDR_DMA_MAX];
@@ -200,7 +200,6 @@ struct rkisp_device {
 	enum rkisp_isp_ver isp_ver;
 	const unsigned int *clk_rate_tbl;
 	int num_clk_rate_tbl;
-	atomic_t open_cnt;
 	struct rkisp_emd_data emd_data_fifo[RKISP_EMDDATA_FIFO_MAX];
 	unsigned int emd_data_idx;
 	unsigned int emd_vc;

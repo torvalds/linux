@@ -475,9 +475,9 @@ static int dmarx_start_streaming(struct vb2_queue *queue,
 	if (WARN_ON(stream->streaming))
 		return -EBUSY;
 
-	if (atomic_read(&dev->open_cnt) < 2) {
+	if (atomic_read(&dev->cap_dev.refcnt) < 1) {
 		v4l2_err(v4l2_dev,
-			 "other stream should enable first\n");
+			 "capture stream should start first\n");
 		goto free_buf_queue;
 	}
 

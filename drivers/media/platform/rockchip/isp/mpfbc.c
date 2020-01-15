@@ -39,6 +39,10 @@ static int mpfbc_s_rx_buffer(struct v4l2_subdev *sd,
 	u32 h = ALIGN(mpfbc_dev->fmt.format.height, 16);
 	u32 sizes = (w * h >> 4) + w * h * 2;
 
+	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
+		 "%s buf:0x%x size:%d\n",
+		 __func__, *(u32 *)buf, *size);
+
 	/* picture or gain buffer */
 	if (*size == sizes) {
 		if (mpfbc_dev->pic_cur) {
@@ -106,19 +110,22 @@ static int mpfbc_stop(struct rkisp_mpfbc_device *mpfbc_dev)
 	writel(SW_MPFBC_YUV_MODE(1),
 		base + ISP_MPFBC_BASE);
 	hdr_stop_dmatx(dev);
-	ret = wait_event_timeout(mpfbc_dev->done,
-				 !mpfbc_dev->en,
-				 msecs_to_jiffies(1000));
-	if (!ret)
-		v4l2_warn(&mpfbc_dev->sd,
-			  "waiting on event return error %d\n", ret);
+	if (!dev->dmarx_dev.trigger) {
+		ret = wait_event_timeout(mpfbc_dev->done,
+					 !mpfbc_dev->en,
+					 msecs_to_jiffies(1000));
+		if (!ret)
+			v4l2_warn(&mpfbc_dev->sd,
+				  "waiting on event return error %d\n", ret);
+	}
+	mpfbc_dev->stopping = false;
 	isp_clear_bits(base + MI_IMSC, MI_MPFBC_FRAME);
-	hdr_destroy_buf(dev);
 	mpfbc_dev->en = false;
 	mpfbc_dev->pic_cur = NULL;
 	mpfbc_dev->pic_nxt = NULL;
 	mpfbc_dev->gain_cur = NULL;
 	mpfbc_dev->gain_nxt = NULL;
+	hdr_destroy_buf(dev);
 	return 0;
 }
 
@@ -189,13 +196,21 @@ static int mpfbc_stop_stream(struct v4l2_subdev *sd)
 static int mpfbc_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
+	struct rkisp_device *dev = mpfbc_dev->ispdev;
 	int ret = 0;
 
-	if (on)
-		ret = mpfbc_start_stream(sd);
-	else if (mpfbc_dev->en)
-		ret = mpfbc_stop_stream(sd);
+	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
+		 "%s %d\n", __func__, on);
 
+	if (on) {
+		atomic_inc(&dev->cap_dev.refcnt);
+		ret = mpfbc_start_stream(sd);
+	} else if (mpfbc_dev->en) {
+		ret = mpfbc_stop_stream(sd);
+	}
+
+	if (!on)
+		atomic_dec(&dev->cap_dev.refcnt);
 	return ret;
 }
 
@@ -203,15 +218,16 @@ static int mpfbc_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
 	struct rkisp_device *dev = mpfbc_dev->ispdev;
-	int ret;
+	int ret = 0;
 
-	if (on) {
-		atomic_inc(&dev->open_cnt);
+	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
+		 "%s %d\n", __func__, on);
+
+	if (on)
 		ret = v4l2_pipeline_pm_use(&sd->entity, 1);
-	} else {
+	else
 		ret = v4l2_pipeline_pm_use(&sd->entity, 0);
-		atomic_dec(&dev->open_cnt);
-	}
+
 	return ret;
 }
 

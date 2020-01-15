@@ -1031,13 +1031,13 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	mutex_init(&isp_dev->iqlock);
 	atomic_set(&isp_dev->pipe.power_cnt, 0);
 	atomic_set(&isp_dev->pipe.stream_cnt, 0);
-	atomic_set(&isp_dev->open_cnt, 0);
 	init_waitqueue_head(&isp_dev->sync_onoff);
 	isp_dev->pipe.open = rkisp_pipeline_open;
 	isp_dev->pipe.close = rkisp_pipeline_close;
 	isp_dev->pipe.set_stream = rkisp_pipeline_set_stream;
 
 	if (isp_dev->isp_ver == ISP_V20) {
+		atomic_set(&isp_dev->hdr.refcnt, 0);
 		for (i = 0; i < HDR_DMA_MAX; i++) {
 			INIT_LIST_HEAD(&isp_dev->hdr.q_tx[i]);
 			INIT_LIST_HEAD(&isp_dev->hdr.q_rx[i]);
