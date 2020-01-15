@@ -2882,7 +2882,7 @@ static int module_sig_check(struct load_info *info, int flags)
 		reason = "Loading of module with unavailable key";
 	decide:
 		if (is_module_sig_enforced()) {
-			pr_notice("%s is rejected\n", reason);
+			pr_notice("%s: %s is rejected\n", info->name, reason);
 			return -EKEYREJECTED;
 		}
 
