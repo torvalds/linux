@@ -47,11 +47,6 @@
 #define mmUVD_LMI_RBC_IB_64BIT_BAR_LOW_INTERNAL_OFFSET		0x5a7
 #define mmUVD_RBC_IB_SIZE_INTERNAL_OFFSET			0x1e2
 
-#define mmUVD_RBC_XX_IB_REG_CHECK 					0x026b
-#define mmUVD_RBC_XX_IB_REG_CHECK_BASE_IDX 				1
-#define mmUVD_REG_XX_MASK 						0x026c
-#define mmUVD_REG_XX_MASK_BASE_IDX 					1
-
 static void vcn_v2_0_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v2_0_set_enc_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v2_0_set_irq_funcs(struct amdgpu_device *adev);
