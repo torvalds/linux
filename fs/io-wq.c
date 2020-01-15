@@ -445,10 +445,14 @@ next:
 			task_unlock(current);
 		}
 		if ((work->flags & IO_WQ_WORK_NEEDS_USER) && !worker->mm &&
-		    wq->mm && mmget_not_zero(wq->mm)) {
-			use_mm(wq->mm);
-			set_fs(USER_DS);
-			worker->mm = wq->mm;
+		    wq->mm) {
+			if (mmget_not_zero(wq->mm)) {
+				use_mm(wq->mm);
+				set_fs(USER_DS);
+				worker->mm = wq->mm;
+			} else {
+				work->flags |= IO_WQ_WORK_CANCEL;
+			}
 		}
 		if (!worker->creds)
 			worker->creds = override_creds(wq->creds);
