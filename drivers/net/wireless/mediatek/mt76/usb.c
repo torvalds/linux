@@ -627,9 +627,9 @@ static int mt76u_alloc_rx(struct mt76_dev *dev)
 	return mt76u_submit_rx_buffers(dev, MT_RXQ_MAIN);
 }
 
-static void mt76u_free_rx(struct mt76_dev *dev)
+static void
+mt76u_free_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
 	struct page *page;
 	int i;
 
@@ -642,6 +642,13 @@ static void mt76u_free_rx(struct mt76_dev *dev)
 	page = virt_to_page(q->rx_page.va);
 	__page_frag_cache_drain(page, q->rx_page.pagecnt_bias);
 	memset(&q->rx_page, 0, sizeof(q->rx_page));
+}
+
+static void mt76u_free_rx(struct mt76_dev *dev)
+{
+	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
+
+	mt76u_free_rx_queue(dev, q);
 }
 
 void mt76u_stop_rx(struct mt76_dev *dev)
