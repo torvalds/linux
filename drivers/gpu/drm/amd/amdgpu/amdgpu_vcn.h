@@ -104,27 +104,27 @@
 		internal_reg_offset >>= 2;							\
 	})
 
-#define RREG32_SOC15_DPG_MODE_2_0(offset, mask_en) 						\
-	({ 											\
-		WREG32_SOC15(VCN, 0, mmUVD_DPG_LMA_CTL, 					\
-			(0x0 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT | 				\
-			mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT | 				\
-			offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT)); 			\
-		RREG32_SOC15(VCN, 0, mmUVD_DPG_LMA_DATA); 					\
+#define RREG32_SOC15_DPG_MODE_2_0(inst_idx, offset, mask_en) 					\
+	({											\
+		WREG32_SOC15(VCN, inst, mmUVD_DPG_LMA_CTL, 					\
+			(0x0 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |				\
+			mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |				\
+			offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));			\
+		RREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_DATA);				\
 	})
 
-#define WREG32_SOC15_DPG_MODE_2_0(offset, value, mask_en, indirect)				\
-	do { 											\
-		if (!indirect) { 								\
-			WREG32_SOC15(VCN, 0, mmUVD_DPG_LMA_DATA, value); 			\
-			WREG32_SOC15(VCN, 0, mmUVD_DPG_LMA_CTL, 				\
-				(0x1 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT | 			\
-				 mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT | 			\
-				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT)); 		\
-		} else { 									\
-			*adev->vcn.dpg_sram_curr_addr++ = offset; 				\
-			*adev->vcn.dpg_sram_curr_addr++ = value; 				\
-		} 										\
+#define WREG32_SOC15_DPG_MODE_2_0(inst_idx, offset, value, mask_en, indirect)			\
+	do {											\
+		if (!indirect) {								\
+			WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_DATA, value);			\
+			WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_CTL, 				\
+				(0x1 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |			\
+				 mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |			\
+				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));		\
+		} else {									\
+			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ = offset;		\
+			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ = value;			\
+		}										\
 	} while (0)
 
 enum engine_status_constants {
@@ -173,6 +173,10 @@ struct amdgpu_vcn_inst {
 	struct amdgpu_ring	ring_enc[AMDGPU_VCN_MAX_ENC_RINGS];
 	struct amdgpu_irq_src	irq;
 	struct amdgpu_vcn_reg	external;
+	struct amdgpu_bo	*dpg_sram_bo;
+	void			*dpg_sram_cpu_addr;
+	uint64_t		dpg_sram_gpu_addr;
+	uint32_t		*dpg_sram_curr_addr;
 };
 
 struct amdgpu_vcn {
@@ -184,10 +188,6 @@ struct amdgpu_vcn {
 	struct dpg_pause_state pause_state;
 
 	bool			indirect_sram;
-	struct amdgpu_bo	*dpg_sram_bo;
-	void			*dpg_sram_cpu_addr;
-	uint64_t		dpg_sram_gpu_addr;
-	uint32_t		*dpg_sram_curr_addr;
 
 	uint8_t	num_vcn_inst;
 	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
