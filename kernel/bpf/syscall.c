@@ -3310,7 +3310,8 @@ static int bpf_map_do_batch(const union bpf_attr *attr,
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
-	if (cmd == BPF_MAP_LOOKUP_BATCH &&
+	if ((cmd == BPF_MAP_LOOKUP_BATCH ||
+	     cmd == BPF_MAP_LOOKUP_AND_DELETE_BATCH) &&
 	    !(map_get_sys_perms(map, f) & FMODE_CAN_READ)) {
 		err = -EPERM;
 		goto err_put;
@@ -3324,6 +3325,8 @@ static int bpf_map_do_batch(const union bpf_attr *attr,
 
 	if (cmd == BPF_MAP_LOOKUP_BATCH)
 		BPF_DO_BATCH(map->ops->map_lookup_batch);
+	else if (cmd == BPF_MAP_LOOKUP_AND_DELETE_BATCH)
+		BPF_DO_BATCH(map->ops->map_lookup_and_delete_batch);
 	else if (cmd == BPF_MAP_UPDATE_BATCH)
 		BPF_DO_BATCH(map->ops->map_update_batch);
 	else
@@ -3433,6 +3436,10 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 		break;
 	case BPF_MAP_LOOKUP_BATCH:
 		err = bpf_map_do_batch(&attr, uattr, BPF_MAP_LOOKUP_BATCH);
+		break;
+	case BPF_MAP_LOOKUP_AND_DELETE_BATCH:
+		err = bpf_map_do_batch(&attr, uattr,
+				       BPF_MAP_LOOKUP_AND_DELETE_BATCH);
 		break;
 	case BPF_MAP_UPDATE_BATCH:
 		err = bpf_map_do_batch(&attr, uattr, BPF_MAP_UPDATE_BATCH);
