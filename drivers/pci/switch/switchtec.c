@@ -317,8 +317,12 @@ static ssize_t field ## _show(struct device *dev, \
 	struct device_attribute *attr, char *buf) \
 { \
 	struct switchtec_dev *stdev = to_stdev(dev); \
-	return io_string_show(buf, &stdev->mmio_sys_info->field, \
-			    sizeof(stdev->mmio_sys_info->field)); \
+	struct sys_info_regs __iomem *si = stdev->mmio_sys_info; \
+	if (stdev->gen == SWITCHTEC_GEN3) \
+		return io_string_show(buf, &si->gen3.field, \
+				      sizeof(si->gen3.field)); \
+	else \
+		return -ENOTSUPP; \
 } \
 \
 static DEVICE_ATTR_RO(field)
@@ -337,8 +341,8 @@ static ssize_t component_vendor_show(struct device *dev,
 	if (stdev->gen != SWITCHTEC_GEN3)
 		return sprintf(buf, "none\n");
 
-	return io_string_show(buf, &si->component_vendor,
-			      sizeof(si->component_vendor));
+	return io_string_show(buf, &si->gen3.component_vendor,
+			      sizeof(si->gen3.component_vendor));
 }
 static DEVICE_ATTR_RO(component_vendor);
 
@@ -346,7 +350,7 @@ static ssize_t component_id_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct switchtec_dev *stdev = to_stdev(dev);
-	int id = ioread16(&stdev->mmio_sys_info->component_id);
+	int id = ioread16(&stdev->mmio_sys_info->gen3.component_id);
 
 	/* component_id field not supported after gen3 */
 	if (stdev->gen != SWITCHTEC_GEN3)
@@ -360,7 +364,7 @@ static ssize_t component_revision_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct switchtec_dev *stdev = to_stdev(dev);
-	int rev = ioread8(&stdev->mmio_sys_info->component_revision);
+	int rev = ioread8(&stdev->mmio_sys_info->gen3.component_revision);
 
 	/* component_revision field not supported after gen3 */
 	if (stdev->gen != SWITCHTEC_GEN3)
@@ -590,8 +594,12 @@ static int ioctl_flash_info(struct switchtec_dev *stdev,
 	struct switchtec_ioctl_flash_info info = {0};
 	struct flash_info_regs __iomem *fi = stdev->mmio_flash_info;
 
-	info.flash_length = ioread32(&fi->flash_length);
-	info.num_partitions = SWITCHTEC_NUM_PARTITIONS_GEN3;
+	if (stdev->gen == SWITCHTEC_GEN3) {
+		info.flash_length = ioread32(&fi->gen3.flash_length);
+		info.num_partitions = SWITCHTEC_NUM_PARTITIONS_GEN3;
+	} else {
+		return -ENOTSUPP;
+	}
 
 	if (copy_to_user(uinfo, &info, sizeof(info)))
 		return -EFAULT;
@@ -609,8 +617,9 @@ static void set_fw_info_part(struct switchtec_ioctl_flash_part_info *info,
 static int flash_part_info_gen3(struct switchtec_dev *stdev,
 		struct switchtec_ioctl_flash_part_info *info)
 {
-	struct flash_info_regs __iomem *fi = stdev->mmio_flash_info;
-	struct sys_info_regs __iomem *si = stdev->mmio_sys_info;
+	struct flash_info_regs_gen3 __iomem *fi =
+		&stdev->mmio_flash_info->gen3;
+	struct sys_info_regs_gen3 __iomem *si = &stdev->mmio_sys_info->gen3;
 	u32 active_addr = -1;
 
 	switch (info->flash_partition) {
@@ -1382,6 +1391,7 @@ static int switchtec_init_pci(struct switchtec_dev *stdev,
 	int rc;
 	void __iomem *map;
 	unsigned long res_start, res_len;
+	u32 __iomem *part_id;
 
 	rc = pcim_enable_device(pdev);
 	if (rc)
@@ -1416,7 +1426,13 @@ static int switchtec_init_pci(struct switchtec_dev *stdev,
 	stdev->mmio_sys_info = stdev->mmio + SWITCHTEC_GAS_SYS_INFO_OFFSET;
 	stdev->mmio_flash_info = stdev->mmio + SWITCHTEC_GAS_FLASH_INFO_OFFSET;
 	stdev->mmio_ntb = stdev->mmio + SWITCHTEC_GAS_NTB_OFFSET;
-	stdev->partition = ioread8(&stdev->mmio_sys_info->partition_id);
+
+	if (stdev->gen == SWITCHTEC_GEN3)
+		part_id = &stdev->mmio_sys_info->gen3.partition_id;
+	else
+		return -ENOTSUPP;
+
+	stdev->partition = ioread8(part_id);
 	stdev->partition_count = ioread8(&stdev->mmio_ntb->partition_count);
 	stdev->mmio_part_cfg_all = stdev->mmio + SWITCHTEC_GAS_PART_CFG_OFFSET;
 	stdev->mmio_part_cfg = &stdev->mmio_part_cfg_all[stdev->partition];

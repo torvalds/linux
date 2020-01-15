@@ -108,10 +108,7 @@ enum {
 	SWITCHTEC_GEN3_IMG1_RUNNING = 0x07,
 };
 
-struct sys_info_regs {
-	u32 device_id;
-	u32 device_version;
-	u32 firmware_version;
+struct sys_info_regs_gen3 {
 	u32 reserved1;
 	u32 vendor_table_revision;
 	u32 table_format_version;
@@ -128,31 +125,47 @@ struct sys_info_regs {
 	u8 component_revision;
 } __packed;
 
-struct flash_info_regs {
+struct sys_info_regs {
+	u32 device_id;
+	u32 device_version;
+	u32 firmware_version;
+	union {
+		struct sys_info_regs_gen3 gen3;
+	};
+} __packed;
+
+struct partition_info {
+	u32 address;
+	u32 length;
+};
+
+struct flash_info_regs_gen3 {
 	u32 flash_part_map_upd_idx;
 
-	struct active_partition_info {
+	struct active_partition_info_gen3 {
 		u32 address;
 		u32 build_version;
 		u32 build_string;
 	} active_img;
 
-	struct active_partition_info active_cfg;
-	struct active_partition_info inactive_img;
-	struct active_partition_info inactive_cfg;
+	struct active_partition_info_gen3 active_cfg;
+	struct active_partition_info_gen3 inactive_img;
+	struct active_partition_info_gen3 inactive_cfg;
 
 	u32 flash_length;
 
-	struct partition_info {
-		u32 address;
-		u32 length;
-	} cfg0;
-
+	struct partition_info cfg0;
 	struct partition_info cfg1;
 	struct partition_info img0;
 	struct partition_info img1;
 	struct partition_info nvlog;
 	struct partition_info vendor[8];
+};
+
+struct flash_info_regs {
+	union {
+		struct flash_info_regs_gen3 gen3;
+	};
 };
 
 enum {
