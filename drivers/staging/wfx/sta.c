@@ -825,13 +825,6 @@ static int wfx_ht_greenfield(const struct wfx_ht_info *ht_info)
 		  IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 }
 
-static int wfx_ht_ampdu_density(const struct wfx_ht_info *ht_info)
-{
-	if (!wfx_is_ht(ht_info))
-		return 0;
-	return ht_info->ht_cap.ampdu_density;
-}
-
 static void wfx_join_finalize(struct wfx_vif *wvif,
 			      struct ieee80211_bss_conf *info)
 {
@@ -870,7 +863,8 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	association_mode.short_preamble = info->use_short_preamble;
 	association_mode.basic_rate_set = cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, info->basic_rates));
 	association_mode.greenfield = wfx_ht_greenfield(&wvif->ht_info);
-	association_mode.mpdu_start_spacing = wfx_ht_ampdu_density(&wvif->ht_info);
+	if (sta && sta->ht_cap.ht_supported)
+		association_mode.mpdu_start_spacing = sta->ht_cap.ampdu_density;
 
 	wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
 	cancel_work_sync(&wvif->unjoin_work);
