@@ -780,7 +780,7 @@ static int wfx_update_beaconing(struct wfx_vif *wvif)
 	return 0;
 }
 
-static int wfx_upload_beacon(struct wfx_vif *wvif)
+static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 {
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
@@ -805,7 +805,6 @@ static int wfx_upload_beacon(struct wfx_vif *wvif)
 
 	hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBRES,
 			       API_RATE_INDEX_B_1MBPS);
-	wfx_fwd_probe_req(wvif, false);
 	dev_kfree_skb(skb);
 	return 0;
 }
@@ -900,7 +899,8 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 	    changed & BSS_CHANGED_IBSS) {
 		wvif->beacon_int = info->beacon_int;
 		wfx_update_beaconing(wvif);
-		wfx_upload_beacon(wvif);
+		wfx_upload_ap_templates(wvif);
+		wfx_fwd_probe_req(wvif, false);
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED &&
