@@ -175,11 +175,9 @@ void wfx_tx_queues_deinit(struct wfx_dev *wdev)
 	wfx_tx_queues_clear(wdev);
 }
 
-size_t wfx_tx_queue_get_num_queued(struct wfx_queue *queue,
-				   u32 link_id_map)
+int wfx_tx_queue_get_num_queued(struct wfx_queue *queue, u32 link_id_map)
 {
-	size_t ret;
-	int i, bit;
+	int ret, i;
 
 	if (!link_id_map)
 		return 0;
@@ -189,11 +187,9 @@ size_t wfx_tx_queue_get_num_queued(struct wfx_queue *queue,
 		ret = skb_queue_len(&queue->queue);
 	} else {
 		ret = 0;
-		for (i = 0, bit = 1; i < ARRAY_SIZE(queue->link_map_cache);
-		     ++i, bit <<= 1) {
-			if (link_id_map & bit)
+		for (i = 0; i < ARRAY_SIZE(queue->link_map_cache); i++)
+			if (link_id_map & BIT(i))
 				ret += queue->link_map_cache[i];
-		}
 	}
 	spin_unlock_bh(&queue->queue.lock);
 	return ret;
@@ -555,7 +551,7 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 
 		/* allow bursting if txop is set */
 		if (wvif->edca_params[queue_num].txop)
-			burst = (int)wfx_tx_queue_get_num_queued(queue, tx_allowed_mask) + 1;
+			burst = wfx_tx_queue_get_num_queued(queue, tx_allowed_mask) + 1;
 		else
 			burst = 1;
 
