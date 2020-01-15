@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * DRM driver for Sitronix ST7735R panels
+ * DRM driver for display panels connected to a Sitronix ST7715R or ST7735R
+ * display controller in SPI mode.
  *
  * Copyright 2017 David Lechner <david@lechnology.com>
  * Copyright (C) 2019 Glider bvba
@@ -144,6 +145,11 @@ static const struct st7735r_cfg jd_t18003_t01_cfg = {
 	.write_only	= true,
 };
 
+static const struct st7735r_cfg rh128128t_cfg = {
+	.mode		= { DRM_SIMPLE_MODE(128, 128, 25, 26) },
+	.left_offset	= 2,
+	.top_offset	= 3,
+	.rgb		= true,
 };
 
 DEFINE_DRM_GEM_CMA_FOPS(st7735r_fops);
@@ -163,6 +169,7 @@ static struct drm_driver st7735r_driver = {
 
 static const struct of_device_id st7735r_of_match[] = {
 	{ .compatible = "jianda,jd-t18003-t01", .data = &jd_t18003_t01_cfg },
+	{ .compatible = "okaya,rh128128t", .data = &rh128128t_cfg },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, st7735r_of_match);

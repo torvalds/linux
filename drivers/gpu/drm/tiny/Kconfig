@@ -85,14 +85,16 @@ config TINYDRM_ST7586
 	  If M is selected the module will be called st7586.
 
 config TINYDRM_ST7735R
-	tristate "DRM support for Sitronix ST7735R display panels"
+	tristate "DRM support for Sitronix ST7715R/ST7735R display panels"
 	depends on DRM && SPI
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DBI
 	select BACKLIGHT_CLASS_DEVICE
 	help
-	  DRM driver Sitronix ST7735R with one of the following LCDs:
-	  * JD-T18003-T01 1.8" 128x160 TFT
+	  DRM driver for Sitronix ST7715R/ST7735R with one of the following
+	  LCDs:
+	  * Jianda JD-T18003-T01 1.8" 128x160 TFT
+	  * Okaya RH128128T 1.44" 128x128 TFT
 
 	  If M is selected the module will be called st7735r.
