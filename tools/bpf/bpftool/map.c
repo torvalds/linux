@@ -915,32 +915,20 @@ static int maps_have_btf(int *fds, int nb_fds)
 {
 	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
-	struct btf *btf = NULL;
 	int err, i;
 
 	for (i = 0; i < nb_fds; i++) {
 		err = bpf_obj_get_info_by_fd(fds[i], &info, &len);
 		if (err) {
 			p_err("can't get map info: %s", strerror(errno));
-			goto err_close;
+			return -1;
 		}
 
-		err = btf__get_from_id(info.btf_id, &btf);
-		if (err) {
-			p_err("failed to get btf");
-			goto err_close;
-		}
-
-		if (!btf)
+		if (!info.btf_id)
 			return 0;
 	}
 
 	return 1;
-
-err_close:
-	for (; i < nb_fds; i++)
-		close(fds[i]);
-	return -1;
 }
 
 static int
