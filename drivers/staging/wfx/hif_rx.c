@@ -77,21 +77,16 @@ static int hif_multi_tx_confirm(struct wfx_dev *wdev,
 				const struct hif_msg *hif, const void *buf)
 {
 	const struct hif_cnf_multi_transmit *body = buf;
-	const struct hif_cnf_tx *buf_loc =
-		(const struct hif_cnf_tx *)&body->tx_conf_payload;
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
-	int count = body->num_tx_confs;
 	int i;
 
-	WARN(count <= 0, "corrupted message");
+	WARN(body->num_tx_confs <= 0, "corrupted message");
 	WARN_ON(!wvif);
 	if (!wvif)
 		return -EFAULT;
 
-	for (i = 0; i < count; ++i) {
-		wfx_tx_confirm_cb(wvif, buf_loc);
-		buf_loc++;
-	}
+	for (i = 0; i < body->num_tx_confs; i++)
+		wfx_tx_confirm_cb(wvif, &body->tx_conf_payload[i]);
 	return 0;
 }
 
