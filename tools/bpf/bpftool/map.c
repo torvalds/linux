@@ -48,6 +48,7 @@ const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_QUEUE]			= "queue",
 	[BPF_MAP_TYPE_STACK]			= "stack",
 	[BPF_MAP_TYPE_SK_STORAGE]		= "sk_storage",
+	[BPF_MAP_TYPE_STRUCT_OPS]		= "struct_ops",
 };
 
 const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
