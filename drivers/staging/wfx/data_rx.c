@@ -103,11 +103,9 @@ static int wfx_drop_encrypt_data(struct wfx_dev *wdev,
 void wfx_rx_cb(struct wfx_vif *wvif,
 	       const struct hif_ind_rx *arg, struct sk_buff *skb)
 {
-	int link_id = arg->rx_flags.peer_sta_id;
 	struct ieee80211_rx_status *hdr = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *frame = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
-	struct wfx_link_entry *entry = NULL;
 
 	memset(hdr, 0, sizeof(*hdr));
 
@@ -116,11 +114,6 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	    (ieee80211_is_probe_resp(frame->frame_control) ||
 	     ieee80211_is_beacon(frame->frame_control)))
 		goto drop;
-
-	if (link_id && link_id <= WFX_MAX_STA_IN_AP_MODE) {
-		entry = &wvif->link_id_db[link_id - 1];
-		entry->timestamp = jiffies;
-	}
 
 	if (arg->status == HIF_STATUS_MICFAILURE)
 		hdr->flag |= RX_FLAG_MMIC_ERROR;

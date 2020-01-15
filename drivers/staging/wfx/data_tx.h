@@ -18,20 +18,6 @@ struct wfx_tx_priv;
 struct wfx_dev;
 struct wfx_vif;
 
-enum wfx_link_status {
-	WFX_LINK_OFF,
-	WFX_LINK_RESERVE,
-	WFX_LINK_SOFT,
-	WFX_LINK_HARD,
-};
-
-struct wfx_link_entry {
-	unsigned long		timestamp;
-	enum wfx_link_status	status;
-	u8			mac[ETH_ALEN];
-	u8			old_mac[ETH_ALEN];
-};
-
 struct tx_policy {
 	struct list_head link;
 	int usage_count;
@@ -62,11 +48,6 @@ void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	    struct sk_buff *skb);
 void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg);
 void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb);
-
-int wfx_unmap_link(struct wfx_vif *wvif, int link_id);
-void wfx_link_id_work(struct work_struct *work);
-void wfx_link_id_gc_work(struct work_struct *work);
-int wfx_find_link_id(struct wfx_vif *wvif, const u8 *mac);
 
 static inline struct wfx_tx_priv *wfx_skb_tx_priv(struct sk_buff *skb)
 {

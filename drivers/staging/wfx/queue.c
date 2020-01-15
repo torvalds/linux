@@ -378,13 +378,8 @@ static bool hif_handle_tx_data(struct wfx_vif *wvif, struct sk_buff *skb,
 			action = do_drop;
 		break;
 	case NL80211_IFTYPE_AP:
-		if (!wvif->state) {
+		if (!wvif->state)
 			action = do_drop;
-		} else if (!(BIT(tx_priv->raw_link_id) &
-			     (BIT(0) | wvif->link_id_map))) {
-			dev_warn(wvif->wdev->dev, "a frame with expired link-id is dropped\n");
-			action = do_drop;
-		}
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (wvif->state != WFX_STATE_IBSS)

@@ -74,9 +74,6 @@ struct wfx_vif {
 	struct delayed_work	bss_loss_work;
 
 	u32			link_id_map;
-	struct wfx_link_entry	link_id_db[WFX_MAX_STA_IN_AP_MODE];
-	struct delayed_work	link_id_gc_work;
-	struct work_struct	link_id_work;
 
 	bool			aid0_bit_set;
 	bool			mcast_tx;

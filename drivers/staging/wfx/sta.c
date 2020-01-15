@@ -573,28 +573,26 @@ static void wfx_unjoin_work(struct work_struct *work)
 int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta)
 {
-	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *) &sta->drv_priv;
-	struct wfx_link_entry *entry;
 
 	spin_lock_init(&sta_priv->lock);
-	if (wvif->vif->type != NL80211_IFTYPE_AP)
-		return 0;
-
 	sta_priv->vif_id = wvif->id;
-	sta_priv->link_id = wfx_find_link_id(wvif, sta->addr);
-	if (!sta_priv->link_id) {
-		dev_warn(wdev->dev, "mo more link-id available\n");
-		return -ENOENT;
-	}
 
-	entry = &wvif->link_id_db[sta_priv->link_id - 1];
+	// FIXME: in station mode, the current API interprets new link-id as a
+	// tdls peer.
+	if (vif->type == NL80211_IFTYPE_STATION)
+		return 0;
+	sta_priv->link_id = ffz(wvif->link_id_map);
+	wvif->link_id_map |= BIT(sta_priv->link_id);
+	WARN_ON(!sta_priv->link_id);
+	WARN_ON(sta_priv->link_id >= WFX_MAX_STA_IN_AP_MODE);
+	hif_map_link(wvif, sta->addr, 0, sta_priv->link_id);
+
 	spin_lock_bh(&wvif->ps_state_lock);
 	if ((sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK) ==
 					IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
 		wvif->sta_asleep_mask |= BIT(sta_priv->link_id);
-	entry->status = WFX_LINK_HARD;
 	spin_unlock_bh(&wvif->ps_state_lock);
 	return 0;
 }
@@ -602,23 +600,15 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta)
 {
-	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *) &sta->drv_priv;
-	struct wfx_link_entry *entry;
 
-	if (wvif->vif->type != NL80211_IFTYPE_AP || !sta_priv->link_id)
+	// FIXME: see note in wfx_sta_add()
+	if (vif->type == NL80211_IFTYPE_STATION)
 		return 0;
-
-	entry = &wvif->link_id_db[sta_priv->link_id - 1];
-	spin_lock_bh(&wvif->ps_state_lock);
-	entry->status = WFX_LINK_RESERVE;
-	entry->timestamp = jiffies;
-	wfx_tx_lock(wdev);
-	if (!schedule_work(&wvif->link_id_work))
-		wfx_tx_unlock(wdev);
-	spin_unlock_bh(&wvif->ps_state_lock);
-	flush_work(&wvif->link_id_work);
+	// FIXME add a mutex?
+	hif_map_link(wvif, sta->addr, 1, sta_priv->link_id);
+	wvif->link_id_map &= ~BIT(sta_priv->link_id);
 	return 0;
 }
 
@@ -627,8 +617,6 @@ static int wfx_start_ap(struct wfx_vif *wvif)
 	int ret;
 
 	wvif->beacon_int = wvif->vif->bss_conf.beacon_int;
-	memset(&wvif->link_id_db, 0, sizeof(wvif->link_id_db));
-
 	wvif->wdev->tx_burst_idx = -1;
 	ret = hif_start(wvif, &wvif->vif->bss_conf, wvif->channel);
 	if (ret)
@@ -861,7 +849,7 @@ static void wfx_ps_notify(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd,
 		dev_warn(wvif->wdev->dev, "unsupported notify command\n");
 		bit = 0;
 	} else {
-		bit = wvif->link_id_map;
+		bit = wvif->link_id_map & ~1;
 	}
 	prev = wvif->sta_asleep_mask & bit;
 
@@ -1114,9 +1102,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wvif->vif = vif;
 	wvif->wdev = wdev;
 
-	INIT_WORK(&wvif->link_id_work, wfx_link_id_work);
-	INIT_DELAYED_WORK(&wvif->link_id_gc_work, wfx_link_id_gc_work);
-
+	wvif->link_id_map = 1; // link-id 0 is reserved for multicast
 	spin_lock_init(&wvif->ps_state_lock);
 	INIT_WORK(&wvif->update_tim_work, wfx_update_tim_work);
 
@@ -1171,11 +1157,11 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
-	int i;
 
 	wait_for_completion_timeout(&wvif->set_pm_mode_complete, msecs_to_jiffies(300));
 
 	mutex_lock(&wdev->conf_mutex);
+	WARN(wvif->link_id_map != 1, "corrupted state");
 	switch (wvif->state) {
 	case WFX_STATE_PRE_STA:
 	case WFX_STATE_STA:
@@ -1185,13 +1171,6 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 			wfx_tx_unlock(wdev);
 		break;
 	case WFX_STATE_AP:
-		for (i = 0; wvif->link_id_map; ++i) {
-			if (wvif->link_id_map & BIT(i)) {
-				wfx_unmap_link(wvif, i);
-				wvif->link_id_map &= ~BIT(i);
-			}
-		}
-		memset(wvif->link_id_db, 0, sizeof(wvif->link_id_db));
 		wvif->sta_asleep_mask = 0;
 		wvif->mcast_tx = false;
 		wvif->aid0_bit_set = false;
@@ -1213,7 +1192,6 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 
 	wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
 	cancel_work_sync(&wvif->unjoin_work);
-	cancel_delayed_work_sync(&wvif->link_id_gc_work);
 	del_timer_sync(&wvif->mcast_timeout);
 	wfx_free_event_queue(wvif);
 
