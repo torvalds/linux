@@ -284,7 +284,7 @@ irqreturn_t dma_controller_irq(int irq, void *private_data)
 
 	spin_lock_irqsave(&musb->lock, flags);
 
-	int_hsdma = musb_readb(mbase, MUSB_HSDMA_INTR);
+	int_hsdma = musb_clearb(mbase, MUSB_HSDMA_INTR);
 
 	if (!int_hsdma) {
 		musb_dbg(musb, "spurious DMA irq");
