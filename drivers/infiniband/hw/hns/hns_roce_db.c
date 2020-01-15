@@ -31,7 +31,8 @@ int hns_roce_db_map_user(struct hns_roce_ucontext *context,
 
 	refcount_set(&page->refcount, 1);
 	page->user_virt = page_addr;
-	page->umem = ib_umem_get(udata, page_addr, PAGE_SIZE, 0);
+	page->umem = ib_umem_get(context->ibucontext.device, page_addr,
+				 PAGE_SIZE, 0);
 	if (IS_ERR(page->umem)) {
 		ret = PTR_ERR(page->umem);
 		kfree(page);
