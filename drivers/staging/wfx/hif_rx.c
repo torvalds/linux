@@ -230,7 +230,11 @@ static int hif_suspend_resume_indication(struct wfx_dev *wdev,
 	const struct hif_ind_suspend_resume_tx *body = buf;
 
 	WARN_ON(!wvif);
-	wfx_suspend_resume(wvif, body);
+	WARN(!body->suspend_resume_flags.bc_mc_only, "unsupported suspend/resume notification");
+	if (body->suspend_resume_flags.resume)
+		wfx_suspend_resume_mc(wvif, STA_NOTIFY_AWAKE);
+	else
+		wfx_suspend_resume_mc(wvif, STA_NOTIFY_SLEEP);
 
 	return 0;
 }

@@ -82,8 +82,7 @@ void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw,
 			      struct ieee80211_chanctx_conf *conf);
 
 // WSM Callbacks
-void wfx_suspend_resume(struct wfx_vif *wvif,
-			const struct hif_ind_suspend_resume_tx *arg);
+void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd cmd);
 
 // Other Helpers
 void wfx_cqm_bssloss_sm(struct wfx_vif *wvif, int init, int good, int bad);

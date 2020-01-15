@@ -600,13 +600,8 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	} else if (arg->status == HIF_REQUEUE) {
 		/* "REQUEUE" means "implicit suspend" */
-		struct hif_ind_suspend_resume_tx suspend = {
-			.suspend_resume_flags.resume = 0,
-			.suspend_resume_flags.bc_mc_only = 1,
-		};
-
 		WARN(!arg->tx_result_flags.requeue, "incoherent status and result_flags");
-		wfx_suspend_resume(wvif, &suspend);
+		wfx_suspend_resume_mc(wvif, STA_NOTIFY_SLEEP);
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 	} else {
 		if (wvif->bss_loss_state &&

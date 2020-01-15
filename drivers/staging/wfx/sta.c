@@ -985,18 +985,12 @@ int wfx_ampdu_action(struct ieee80211_hw *hw,
 	return -ENOTSUPP;
 }
 
-void wfx_suspend_resume(struct wfx_vif *wvif,
-			const struct hif_ind_suspend_resume_tx *arg)
+void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd)
 {
 	bool cancel_tmo = false;
 
-	if (!arg->suspend_resume_flags.bc_mc_only) {
-		dev_warn(wvif->wdev->dev, "unsupported suspend/resume notification\n");
-		return;
-	}
-
 	spin_lock_bh(&wvif->ps_state_lock);
-	if (!arg->suspend_resume_flags.resume)
+	if (notify_cmd == STA_NOTIFY_SLEEP)
 		wvif->mcast_tx = false;
 	else
 		wvif->mcast_tx = wvif->aid0_bit_set &&
