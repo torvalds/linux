@@ -207,8 +207,15 @@ fail:
 	return ERR_PTR(error);
 }
 
+/**
+ * gfs2_lookup_by_inum - look up an inode by inode number
+ * @sdp: The super block
+ * @no_addr: The inode number
+ * @no_formal_ino: The inode generation number (0 for any)
+ * @blktype: Requested block type (see gfs2_inode_lookup)
+ */
 struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
-				  u64 *no_formal_ino, unsigned int blktype)
+				  u64 no_formal_ino, unsigned int blktype)
 {
 	struct super_block *sb = sdp->sd_vfs;
 	struct inode *inode;
@@ -221,7 +228,7 @@ struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
 	/* Two extra checks for NFS only */
 	if (no_formal_ino) {
 		error = -ESTALE;
-		if (GFS2_I(inode)->i_no_formal_ino != *no_formal_ino)
+		if (GFS2_I(inode)->i_no_formal_ino != no_formal_ino)
 			goto fail_iput;
 
 		error = -EIO;
