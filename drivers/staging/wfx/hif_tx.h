@@ -45,7 +45,8 @@ int hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
 int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req80211,
 	     int chan_start, int chan_num);
 int hif_stop_scan(struct wfx_vif *wvif);
-int hif_join(struct wfx_vif *wvif, const struct hif_req_join *arg);
+int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
+	     const struct ieee80211_channel *channel, const u8 *ssidie);
 int hif_set_pm(struct wfx_vif *wvif, bool ps, int dynamic_ps_timeout);
 int hif_set_bss_params(struct wfx_vif *wvif,
 		       const struct hif_req_set_bss_params *arg);

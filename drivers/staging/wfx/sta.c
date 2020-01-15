@@ -512,32 +512,19 @@ static void wfx_set_mfp(struct wfx_vif *wvif,
 
 static void wfx_do_join(struct wfx_vif *wvif)
 {
-	const u8 *bssid;
+	int ret;
+	const u8 *ssidie;
 	struct ieee80211_bss_conf *conf = &wvif->vif->bss_conf;
 	struct cfg80211_bss *bss = NULL;
-	struct hif_req_join join = {
-		.infrastructure_bss_mode = !conf->ibss_joined,
-		.short_preamble = conf->use_short_preamble,
-		.probe_for_join = 1,
-		.atim_window = 0,
-		.basic_rate_set = wfx_rate_mask_to_hw(wvif->wdev,
-						      conf->basic_rates),
-	};
 
 	wfx_tx_lock_flush(wvif->wdev);
-
-	if (wvif->channel->flags & IEEE80211_CHAN_NO_IR)
-		join.probe_for_join = 0;
 
 	if (wvif->state)
 		wfx_do_unjoin(wvif);
 
-	bssid = wvif->vif->bss_conf.bssid;
-
 	bss = cfg80211_get_bss(wvif->wdev->hw->wiphy, wvif->channel,
-			       bssid, NULL, 0,
+			       conf->bssid, NULL, 0,
 			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
-
 	if (!bss && !conf->ibss_joined) {
 		wfx_tx_unlock(wvif->wdev);
 		return;
@@ -545,29 +532,15 @@ static void wfx_do_join(struct wfx_vif *wvif)
 
 	mutex_lock(&wvif->wdev->conf_mutex);
 
-	/* Sanity check basic rates */
-	if (!join.basic_rate_set)
-		join.basic_rate_set = 7;
-
 	/* Sanity check beacon interval */
 	if (!wvif->beacon_int)
 		wvif->beacon_int = 1;
 
-	join.beacon_interval = wvif->beacon_int;
-	join.channel_number = wvif->channel->hw_value;
-	memcpy(join.bssid, bssid, sizeof(join.bssid));
-
-	if (!conf->ibss_joined) {
-		const u8 *ssidie;
-
-		rcu_read_lock();
+	rcu_read_lock();
+	if (!conf->ibss_joined)
 		ssidie = ieee80211_bss_get_ie(bss, WLAN_EID_SSID);
-		if (ssidie) {
-			join.ssid_length = ssidie[1];
-			memcpy(join.ssid, &ssidie[2], join.ssid_length);
-		}
-		rcu_read_unlock();
-	}
+	else
+		ssidie = NULL;
 
 	wfx_tx_flush(wvif->wdev);
 
@@ -578,7 +551,9 @@ static void wfx_do_join(struct wfx_vif *wvif)
 
 	/* Perform actual join */
 	wvif->wdev->tx_burst_idx = -1;
-	if (hif_join(wvif, &join)) {
+	ret = hif_join(wvif, conf, wvif->channel, ssidie);
+	rcu_read_unlock();
+	if (ret) {
 		ieee80211_connection_loss(wvif->vif);
 		wvif->join_complete_status = -1;
 		/* Tx lock still held, unjoin will clear it. */

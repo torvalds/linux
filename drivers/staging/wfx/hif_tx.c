@@ -288,18 +288,29 @@ int hif_stop_scan(struct wfx_vif *wvif)
 	return ret;
 }
 
-int hif_join(struct wfx_vif *wvif, const struct hif_req_join *arg)
+int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
+	     const struct ieee80211_channel *channel, const u8 *ssidie)
 {
 	int ret;
 	struct hif_msg *hif;
 	struct hif_req_join *body = wfx_alloc_hif(sizeof(*body), &hif);
 
-	memcpy(body, arg, sizeof(struct hif_req_join));
-	cpu_to_le16s(&body->channel_number);
-	cpu_to_le16s(&body->atim_window);
-	cpu_to_le32s(&body->ssid_length);
-	cpu_to_le32s(&body->beacon_interval);
-	cpu_to_le32s(&body->basic_rate_set);
+	WARN_ON(!conf->basic_rates);
+	body->infrastructure_bss_mode = !conf->ibss_joined;
+	body->short_preamble = conf->use_short_preamble;
+	if (channel && channel->flags & IEEE80211_CHAN_NO_IR)
+		body->probe_for_join = 0;
+	else
+		body->probe_for_join = 1;
+	body->channel_number = cpu_to_le16(channel->hw_value);
+	body->beacon_interval = cpu_to_le32(conf->beacon_int);
+	body->basic_rate_set =
+		cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, conf->basic_rates));
+	memcpy(body->bssid, conf->bssid, sizeof(body->bssid));
+	if (!conf->ibss_joined && ssidie) {
+		body->ssid_length = cpu_to_le32(ssidie[1]);
+		memcpy(body->ssid, &ssidie[2], ssidie[1]);
+	}
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_JOIN, sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
 	kfree(hif);
