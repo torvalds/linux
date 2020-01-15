@@ -602,7 +602,10 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *) &sta->drv_priv;
+	int i;
 
+	for (i = 0; i < WFX_MAX_TID; i++)
+		WARN(sta_priv->buffered[i], "release station while Tx is in progress");
 	// FIXME: see note in wfx_sta_add()
 	if (vif->type == NL80211_IFTYPE_STATION)
 		return 0;
