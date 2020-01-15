@@ -629,6 +629,12 @@ mt76u_alloc_rx_queue(struct mt76_dev *dev, enum mt76_rxq_id qid)
 	return mt76u_submit_rx_buffers(dev, qid);
 }
 
+int mt76u_alloc_mcu_queue(struct mt76_dev *dev)
+{
+	return mt76u_alloc_rx_queue(dev, MT_RXQ_MCU);
+}
+EXPORT_SYMBOL_GPL(mt76u_alloc_mcu_queue);
+
 static void
 mt76u_free_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
