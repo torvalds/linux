@@ -288,13 +288,6 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 	spin_lock_bh(&wvif->ps_state_lock);
 	if (ieee80211_is_auth(hdr->frame_control))
 		wvif->sta_asleep_mask &= mask;
-
-	if (tx_priv->link_id == WFX_LINK_ID_AFTER_DTIM &&
-	    !wvif->mcast_buffered) {
-		wvif->mcast_buffered = true;
-		if (wvif->sta_asleep_mask)
-			schedule_work(&wvif->mcast_start_work);
-	}
 	spin_unlock_bh(&wvif->ps_state_lock);
 
 	if (sta) {
@@ -479,6 +472,8 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	req->packet_id = queue_id << 16 |
 			 IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 	req->data_flags.fc_offset = offset;
+	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
+		req->data_flags.after_dtim = 1;
 	req->queue_id.peer_sta_id = tx_priv->raw_link_id;
 	// Queue index are inverted between firmware and Linux
 	req->queue_id.queue_id = 3 - queue_id;
@@ -488,6 +483,8 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	// Auxiliary operations
 	wfx_tx_manage_pm(wvif, hdr, tx_priv, sta);
 	wfx_tx_queue_put(wvif->wdev, &wvif->wdev->tx_queue[queue_id], skb);
+	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
+		schedule_work(&wvif->update_tim_work);
 	wfx_bh_request_tx(wvif->wdev);
 	return 0;
 }
@@ -599,9 +596,11 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 		else
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	} else if (arg->status == HIF_REQUEUE) {
-		/* "REQUEUE" means "implicit suspend" */
 		WARN(!arg->tx_result_flags.requeue, "incoherent status and result_flags");
-		wfx_suspend_resume_mc(wvif, STA_NOTIFY_SLEEP);
+		if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
+			wvif->after_dtim_tx_allowed = false; // DTIM period elapsed
+			schedule_work(&wvif->update_tim_work);
+		}
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 	} else {
 		if (wvif->bss_loss_state &&

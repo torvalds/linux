@@ -235,7 +235,6 @@ static struct sk_buff *wfx_tx_queue_get(struct wfx_dev *wdev,
 			break;
 		}
 	}
-	WARN_ON(!skb);
 	if (skb) {
 		tx_priv = wfx_skb_tx_priv(skb);
 		tx_priv->xmit_timestamp = ktime_get();
@@ -473,22 +472,11 @@ static int wfx_get_prio_queue(struct wfx_vif *wvif,
 
 static int wfx_tx_queue_mask_get(struct wfx_vif *wvif,
 				     struct wfx_queue **queue_p,
-				     u32 *tx_allowed_mask_p,
-				     bool *more)
+				     u32 *tx_allowed_mask_p)
 {
 	int idx;
 	u32 tx_allowed_mask;
 	int total = 0;
-
-	/* Search for a queue with multicast frames buffered */
-	if (wvif->mcast_tx) {
-		tx_allowed_mask = BIT(WFX_LINK_ID_AFTER_DTIM);
-		idx = wfx_get_prio_queue(wvif, tx_allowed_mask, &total);
-		if (idx >= 0) {
-			*more = total > 1;
-			goto found;
-		}
-	}
 
 	/* Search for unicast traffic */
 	tx_allowed_mask = ~wvif->sta_asleep_mask;
@@ -501,64 +489,83 @@ static int wfx_tx_queue_mask_get(struct wfx_vif *wvif,
 	if (idx < 0)
 		return -ENOENT;
 
-found:
 	*queue_p = &wvif->wdev->tx_queue[idx];
 	*tx_allowed_mask_p = tx_allowed_mask;
 	return 0;
+}
+
+struct hif_msg *wfx_tx_queues_get_after_dtim(struct wfx_vif *wvif)
+{
+	struct wfx_dev *wdev = wvif->wdev;
+	struct ieee80211_tx_info *tx_info;
+	struct hif_msg *hif;
+	struct sk_buff *skb;
+	int i;
+
+	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
+		skb_queue_walk(&wdev->tx_queue[i].queue, skb) {
+			tx_info = IEEE80211_SKB_CB(skb);
+			hif = (struct hif_msg *)skb->data;
+			if ((tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) &&
+			    (hif->interface == wvif->id))
+				return (struct hif_msg *)skb->data;
+		}
+	}
+	return NULL;
 }
 
 struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 {
 	struct sk_buff *skb;
 	struct hif_msg *hif = NULL;
-	struct hif_req_tx *req = NULL;
 	struct wfx_queue *queue = NULL;
 	struct wfx_queue *vif_queue = NULL;
 	u32 tx_allowed_mask = 0;
 	u32 vif_tx_allowed_mask = 0;
 	const struct wfx_tx_priv *tx_priv = NULL;
 	struct wfx_vif *wvif;
-	/* More is used only for broadcasts. */
-	bool more = false;
-	bool vif_more = false;
 	int not_found;
 	int burst;
+	int i;
+
+	if (atomic_read(&wdev->tx_lock))
+		return NULL;
+
+	wvif = NULL;
+	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
+		if (wvif->after_dtim_tx_allowed) {
+			for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
+				skb = wfx_tx_queue_get(wvif->wdev,
+						       &wdev->tx_queue[i],
+						       BIT(WFX_LINK_ID_AFTER_DTIM));
+				if (skb) {
+					hif = (struct hif_msg *)skb->data;
+					// Cannot happen since only one vif can
+					// be AP at time
+					WARN_ON(wvif->id != hif->interface);
+					return hif;
+				}
+			}
+			// No more multicast to sent
+			wvif->after_dtim_tx_allowed = false;
+			schedule_work(&wvif->update_tim_work);
+		}
+	}
 
 	for (;;) {
 		int ret = -ENOENT;
 		int queue_num;
-		struct ieee80211_hdr *hdr;
-
-		if (atomic_read(&wdev->tx_lock))
-			return NULL;
 
 		wvif = NULL;
 		while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
 			spin_lock_bh(&wvif->ps_state_lock);
 
 			not_found = wfx_tx_queue_mask_get(wvif, &vif_queue,
-							  &vif_tx_allowed_mask,
-							  &vif_more);
-
-			if (wvif->mcast_buffered && (not_found || !vif_more) &&
-					(wvif->mcast_tx ||
-					 !wvif->sta_asleep_mask)) {
-				wvif->mcast_buffered = false;
-				if (wvif->mcast_tx) {
-					wvif->mcast_tx = false;
-					schedule_work(&wvif->mcast_stop_work);
-				}
-			}
+							  &vif_tx_allowed_mask);
 
 			spin_unlock_bh(&wvif->ps_state_lock);
 
-			if (vif_more) {
-				more = true;
-				tx_allowed_mask = vif_tx_allowed_mask;
-				queue = vif_queue;
-				ret = 0;
-				break;
-			} else if (!not_found) {
+			if (!not_found) {
 				if (queue && queue != vif_queue)
 					dev_info(wdev->dev, "vifs disagree about queue priority\n");
 				tx_allowed_mask |= vif_tx_allowed_mask;
@@ -595,15 +602,6 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 		else
 			wdev->tx_burst_idx = -1;
 
-		/* more buffered multicast/broadcast frames
-		 *  ==> set MoreData flag in IEEE 802.11 header
-		 *  to inform PS STAs
-		 */
-		if (more) {
-			req = (struct hif_req_tx *) hif->body;
-			hdr = (struct ieee80211_hdr *) (req->frame + req->data_flags.fc_offset);
-			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
-		}
 		return hif;
 	}
 }

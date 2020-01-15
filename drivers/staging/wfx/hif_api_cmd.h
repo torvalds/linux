@@ -253,7 +253,8 @@ struct hif_queue {
 struct hif_data_flags {
 	u8    more:1;
 	u8    fc_offset:3;
-	u8    reserved:4;
+	u8    after_dtim:1;
+	u8    reserved:3;
 } __packed;
 
 struct hif_tx_flags {
