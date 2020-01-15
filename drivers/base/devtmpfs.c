@@ -30,7 +30,7 @@
 
 static struct task_struct *thread;
 
-static int mount_dev = IS_ENABLED(CONFIG_DEVTMPFS_MOUNT);
+static int __initdata mount_dev = IS_ENABLED(CONFIG_DEVTMPFS_MOUNT);
 
 static DEFINE_SPINLOCK(req_lock);
 
@@ -355,7 +355,7 @@ static int handle_remove(const char *nodename, struct device *dev)
  * If configured, or requested by the commandline, devtmpfs will be
  * auto-mounted after the kernel mounted the root filesystem.
  */
-int devtmpfs_mount(void)
+int __init devtmpfs_mount(void)
 {
 	int err;
 
