@@ -5,6 +5,12 @@
  *
  * Copyright (c) 2009 Clemens Ladisch <clemens@ladisch.de>
  * Copyright (c) 2020 Guenter Roeck <linux@roeck-us.net>
+ *
+ * Implementation notes:
+ * - CCD1 and CCD2 register address information as well as the calculation to
+ *   convert raw register values is from https://github.com/ocerman/zenpower.
+ *   The information is not confirmed from chip datasheets, but experiments
+ *   suggest that it provides reasonable temperature values.
  */
 
 #include <linux/bitops.h>
@@ -61,6 +67,8 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 
 /* F17h M01h Access througn SMN */
 #define F17H_M01H_REPORTED_TEMP_CTRL_OFFSET	0x00059800
+#define F17H_M70H_CCD1_TEMP			0x00059954
+#define F17H_M70H_CCD2_TEMP			0x00059958
 
 #define CUR_TEMP_SHIFT				21
 #define CUR_TEMP_RANGE_SEL_MASK			BIT(19)
@@ -72,6 +80,8 @@ struct k10temp_data {
 	int temp_offset;
 	u32 temp_adjust_mask;
 	bool show_tdie;
+	bool show_tccd1;
+	bool show_tccd2;
 };
 
 struct tctl_offset {
@@ -143,6 +153,8 @@ static long get_raw_temp(struct k10temp_data *data)
 const char *k10temp_temp_label[] = {
 	"Tdie",
 	"Tctl",
+	"Tccd1",
+	"Tccd2",
 };
 
 static int k10temp_read_labels(struct device *dev,
@@ -171,6 +183,16 @@ static int k10temp_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = get_raw_temp(data);
 			if (*val < 0)
 				*val = 0;
+			break;
+		case 2:		/* Tccd1 */
+			amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
+				     F17H_M70H_CCD1_TEMP, &regval);
+			*val = (regval & 0xfff) * 125 - 305000;
+			break;
+		case 3:		/* Tccd2 */
+			amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
+				     F17H_M70H_CCD2_TEMP, &regval);
+			*val = (regval & 0xfff) * 125 - 305000;
 			break;
 		default:
 			return -EOPNOTSUPP;
@@ -206,8 +228,24 @@ static umode_t k10temp_is_visible(const void *_data,
 	case hwmon_temp:
 		switch (attr) {
 		case hwmon_temp_input:
-			if (channel && !data->show_tdie)
+			switch (channel) {
+			case 0:		/* Tdie, or Tctl if we don't show it */
+				break;
+			case 1:		/* Tctl */
+				if (!data->show_tdie)
+					return 0;
+				break;
+			case 2:		/* Tccd1 */
+				if (!data->show_tccd1)
+					return 0;
+				break;
+			case 3:		/* Tccd2 */
+				if (!data->show_tccd2)
+					return 0;
+				break;
+			default:
 				return 0;
+			}
 			break;
 		case hwmon_temp_max:
 			if (channel)
@@ -229,8 +267,24 @@ static umode_t k10temp_is_visible(const void *_data,
 				return 0;
 			break;
 		case hwmon_temp_label:
+			/* No labels if we don't show the die temperature */
 			if (!data->show_tdie)
 				return 0;
+			switch (channel) {
+			case 0:		/* Tdie */
+			case 1:		/* Tctl */
+				break;
+			case 2:		/* Tccd1 */
+				if (!data->show_tccd1)
+					return 0;
+				break;
+			case 3:		/* Tccd2 */
+				if (!data->show_tccd2)
+					return 0;
+				break;
+			default:
+				return 0;
+			}
 			break;
 		default:
 			return 0;
@@ -281,6 +335,8 @@ static const struct hwmon_channel_info *k10temp_info[] = {
 			   HWMON_T_INPUT | HWMON_T_MAX |
 			   HWMON_T_CRIT | HWMON_T_CRIT_HYST |
 			   HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL),
 	NULL
 };
@@ -326,9 +382,31 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		data->read_htcreg = read_htcreg_nb_f15;
 		data->read_tempreg = read_tempreg_nb_f15;
 	} else if (boot_cpu_data.x86 == 0x17 || boot_cpu_data.x86 == 0x18) {
+		u32 regval;
+
 		data->temp_adjust_mask = CUR_TEMP_RANGE_SEL_MASK;
 		data->read_tempreg = read_tempreg_nb_f17;
 		data->show_tdie = true;
+
+		switch (boot_cpu_data.x86_model) {
+		case 0x1:	/* Zen */
+		case 0x8:	/* Zen+ */
+		case 0x11:	/* Zen APU */
+		case 0x18:	/* Zen+ APU */
+			break;
+		case 0x31:	/* Zen2 Threadripper */
+		case 0x71:	/* Zen2 */
+			amd_smn_read(amd_pci_dev_to_node_id(pdev),
+				     F17H_M70H_CCD1_TEMP, &regval);
+			if (regval & 0xfff)
+				data->show_tccd1 = true;
+
+			amd_smn_read(amd_pci_dev_to_node_id(pdev),
+				     F17H_M70H_CCD2_TEMP, &regval);
+			if (regval & 0xfff)
+				data->show_tccd2 = true;
+			break;
+		}
 	} else {
 		data->read_htcreg = read_htcreg_pci;
 		data->read_tempreg = read_tempreg_pci;
