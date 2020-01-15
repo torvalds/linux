@@ -432,14 +432,14 @@ int hif_start(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	return ret;
 }
 
-int hif_beacon_transmit(struct wfx_vif *wvif, bool enable_beaconing)
+int hif_beacon_transmit(struct wfx_vif *wvif, bool enable)
 {
 	int ret;
 	struct hif_msg *hif;
 	struct hif_req_beacon_transmit *body = wfx_alloc_hif(sizeof(*body),
 							     &hif);
 
-	body->enable_beaconing = enable_beaconing ? 1 : 0;
+	body->enable_beaconing = enable ? 1 : 0;
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_BEACON_TRANSMIT,
 			sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);

@@ -278,10 +278,11 @@ static inline int hif_set_arp_ipv4_filter(struct wfx_vif *wvif, int idx,
 			     &arg, sizeof(arg));
 }
 
-static inline int hif_use_multi_tx_conf(struct wfx_dev *wdev,
-					bool enabled)
+static inline int hif_use_multi_tx_conf(struct wfx_dev *wdev, bool enable)
 {
-	__le32 arg = enabled ? cpu_to_le32(1) : 0;
+	struct hif_mib_gl_set_multi_msg arg = {
+		.enable_multi_tx_conf = enable,
+	};
 
 	return hif_write_mib(wdev, -1, HIF_MIB_ID_GL_SET_MULTI_MSG,
 			     &arg, sizeof(arg));
@@ -306,7 +307,9 @@ static inline int hif_set_uapsd_info(struct wfx_vif *wvif, unsigned long val)
 
 static inline int hif_erp_use_protection(struct wfx_vif *wvif, bool enable)
 {
-	__le32 arg = enable ? cpu_to_le32(1) : 0;
+	struct hif_mib_non_erp_protection arg = {
+		.use_cts_to_self = enable,
+	};
 
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_NON_ERP_PROTECTION, &arg, sizeof(arg));
@@ -314,16 +317,18 @@ static inline int hif_erp_use_protection(struct wfx_vif *wvif, bool enable)
 
 static inline int hif_slot_time(struct wfx_vif *wvif, int val)
 {
-	__le32 arg = cpu_to_le32(val);
+	struct hif_mib_slot_time arg = {
+		.slot_time = cpu_to_le32(val),
+	};
 
 	return hif_write_mib(wvif->wdev, wvif->id, HIF_MIB_ID_SLOT_TIME,
 			     &arg, sizeof(arg));
 }
 
-static inline int hif_dual_cts_protection(struct wfx_vif *wvif, bool val)
+static inline int hif_dual_cts_protection(struct wfx_vif *wvif, bool enable)
 {
 	struct hif_mib_set_ht_protection arg = {
-		.dual_cts_prot = val,
+		.dual_cts_prot = enable,
 	};
 
 	return hif_write_mib(wvif->wdev, wvif->id, HIF_MIB_ID_SET_HT_PROTECTION,
@@ -332,7 +337,9 @@ static inline int hif_dual_cts_protection(struct wfx_vif *wvif, bool val)
 
 static inline int hif_wep_default_key_id(struct wfx_vif *wvif, int val)
 {
-	__le32 arg = cpu_to_le32(val);
+	struct hif_mib_wep_default_key_id arg = {
+		.wep_default_key_id = val,
+	};
 
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_DOT11_WEP_DEFAULT_KEY_ID,
@@ -341,7 +348,9 @@ static inline int hif_wep_default_key_id(struct wfx_vif *wvif, int val)
 
 static inline int hif_rts_threshold(struct wfx_vif *wvif, int val)
 {
-	__le32 arg = cpu_to_le32(val > 0 ? val : 0xFFFF);
+	struct hif_mib_dot11_rts_threshold arg = {
+		.threshold = cpu_to_le32(val > 0 ? val : 0xFFFF),
+	};
 
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_DOT11_RTS_THRESHOLD, &arg, sizeof(arg));
