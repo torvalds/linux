@@ -1197,7 +1197,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_130[0xa];
 	u8         log_max_ra_res_dc[0x6];
 
-	u8         reserved_at_140[0xa];
+	u8         reserved_at_140[0x9];
+	u8         roce_accl[0x1];
 	u8         log_max_ra_req_qp[0x6];
 	u8         reserved_at_150[0xa];
 	u8         log_max_ra_res_qp[0x6];
@@ -4746,7 +4747,19 @@ struct mlx5_ifc_query_q_counter_out_bits {
 
 	u8         req_cqe_flush_error[0x20];
 
-	u8         reserved_at_620[0x1e0];
+	u8         reserved_at_620[0x20];
+
+	u8         roce_adp_retrans[0x20];
+
+	u8         roce_adp_retrans_to[0x20];
+
+	u8         roce_slow_restart[0x20];
+
+	u8         roce_slow_restart_cnps[0x20];
+
+	u8         roce_slow_restart_trans[0x20];
+
+	u8         reserved_at_6e0[0x120];
 };
 
 struct mlx5_ifc_query_q_counter_in_bits {
