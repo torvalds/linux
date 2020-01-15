@@ -2037,6 +2037,28 @@ static bool io_req_cancelled(struct io_kiocb *req)
 	return false;
 }
 
+static void io_link_work_cb(struct io_wq_work **workptr)
+{
+	struct io_wq_work *work = *workptr;
+	struct io_kiocb *link = work->data;
+
+	io_queue_linked_timeout(link);
+	work->func = io_wq_submit_work;
+}
+
+static void io_wq_assign_next(struct io_wq_work **workptr, struct io_kiocb *nxt)
+{
+	struct io_kiocb *link;
+
+	io_prep_async_work(nxt, &link);
+	*workptr = &nxt->work;
+	if (link) {
+		nxt->work.flags |= IO_WQ_WORK_CB;
+		nxt->work.func = io_link_work_cb;
+		nxt->work.data = link;
+	}
+}
+
 static void io_fsync_finish(struct io_wq_work **workptr)
 {
 	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
@@ -2055,7 +2077,7 @@ static void io_fsync_finish(struct io_wq_work **workptr)
 	io_cqring_add_event(req, ret);
 	io_put_req_find_next(req, &nxt);
 	if (nxt)
-		*workptr = &nxt->work;
+		io_wq_assign_next(workptr, nxt);
 }
 
 static int io_fsync(struct io_kiocb *req, struct io_kiocb **nxt,
@@ -2111,7 +2133,7 @@ static void io_sync_file_range_finish(struct io_wq_work **workptr)
 	io_cqring_add_event(req, ret);
 	io_put_req_find_next(req, &nxt);
 	if (nxt)
-		*workptr = &nxt->work;
+		io_wq_assign_next(workptr, nxt);
 }
 
 static int io_sync_file_range(struct io_kiocb *req, struct io_kiocb **nxt,
@@ -2377,7 +2399,7 @@ static void io_accept_finish(struct io_wq_work **workptr)
 		return;
 	__io_accept(req, &nxt, false);
 	if (nxt)
-		*workptr = &nxt->work;
+		io_wq_assign_next(workptr, nxt);
 }
 #endif
 
@@ -2608,7 +2630,7 @@ static void io_poll_complete_work(struct io_wq_work **workptr)
 		req_set_fail_links(req);
 	io_put_req_find_next(req, &nxt);
 	if (nxt)
-		*workptr = &nxt->work;
+		io_wq_assign_next(workptr, nxt);
 }
 
 static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
@@ -3271,15 +3293,6 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	return 0;
 }
 
-static void io_link_work_cb(struct io_wq_work **workptr)
-{
-	struct io_wq_work *work = *workptr;
-	struct io_kiocb *link = work->data;
-
-	io_queue_linked_timeout(link);
-	work->func = io_wq_submit_work;
-}
-
 static void io_wq_submit_work(struct io_wq_work **workptr)
 {
 	struct io_wq_work *work = *workptr;
@@ -3316,17 +3329,8 @@ static void io_wq_submit_work(struct io_wq_work **workptr)
 	}
 
 	/* if a dependent link is ready, pass it back */
-	if (!ret && nxt) {
-		struct io_kiocb *link;
-
-		io_prep_async_work(nxt, &link);
-		*workptr = &nxt->work;
-		if (link) {
-			nxt->work.flags |= IO_WQ_WORK_CB;
-			nxt->work.func = io_link_work_cb;
-			nxt->work.data = link;
-		}
-	}
+	if (!ret && nxt)
+		io_wq_assign_next(workptr, nxt);
 }
 
 static bool io_req_op_valid(int op)
