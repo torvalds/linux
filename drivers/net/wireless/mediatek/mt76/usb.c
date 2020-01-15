@@ -603,9 +603,10 @@ mt76u_submit_rx_buffers(struct mt76_dev *dev, enum mt76_rxq_id qid)
 	return err;
 }
 
-static int mt76u_alloc_rx(struct mt76_dev *dev)
+static int
+mt76u_alloc_rx_queue(struct mt76_dev *dev, enum mt76_rxq_id qid)
 {
-	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
+	struct mt76_queue *q = &dev->q_rx[qid];
 	int i, err;
 
 	spin_lock_init(&q->lock);
@@ -624,7 +625,7 @@ static int mt76u_alloc_rx(struct mt76_dev *dev)
 			return err;
 	}
 
-	return mt76u_submit_rx_buffers(dev, MT_RXQ_MAIN);
+	return mt76u_submit_rx_buffers(dev, qid);
 }
 
 static void
@@ -966,7 +967,7 @@ int mt76u_alloc_queues(struct mt76_dev *dev)
 {
 	int err;
 
-	err = mt76u_alloc_rx(dev);
+	err = mt76u_alloc_rx_queue(dev, MT_RXQ_MAIN);
 	if (err < 0)
 		return err;
 
