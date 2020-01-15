@@ -890,12 +890,19 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 
 	sdw_modify_slave_status(slave, SDW_SLAVE_ALERT);
 
+	ret = pm_runtime_get_sync(&slave->dev);
+	if (ret < 0 && ret != -EACCES) {
+		dev_err(&slave->dev, "Failed to resume device: %d\n", ret);
+		pm_runtime_put_noidle(slave->bus->dev);
+		return ret;
+	}
+
 	/* Read Instat 1, Instat 2 and Instat 3 registers */
 	ret = sdw_read(slave, SDW_SCP_INT1);
 	if (ret < 0) {
 		dev_err(slave->bus->dev,
 			"SDW_SCP_INT1 read failed:%d\n", ret);
-		return ret;
+		goto io_err;
 	}
 	buf = ret;
 
@@ -903,7 +910,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 	if (ret < 0) {
 		dev_err(slave->bus->dev,
 			"SDW_SCP_INT2/3 read failed:%d\n", ret);
-		return ret;
+		goto io_err;
 	}
 
 	do {
@@ -983,7 +990,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		if (ret < 0) {
 			dev_err(slave->bus->dev,
 				"SDW_SCP_INT1 write failed:%d\n", ret);
-			return ret;
+			goto io_err;
 		}
 
 		/*
@@ -994,7 +1001,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		if (ret < 0) {
 			dev_err(slave->bus->dev,
 				"SDW_SCP_INT1 read failed:%d\n", ret);
-			return ret;
+			goto io_err;
 		}
 		_buf = ret;
 
@@ -1002,7 +1009,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		if (ret < 0) {
 			dev_err(slave->bus->dev,
 				"SDW_SCP_INT2/3 read failed:%d\n", ret);
-			return ret;
+			goto io_err;
 		}
 
 		/* Make sure no interrupts are pending */
@@ -1022,6 +1029,10 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 
 	if (count == SDW_READ_INTR_CLEAR_RETRY)
 		dev_warn(slave->bus->dev, "Reached MAX_RETRY on alert read\n");
+
+io_err:
+	pm_runtime_mark_last_busy(&slave->dev);
+	pm_runtime_put_autosuspend(&slave->dev);
 
 	return ret;
 }
