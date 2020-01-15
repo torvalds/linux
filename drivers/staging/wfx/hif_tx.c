@@ -409,16 +409,23 @@ int hif_set_pm(struct wfx_vif *wvif, bool ps, int dynamic_ps_timeout)
 	return ret;
 }
 
-int hif_start(struct wfx_vif *wvif, const struct hif_req_start *arg)
+int hif_start(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
+	      const struct ieee80211_channel *channel)
 {
 	int ret;
 	struct hif_msg *hif;
 	struct hif_req_start *body = wfx_alloc_hif(sizeof(*body), &hif);
 
-	memcpy(body, arg, sizeof(*body));
-	cpu_to_le16s(&body->channel_number);
-	cpu_to_le32s(&body->beacon_interval);
-	cpu_to_le32s(&body->basic_rate_set);
+	body->dtim_period = conf->dtim_period,
+	body->short_preamble = conf->use_short_preamble,
+	body->channel_number = cpu_to_le16(channel->hw_value),
+	body->beacon_interval = cpu_to_le32(conf->beacon_int);
+	body->basic_rate_set =
+		cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, conf->basic_rates));
+	if (!conf->hidden_ssid) {
+		body->ssid_length = conf->ssid_len;
+		memcpy(body->ssid, conf->ssid, conf->ssid_len);
+	}
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_START, sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
 	kfree(hif);

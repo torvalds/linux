@@ -12,6 +12,8 @@
 
 #include "hif_api_cmd.h"
 
+struct ieee80211_channel;
+struct ieee80211_bss_conf;
 struct ieee80211_tx_queue_params;
 struct cfg80211_scan_request;
 struct wfx_dev;
@@ -51,7 +53,8 @@ int hif_add_key(struct wfx_dev *wdev, const struct hif_req_add_key *arg);
 int hif_remove_key(struct wfx_dev *wdev, int idx);
 int hif_set_edca_queue_params(struct wfx_vif *wvif, u16 queue,
 			      const struct ieee80211_tx_queue_params *arg);
-int hif_start(struct wfx_vif *wvif, const struct hif_req_start *arg);
+int hif_start(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
+	      const struct ieee80211_channel *channel);
 int hif_beacon_transmit(struct wfx_vif *wvif, bool enable);
 int hif_map_link(struct wfx_vif *wvif, u8 *mac_addr, int flags, int sta_id);
 int hif_update_ie(struct wfx_vif *wvif, const struct hif_ie_flags *target_frame,

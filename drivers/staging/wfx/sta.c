@@ -740,38 +740,24 @@ static void wfx_set_cts_work(struct work_struct *work)
 static int wfx_start_ap(struct wfx_vif *wvif)
 {
 	int ret;
-	struct ieee80211_bss_conf *conf = &wvif->vif->bss_conf;
-	struct hif_req_start start = {
-		.channel_number = wvif->channel->hw_value,
-		.beacon_interval = conf->beacon_int,
-		.dtim_period = conf->dtim_period,
-		.short_preamble = conf->use_short_preamble,
-		.basic_rate_set = wfx_rate_mask_to_hw(wvif->wdev,
-						      conf->basic_rates),
-	};
 
-	memset(start.ssid, 0, sizeof(start.ssid));
-	if (!conf->hidden_ssid) {
-		start.ssid_length = conf->ssid_len;
-		memcpy(start.ssid, conf->ssid, start.ssid_length);
-	}
-
-	wvif->beacon_int = conf->beacon_int;
-	wvif->dtim_period = conf->dtim_period;
+	wvif->beacon_int = wvif->vif->bss_conf.beacon_int;
+	wvif->dtim_period = wvif->vif->bss_conf.dtim_period;
 
 	memset(&wvif->link_id_db, 0, sizeof(wvif->link_id_db));
 
 	wvif->wdev->tx_burst_idx = -1;
-	ret = hif_start(wvif, &start);
-	if (!ret)
-		ret = wfx_upload_keys(wvif);
-	if (!ret) {
-		if (wvif_count(wvif->wdev) <= 1)
-			hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
-		wvif->state = WFX_STATE_AP;
-		wfx_update_filtering(wvif);
-	}
-	return ret;
+	ret = hif_start(wvif, &wvif->vif->bss_conf, wvif->channel);
+	if (ret)
+		return ret;
+	ret = wfx_upload_keys(wvif);
+	if (ret)
+		return ret;
+	if (wvif_count(wvif->wdev) <= 1)
+		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
+	wvif->state = WFX_STATE_AP;
+	wfx_update_filtering(wvif);
+	return 0;
 }
 
 static int wfx_update_beaconing(struct wfx_vif *wvif)
