@@ -300,14 +300,12 @@ static struct net_device *hwsim_mon; /* global monitor netdev */
 	.band = NL80211_BAND_2GHZ, \
 	.center_freq = (_freq), \
 	.hw_value = (_freq), \
-	.max_power = 20, \
 }
 
 #define CHAN5G(_freq) { \
 	.band = NL80211_BAND_5GHZ, \
 	.center_freq = (_freq), \
 	.hw_value = (_freq), \
-	.max_power = 20, \
 }
 
 static const struct ieee80211_channel hwsim_channels_2ghz[] = {
