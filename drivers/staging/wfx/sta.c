@@ -116,7 +116,7 @@ int wfx_fwd_probe_req(struct wfx_vif *wvif, bool enable)
 static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 				    struct wfx_grp_addr_table *fp)
 {
-	int i, ret;
+	int i;
 
 	// Temporary workaround for filters
 	return hif_set_data_filtering(wvif, false, true);
@@ -124,25 +124,15 @@ static int wfx_set_mcast_filter(struct wfx_vif *wvif,
 	if (!fp->enable)
 		return hif_set_data_filtering(wvif, false, true);
 
-	for (i = 0; i < fp->num_addresses; i++) {
-		ret = hif_set_mac_addr_condition(wvif, i, fp->address_list[i]);
-		if (ret)
-			return ret;
-	}
+	for (i = 0; i < fp->num_addresses; i++)
+		hif_set_mac_addr_condition(wvif, i, fp->address_list[i]);
+	hif_set_uc_mc_bc_condition(wvif, 0,
+				   HIF_FILTER_UNICAST | HIF_FILTER_BROADCAST);
+	hif_set_config_data_filter(wvif, true, 0, BIT(1),
+				   BIT(fp->num_addresses) - 1);
+	hif_set_data_filtering(wvif, true, true);
 
-	ret = hif_set_uc_mc_bc_condition(wvif, 0, HIF_FILTER_UNICAST |
-						  HIF_FILTER_BROADCAST);
-	if (ret)
-		return ret;
-
-	ret = hif_set_config_data_filter(wvif, true, 0, BIT(1),
-					 BIT(fp->num_addresses) - 1);
-	if (ret)
-		return ret;
-
-	ret = hif_set_data_filtering(wvif, true, true);
-
-	return ret;
+	return 0;
 }
 
 void wfx_update_filtering(struct wfx_vif *wvif)
