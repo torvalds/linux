@@ -362,17 +362,7 @@ static int __wfx_flush(struct wfx_dev *wdev, bool drop)
 void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  u32 queues, bool drop)
 {
-	struct wfx_vif *wvif;
-
-	if (vif) {
-		wvif = (struct wfx_vif *) vif->drv_priv;
-		if (wvif->vif->type == NL80211_IFTYPE_MONITOR)
-			drop = true;
-		if (wvif->vif->type == NL80211_IFTYPE_AP &&
-		    !wvif->enable_beacon)
-			drop = true;
-	}
-	// FIXME: only flush requested vif
+	// FIXME: only flush requested vif and queues
 	__wfx_flush(hw->priv, drop);
 }
 
