@@ -215,7 +215,7 @@ static void notrace el0_svc(struct pt_regs *regs)
 	if (system_uses_irq_prio_masking())
 		gic_write_pmr(GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET);
 
-	el0_svc_handler(regs);
+	do_el0_svc(regs);
 }
 NOKPROBE_SYMBOL(el0_svc);
 
@@ -281,7 +281,7 @@ static void notrace el0_svc_compat(struct pt_regs *regs)
 	if (system_uses_irq_prio_masking())
 		gic_write_pmr(GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET);
 
-	el0_svc_compat_handler(regs);
+	do_el0_svc_compat(regs);
 }
 NOKPROBE_SYMBOL(el0_svc_compat);
 
