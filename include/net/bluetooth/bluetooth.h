@@ -590,6 +590,27 @@ static inline void sco_exit(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_BT_LE)
+int iso_init(void);
+int iso_exit(void);
+bool iso_enabled(void);
+#else
+static inline int iso_init(void)
+{
+	return 0;
+}
+
+static inline int iso_exit(void)
+{
+	return 0;
+}
+
+static inline bool iso_enabled(void)
+{
+	return false;
+}
+#endif
+
 int mgmt_init(void);
 void mgmt_exit(void);
 

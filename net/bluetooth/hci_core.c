@@ -3822,11 +3822,15 @@ static void hci_isodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	conn = hci_conn_hash_lookup_handle(hdev, handle);
 	hci_dev_unlock(hdev);
 
-	/* TODO: Send to upper protocol */
 	if (!conn) {
 		bt_dev_err(hdev, "ISO packet for unknown connection handle %d",
 			   handle);
+		goto drop;
 	}
+
+	/* Send to upper protocol */
+	iso_recv(conn, skb, flags);
+	return;
 
 drop:
 	kfree_skb(skb);
