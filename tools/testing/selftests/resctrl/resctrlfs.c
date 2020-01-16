@@ -388,6 +388,41 @@ out:
 	return ret;
 }
 
+bool check_resctrlfs_support(void)
+{
+	FILE *inf = fopen("/proc/filesystems", "r");
+	DIR *dp;
+	char *res;
+	bool ret = false;
+
+	if (!inf)
+		return false;
+
+	res = fgrep(inf, "nodev\tresctrl\n");
+
+	if (res) {
+		ret = true;
+		free(res);
+	}
+
+	fclose(inf);
+
+	printf("%sok kernel supports resctrl filesystem\n", ret ? "" : "not ");
+	tests_run++;
+
+	dp = opendir(RESCTRL_PATH);
+	printf("%sok resctrl mountpoint \"%s\" exists\n",
+	       dp ? "" : "not ", RESCTRL_PATH);
+	if (dp)
+		closedir(dp);
+	tests_run++;
+
+	printf("# resctrl filesystem %s mounted\n",
+	       find_resctrl_mount(NULL) ? "not" : "is");
+
+	return ret;
+}
+
 char *fgrep(FILE *inf, const char *str)
 {
 	char line[256];
@@ -431,6 +466,48 @@ bool validate_resctrl_feature_request(char *resctrl_val)
 	fclose(inf);
 
 	return found;
+}
+
+int filter_dmesg(void)
+{
+	char line[1024];
+	FILE *fp;
+	int pipefds[2];
+	pid_t pid;
+	int ret;
+
+	ret = pipe(pipefds);
+	if (ret) {
+		perror("pipe");
+		return ret;
+	}
+	pid = fork();
+	if (pid == 0) {
+		close(pipefds[0]);
+		dup2(pipefds[1], STDOUT_FILENO);
+		execlp("dmesg", "dmesg", NULL);
+		perror("executing dmesg");
+		exit(1);
+	}
+	close(pipefds[1]);
+	fp = fdopen(pipefds[0], "r");
+	if (!fp) {
+		perror("fdopen(pipe)");
+		kill(pid, SIGTERM);
+
+		return -1;
+	}
+
+	while (fgets(line, 1024, fp)) {
+		if (strstr(line, "intel_rdt:"))
+			printf("# dmesg: %s", line);
+		if (strstr(line, "resctrl:"))
+			printf("# dmesg: %s", line);
+	}
+	fclose(fp);
+	waitpid(pid, NULL, 0);
+
+	return 0;
 }
 
 int validate_bw_report_request(char *bw_report)

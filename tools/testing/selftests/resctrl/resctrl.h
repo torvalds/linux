@@ -57,7 +57,10 @@ struct resctrl_val_param {
 };
 
 pid_t bm_pid, ppid;
+int tests_run;
 
+bool check_resctrlfs_support(void);
+int filter_dmesg(void);
 int remount_resctrlfs(bool mum_resctrlfs);
 int get_resource_id(int cpu_no, int *resource_id);
 int umount_resctrlfs(void);
@@ -75,5 +78,8 @@ int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
 int run_fill_buf(unsigned long span, int malloc_and_init_memory, int memflush,
 		 int op, char *resctrl_va);
 int resctrl_val(char **benchmark_cmd, struct resctrl_val_param *param);
+int mbm_bw_change(int span, int cpu_no, char *bw_report, char **benchmark_cmd);
+void tests_cleanup(void);
+void mbm_test_cleanup(void);
 
 #endif /* RESCTRL_H */
