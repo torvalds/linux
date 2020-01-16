@@ -53,9 +53,12 @@ struct dummy {
 static int shadow_leak_ctor(void *obj, void *shadow_data, void *ctor_data)
 {
 	int **shadow_leak = shadow_data;
-	int *leak = ctor_data;
+	int **leak = ctor_data;
 
-	*shadow_leak = leak;
+	if (!ctor_data)
+		return -EINVAL;
+
+	*shadow_leak = *leak;
 	return 0;
 }
 
@@ -83,7 +86,7 @@ static struct dummy *livepatch_fix1_dummy_alloc(void)
 	}
 
 	klp_shadow_alloc(d, SV_LEAK, sizeof(leak), GFP_KERNEL,
-			 shadow_leak_ctor, leak);
+			 shadow_leak_ctor, &leak);
 
 	pr_info("%s: dummy @ %p, expires @ %lx\n",
 		__func__, d, d->jiffies_expire);
