@@ -26,6 +26,7 @@ static void cmd_help(void)
 void tests_cleanup(void)
 {
 	mbm_test_cleanup();
+	mba_test_cleanup();
 }
 
 int main(int argc, char **argv)
@@ -33,7 +34,7 @@ int main(int argc, char **argv)
 	int res, c, cpu_no = 1, span = 250, argc_new = argc, i, ben_ind;
 	char *benchmark_cmd[BENCHMARK_ARGS], bw_report[64], bm_type[64];
 	char benchmark_cmd_area[BENCHMARK_ARGS][BENCHMARK_ARG_SIZE];
-	bool has_ben = false, mbm_test = true;
+	bool has_ben = false, mbm_test = true, mba_test = true;
 	int ben_count;
 
 	for (i = 0; i < argc; i++) {
@@ -54,9 +55,12 @@ int main(int argc, char **argv)
 			token = strtok(optarg, ",");
 
 			mbm_test = false;
+			mba_test = false;
 			while (token) {
 				if (!strcmp(token, "mbm")) {
 					mbm_test = true;
+				} else if (!strcmp(token, "mba")) {
+					mba_test = true;
 				} else {
 					printf("invalid argument\n");
 
@@ -123,6 +127,16 @@ int main(int argc, char **argv)
 		res = mbm_bw_change(span, cpu_no, bw_report, benchmark_cmd);
 		printf("%sok MBM: bw change\n", res ? "not " : "");
 		mbm_test_cleanup();
+		tests_run++;
+	}
+
+	if (mba_test) {
+		printf("# Starting MBA Schemata change ...\n");
+		if (!has_ben)
+			sprintf(benchmark_cmd[1], "%d", span);
+		res = mba_schemata_change(cpu_no, bw_report, benchmark_cmd);
+		printf("%sok MBA: schemata change\n", res ? "not " : "");
+		mba_test_cleanup();
 		tests_run++;
 	}
 
