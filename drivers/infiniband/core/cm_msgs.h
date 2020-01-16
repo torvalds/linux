@@ -75,18 +75,6 @@ struct cm_req_msg {
 
 } __packed;
 
-static inline __be32 cm_req_get_local_qpn(struct cm_req_msg *req_msg)
-{
-	return cpu_to_be32(be32_to_cpu(req_msg->offset32) >> 8);
-}
-
-static inline void cm_req_set_local_qpn(struct cm_req_msg *req_msg, __be32 qpn)
-{
-	req_msg->offset32 = cpu_to_be32((be32_to_cpu(qpn) << 8) |
-					 (be32_to_cpu(req_msg->offset32) &
-					  0x000000FF));
-}
-
 static inline enum ib_qp_type cm_req_get_qp_type(struct cm_req_msg *req_msg)
 {
 	u8 transport_type = IBA_GET(CM_REQ_TRANSPORT_SERVICE_TYPE, req_msg);
@@ -116,46 +104,6 @@ static inline void cm_req_set_qp_type(struct cm_req_msg *req_msg,
 	default:
 		IBA_SET(CM_REQ_TRANSPORT_SERVICE_TYPE, req_msg, 0);
 	}
-}
-
-static inline __be32 cm_req_get_starting_psn(struct cm_req_msg *req_msg)
-{
-	return cpu_to_be32(be32_to_cpu(req_msg->offset44) >> 8);
-}
-
-static inline void cm_req_set_starting_psn(struct cm_req_msg *req_msg,
-					   __be32 starting_psn)
-{
-	req_msg->offset44 = cpu_to_be32((be32_to_cpu(starting_psn) << 8) |
-			    (be32_to_cpu(req_msg->offset44) & 0x000000FF));
-}
-
-static inline __be32 cm_req_get_primary_flow_label(struct cm_req_msg *req_msg)
-{
-	return cpu_to_be32(be32_to_cpu(req_msg->primary_offset88) >> 12);
-}
-
-static inline void cm_req_set_primary_flow_label(struct cm_req_msg *req_msg,
-						 __be32 flow_label)
-{
-	req_msg->primary_offset88 = cpu_to_be32(
-				    (be32_to_cpu(req_msg->primary_offset88) &
-				     0x00000FFF) |
-				     (be32_to_cpu(flow_label) << 12));
-}
-
-static inline __be32 cm_req_get_alt_flow_label(struct cm_req_msg *req_msg)
-{
-	return cpu_to_be32(be32_to_cpu(req_msg->alt_offset132) >> 12);
-}
-
-static inline void cm_req_set_alt_flow_label(struct cm_req_msg *req_msg,
-					     __be32 flow_label)
-{
-	req_msg->alt_offset132 = cpu_to_be32(
-				 (be32_to_cpu(req_msg->alt_offset132) &
-				  0x00000FFF) |
-				  (be32_to_cpu(flow_label) << 12));
 }
 
 /* Message REJected or MRAed */
@@ -219,44 +167,12 @@ struct cm_rep_msg {
 
 } __packed;
 
-static inline __be32 cm_rep_get_local_qpn(struct cm_rep_msg *rep_msg)
-{
-	return cpu_to_be32(be32_to_cpu(rep_msg->offset12) >> 8);
-}
-
-static inline void cm_rep_set_local_qpn(struct cm_rep_msg *rep_msg, __be32 qpn)
-{
-	rep_msg->offset12 = cpu_to_be32((be32_to_cpu(qpn) << 8) |
-			    (be32_to_cpu(rep_msg->offset12) & 0x000000FF));
-}
-
-static inline __be32 cm_rep_get_local_eecn(struct cm_rep_msg *rep_msg)
-{
-	return cpu_to_be32(be32_to_cpu(rep_msg->offset16) >> 8);
-}
-
-static inline void cm_rep_set_local_eecn(struct cm_rep_msg *rep_msg, __be32 eecn)
-{
-	rep_msg->offset16 = cpu_to_be32((be32_to_cpu(eecn) << 8) |
-			    (be32_to_cpu(rep_msg->offset16) & 0x000000FF));
-}
-
 static inline __be32 cm_rep_get_qpn(struct cm_rep_msg *rep_msg, enum ib_qp_type qp_type)
 {
 	return (qp_type == IB_QPT_XRC_INI) ?
-		cm_rep_get_local_eecn(rep_msg) : cm_rep_get_local_qpn(rep_msg);
-}
-
-static inline __be32 cm_rep_get_starting_psn(struct cm_rep_msg *rep_msg)
-{
-	return cpu_to_be32(be32_to_cpu(rep_msg->offset20) >> 8);
-}
-
-static inline void cm_rep_set_starting_psn(struct cm_rep_msg *rep_msg,
-					   __be32 starting_psn)
-{
-	rep_msg->offset20 = cpu_to_be32((be32_to_cpu(starting_psn) << 8) |
-			    (be32_to_cpu(rep_msg->offset20) & 0x000000FF));
+		       cpu_to_be32(IBA_GET(CM_REP_LOCAL_EE_CONTEXT_NUMBER,
+					   rep_msg)) :
+		       cpu_to_be32(IBA_GET(CM_REP_LOCAL_QPN, rep_msg));
 }
 
 struct cm_rtu_msg {
@@ -280,17 +196,6 @@ struct cm_dreq_msg {
 	u8 private_data[IB_CM_DREQ_PRIVATE_DATA_SIZE];
 
 } __packed;
-
-static inline __be32 cm_dreq_get_remote_qpn(struct cm_dreq_msg *dreq_msg)
-{
-	return cpu_to_be32(be32_to_cpu(dreq_msg->offset8) >> 8);
-}
-
-static inline void cm_dreq_set_remote_qpn(struct cm_dreq_msg *dreq_msg, __be32 qpn)
-{
-	dreq_msg->offset8 = cpu_to_be32((be32_to_cpu(qpn) << 8) |
-			    (be32_to_cpu(dreq_msg->offset8) & 0x000000FF));
-}
 
 struct cm_drep_msg {
 	struct ib_mad_hdr hdr;
@@ -329,11 +234,6 @@ struct cm_lap_msg {
 
 	u8 private_data[IB_CM_LAP_PRIVATE_DATA_SIZE];
 } __packed;
-
-static inline __be32 cm_lap_get_flow_label(struct cm_lap_msg *lap_msg)
-{
-	return cpu_to_be32(be32_to_cpu(lap_msg->offset56) >> 12);
-}
 
 struct cm_apr_msg {
 	struct ib_mad_hdr hdr;
@@ -375,18 +275,5 @@ struct cm_sidr_rep_msg {
 
 	u8 private_data[IB_CM_SIDR_REP_PRIVATE_DATA_SIZE];
 } __packed;
-
-static inline __be32 cm_sidr_rep_get_qpn(struct cm_sidr_rep_msg *sidr_rep_msg)
-{
-	return cpu_to_be32(be32_to_cpu(sidr_rep_msg->offset8) >> 8);
-}
-
-static inline void cm_sidr_rep_set_qpn(struct cm_sidr_rep_msg *sidr_rep_msg,
-				       __be32 qpn)
-{
-	sidr_rep_msg->offset8 = cpu_to_be32((be32_to_cpu(qpn) << 8) |
-					(be32_to_cpu(sidr_rep_msg->offset8) &
-					 0x000000FF));
-}
 
 #endif /* CM_MSGS_H */
