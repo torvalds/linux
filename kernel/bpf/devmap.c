@@ -340,7 +340,7 @@ static int bq_xmit_all(struct xdp_dev_bulk_queue *bq, u32 flags)
 out:
 	bq->count = 0;
 
-	trace_xdp_devmap_xmit(NULL, 0, sent, drops, bq->dev_rx, dev, err);
+	trace_xdp_devmap_xmit(bq->dev_rx, dev, sent, drops, err);
 	bq->dev_rx = NULL;
 	__list_del_clearprev(&bq->flush_node);
 	return 0;
