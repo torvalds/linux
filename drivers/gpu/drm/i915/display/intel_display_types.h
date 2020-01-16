@@ -214,6 +214,9 @@ struct intel_panel {
 		u8 controller;		/* bxt+ only */
 		struct pwm_device *pwm;
 
+		/* DPCD backlight */
+		u8 pwmgen_bit_count;
+
 		struct backlight_device *device;
 
 		/* Connector and platform specific backlight functions */
