@@ -423,7 +423,7 @@ int cc_send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 
 	rc = cc_pm_get(dev);
 	if (rc) {
-		dev_err(dev, "ssi_power_mgr_runtime_get returned %x\n", rc);
+		dev_err(dev, "cc_pm_get returned %x\n", rc);
 		return rc;
 	}
 
@@ -473,7 +473,7 @@ int cc_send_sync_request(struct cc_drvdata *drvdata,
 
 	rc = cc_pm_get(dev);
 	if (rc) {
-		dev_err(dev, "ssi_power_mgr_runtime_get returned %x\n", rc);
+		dev_err(dev, "cc_pm_get returned %x\n", rc);
 		return rc;
 	}
 
