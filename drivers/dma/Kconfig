@@ -239,6 +239,14 @@ config FSL_RAID
 	  the capability to offload memcpy, xor and pq computation
 	  for raid5/6.
 
+config HISI_DMA
+	tristate "HiSilicon DMA Engine support"
+	depends on ARM64 || (COMPILE_TEST && PCI_MSI)
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support HiSilicon Kunpeng DMA engine.
+
 config IMG_MDC_DMA
 	tristate "IMG MDC support"
 	depends on MIPS || COMPILE_TEST

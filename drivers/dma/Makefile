@@ -35,6 +35,7 @@ obj-$(CONFIG_FSL_EDMA) += fsl-edma.o fsl-edma-common.o
 obj-$(CONFIG_MCF_EDMA) += mcf-edma.o fsl-edma-common.o
 obj-$(CONFIG_FSL_QDMA) += fsl-qdma.o
 obj-$(CONFIG_FSL_RAID) += fsl_raid.o
+obj-$(CONFIG_HISI_DMA) += hisi_dma.o
 obj-$(CONFIG_HSU_DMA) += hsu/
 obj-$(CONFIG_IMG_MDC_DMA) += img-mdc-dma.o
 obj-$(CONFIG_IMX_DMA) += imx-dma.o
