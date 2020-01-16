@@ -98,6 +98,19 @@
 #define mmGCR_GENERAL_CNTL_Sienna_Cichlid			0x1580
 #define mmGCR_GENERAL_CNTL_Sienna_Cichlid_BASE_IDX	0
 
+#define mmCP_HYP_PFP_UCODE_ADDR			0x5814
+#define mmCP_HYP_PFP_UCODE_ADDR_BASE_IDX	1
+#define mmCP_HYP_PFP_UCODE_DATA			0x5815
+#define mmCP_HYP_PFP_UCODE_DATA_BASE_IDX	1
+#define mmCP_HYP_CE_UCODE_ADDR			0x5818
+#define mmCP_HYP_CE_UCODE_ADDR_BASE_IDX		1
+#define mmCP_HYP_CE_UCODE_DATA			0x5819
+#define mmCP_HYP_CE_UCODE_DATA_BASE_IDX		1
+#define mmCP_HYP_ME_UCODE_ADDR			0x5816
+#define mmCP_HYP_ME_UCODE_ADDR_BASE_IDX		1
+#define mmCP_HYP_ME_UCODE_DATA			0x5817
+#define mmCP_HYP_ME_UCODE_DATA_BASE_IDX		1
+
 MODULE_FIRMWARE("amdgpu/navi10_ce.bin");
 MODULE_FIRMWARE("amdgpu/navi10_pfp.bin");
 MODULE_FIRMWARE("amdgpu/navi10_me.bin");
@@ -5393,6 +5406,14 @@ static int gfx_v10_0_cp_gfx_load_pfp_microcode(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmCP_PFP_IC_BASE_HI,
 		upper_32_bits(adev->gfx.pfp.pfp_fw_gpu_addr));
 
+	WREG32_SOC15(GC, 0, mmCP_HYP_PFP_UCODE_ADDR, 0);
+
+	for (i = 0; i < pfp_hdr->jt_size; i++)
+		WREG32_SOC15(GC, 0, mmCP_HYP_PFP_UCODE_DATA,
+			     le32_to_cpup(fw_data + pfp_hdr->jt_offset + i));
+
+	WREG32_SOC15(GC, 0, mmCP_HYP_PFP_UCODE_ADDR, adev->gfx.pfp_fw_version);
+
 	return 0;
 }
 
@@ -5462,6 +5483,14 @@ static int gfx_v10_0_cp_gfx_load_ce_microcode(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmCP_CE_IC_BASE_HI,
 		upper_32_bits(adev->gfx.ce.ce_fw_gpu_addr));
 
+	WREG32_SOC15(GC, 0, mmCP_HYP_CE_UCODE_ADDR, 0);
+
+	for (i = 0; i < ce_hdr->jt_size; i++)
+		WREG32_SOC15(GC, 0, mmCP_HYP_CE_UCODE_DATA,
+			     le32_to_cpup(fw_data + ce_hdr->jt_offset + i));
+
+	WREG32_SOC15(GC, 0, mmCP_HYP_CE_UCODE_ADDR, adev->gfx.ce_fw_version);
+
 	return 0;
 }
 
@@ -5530,6 +5559,14 @@ static int gfx_v10_0_cp_gfx_load_me_microcode(struct amdgpu_device *adev)
 		adev->gfx.me.me_fw_gpu_addr & 0xFFFFF000);
 	WREG32_SOC15(GC, 0, mmCP_ME_IC_BASE_HI,
 		upper_32_bits(adev->gfx.me.me_fw_gpu_addr));
+
+	WREG32_SOC15(GC, 0, mmCP_HYP_ME_UCODE_ADDR, 0);
+
+	for (i = 0; i < me_hdr->jt_size; i++)
+		WREG32_SOC15(GC, 0, mmCP_HYP_ME_UCODE_DATA,
+			     le32_to_cpup(fw_data + me_hdr->jt_offset + i));
+
+	WREG32_SOC15(GC, 0, mmCP_HYP_ME_UCODE_ADDR, adev->gfx.me_fw_version);
 
 	return 0;
 }
