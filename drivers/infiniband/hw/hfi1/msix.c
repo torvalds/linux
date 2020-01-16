@@ -133,7 +133,7 @@ static int msix_request_irq(struct hfi1_devdata *dd, void *arg,
 	if (nr == dd->msix_info.max_requested)
 		return -ENOSPC;
 
-	if (type < IRQ_SDMA && type >= IRQ_OTHER)
+	if (type < IRQ_SDMA || type >= IRQ_OTHER)
 		return -EINVAL;
 
 	irq = pci_irq_vector(dd->pcidev, nr);
