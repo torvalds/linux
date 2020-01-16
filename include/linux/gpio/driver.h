@@ -549,12 +549,14 @@ static inline void *gpiochip_populate_parent_fwspec_twocell(struct gpio_chip *ch
 						    unsigned int parent_hwirq,
 						    unsigned int parent_type)
 {
+	return NULL;
 }
 
 static inline void *gpiochip_populate_parent_fwspec_fourcell(struct gpio_chip *chip,
 						     unsigned int parent_hwirq,
 						     unsigned int parent_type)
 {
+	return NULL;
 }
 
 #endif /* CONFIG_IRQ_DOMAIN_HIERARCHY */
